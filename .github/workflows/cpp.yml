@@ -1,0 +1,76 @@
+name: C/C++ CI
+
+on: pull_request
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+    make:
+        name: Compile Project 
+        runs-on: ubuntu-latest
+
+        steps:
+        - name: checkout
+          uses: actions/checkout@v4
+        
+        - name: Run Centei/pros-build
+          id: build 
+          uses: Centei/pros-build@main
+
+        - name: Upload Artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: ${{ steps.build.outputs.name }}
+            path: ${{ github.workspace }}/compile_commands.json
+            retention-days: 1
+    lint:
+        needs: make
+        name: Format and Lint
+        runs-on: ubuntu-latest
+        permissions:
+          contents: read 
+          pull-requests: write 
+
+        steps:
+        - name: checkout
+          uses: actions/checkout@v4
+
+        - name: Download artifact
+          id: artifact
+          uses: actions/download-artifact@v4
+
+        - name: Move and rename artifact
+          run: |
+            mv ${{ github.workspace }}/compile_commands/compile_commands.json ../compile_commands.json
+        
+        - name: Run commitlint
+          uses: opensource-nepal/commitlint@v1.3.0
+          with:
+            fail_on_error: true
+        
+        - name: Run Vale
+          uses: errata-ai/vale-action@reviewdog
+          with:
+            files: '["src", "include/robot"]'
+            fail_on_error: true
+
+        - name: Run linter
+          uses: cpp-linter/cpp-linter-action@v2
+          id: linter
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            style: 'file'
+            tidy-checks: 'file'
+            tidy-review: true
+            database: '${{ github.workspace}}'
+            version: '18'
+
+        - name: Check linter errors
+          if: steps.linter.outputs.clang-tidy-checks-failed > 0
+          run: exit 1
+        
+        - name: Check format errors
+          if: steps.linter.outputs.clang-format-checks-failed > 0
+          run: exit 1
