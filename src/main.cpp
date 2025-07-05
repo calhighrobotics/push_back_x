@@ -8,12 +8,18 @@
 
 pros::Controller controller(CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({11,12,13});
-pros::MotorGroup leftMotors({-18,-19,-20});
+pros::MotorGroup rightMotors({8,9,10});
+pros::MotorGroup leftMotors({-1,2,-3});
 
-lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, 4, 120, 2);
+lemlib::Drivetrain drivetrain(
+    &leftMotors, 
+    &rightMotors, 
+    11.5, 
+    lemlib::Omniwheel::NEW_325, 
+    450, 
+    2);
 
-pros::IMU imu(15);
+pros::IMU imu(5);
 
 pros::Rotation horizontal_tracking_sensor(16);
 pros::Rotation vertical_tracking_sensor(6);
@@ -47,7 +53,18 @@ lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
                                               0 // maximum acceleration (slew)
 );
 
-lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sensors);
+lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
+                                      35,   // minimum output where drivetrain will move out of 127
+                                      1.002 // expo curve gain
+);
+
+// input curve for steer input during driver control
+lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
+                                  10, // minimum output where drivetrain will move out of 127
+                                  1.012 // expo curve gain
+);
+
+lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 
 /**
@@ -124,14 +141,18 @@ void autonomous() {
 
 
 
+/**
+
+*/
 void opcontrol() {
     while (true)
     {
         int rightControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         int leftControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
 
-        chassis.arcade(leftControl, rightControl, false);
+        chassis.arcade(leftControl, rightControl, false, 0.5);
 
         pros::delay(20);
     }
 }
+
