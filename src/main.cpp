@@ -8,24 +8,25 @@
 
 pros::Controller controller(CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({-11,2,1});
-pros::MotorGroup leftMotors({-16,14,-13});
+pros::MotorGroup rightMotors({11,12,13});
+pros::MotorGroup leftMotors({-18,-19,-20});
 
-lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, 3.25, 450, 2);
+lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, 4, 120, 2);
 
-pros::IMU imu(3);
+pros::IMU imu(15);
 
-pros::Rotation horizontal_tracking_sensor(12);
-pros::Rotation vertical_tracking_sensor(15);
+pros::Rotation horizontal_tracking_sensor(16);
+pros::Rotation vertical_tracking_sensor(6);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 3.75, 9/2.54, 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 3.75, 7/100/2.54,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, 6.5, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1,1);
+
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(30, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              3, // derivative gain (kD)
+                                              100, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
@@ -35,9 +36,9 @@ lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
+lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              10, // derivative gain (kD)
+                                              24.5, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in degrees
                                               100, // small error range timeout, in milliseconds
@@ -101,7 +102,11 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+    chassis.setPose(0,0,0);
+    chassis.moveToPoint(0, 24, 100000);
+    
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -122,10 +127,10 @@ void autonomous() {}
 void opcontrol() {
     while (true)
     {
-        int rightControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
+        int rightControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         int leftControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
 
-        chassis.tank(leftControl, rightControl, false);
+        chassis.arcade(leftControl, rightControl, false);
 
         pros::delay(20);
     }
