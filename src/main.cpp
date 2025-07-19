@@ -1,96 +1,82 @@
 #include "main.h"
-#include "lemlib/api.hpp" 
-#include "liblvgl/llemu.hpp"
-#include "pros/misc.h"
-#include "globals.h"
+#include "command/commandScheduler.h"
+#include "command/commandController.h"
+#include "globals.h" // Assuming 'chassis' is declared in here
+#include "Intake.h"  // Your intake subsystem
+#include "units/units.hpp"
+
+using namespace units;
 
 
-/**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
- */
+// Global Objects
+CommandController primary(pros::E_CONTROLLER_MASTER);
+Intake *intake;
+
+// Command scheduler loop
+[[noreturn]] void update_loop() {
+    while (true) {
+        auto start_time = pros::millis();
+        CommandScheduler::run();
+        pros::c::task_delay_until(&start_time, 10);
+    }
+}
+
+
 void initialize() {
-    pros::lcd::initialize(); // initialize brain screen
-    chassis.calibrate(); // calibrate sensors
-    // print position to brain screen
+    // Start the command scheduler task
+    pros::Task commandSchedulerTask(update_loop);
+
+    // Initialize the intake subsystem on port 5
+    intake = new Intake(pros::Motor(5));
+    // Register the intake and set its default command to stop
+    CommandScheduler::registerSubsystem(intake, intake->pctCommand(0.0));
+
+    // --- Define Controller Triggers ---
+        // Set pctCommand to run while R1 is true
+    primary.getTrigger(DIGITAL_R1)->whileTrue(intake->pctCommand(-1.0));
+
+    // Toggle pctCommand to run while R1 turns to ture
+    primary.getTrigger(DIGITAL_R2)->toggleOnTrue(intake->pctCommand(1.0));
+
+    // Dejam mode, causes the intake to move back and forth quickly
+    primary.getTrigger(DIGITAL_A)->whileTrue(intake->pctCommand(-1.0)
+                                                ->withTimeout(300.0_ms)
+                                                ->andThen(intake->pctCommand(1.0)
+                                                    ->withTimeout(300.0_ms))
+                                                ->repeatedly());
+
+    // --- Initialize Chassis and Screen Task ---
+    pros::lcd::initialize();
+    // The 'chassis' object must be defined in another file like globals.cpp
+    chassis.calibrate();
+
     pros::Task screen_task([&]() {
         while (true) {
-            // print robot location to the brain screen
-            pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
-            // delay to save resources
+            pros::lcd::print(0, "X: %f", chassis.getPose().x);
+            pros::lcd::print(1, "Y: %f", chassis.getPose().y);
+            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
             pros::delay(20);
         }
     });
 }
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
 
- */
 void disabled() {}
 
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
 void competition_initialize() {}
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
 void autonomous() {
-    chassis.setPose(0,0,0);
-    chassis.moveToPoint(0, 24, 100000);
-    
+    // Your autonomous code will go here
 }
 
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
-
-
-
-/**
-
-*/
 void opcontrol() {
-    while (true)
-    {
-        int rightControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
-        int leftControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+    while (true) {
+        int leftControl = primary.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        int rightControl = primary.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-        chassis.arcade(leftControl, rightControl, false, 0.5);
+        // The 'chassis' object must be defined elsewhere
+        chassis.arcade(leftControl, rightControl);
 
         pros::delay(20);
     }
 }
-

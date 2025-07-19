@@ -1,8 +1,11 @@
+#include <cmath>
 #include "lemlib/api.hpp"
 #include "pros/misc.h"
 
+
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
+pros::Motor intakeMotor(5);
 pros::MotorGroup rightMotors({8,9,10});
 pros::MotorGroup leftMotors({-1,2,-3});
 
