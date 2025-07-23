@@ -1,11 +1,8 @@
-#include <cmath>
-#include "lemlib/api.hpp"
 #include "pros/misc.h"
-
+#include "lemlib/chassis/chassis.hpp"
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::Motor intakeMotor(5);
 pros::MotorGroup rightMotors({8,9,10});
 pros::MotorGroup leftMotors({-1,2,-3});
 
@@ -17,10 +14,10 @@ lemlib::Drivetrain drivetrain(
     450, 
     2);
 
-pros::IMU imu(5);
+pros::IMU imu(4);
 
-pros::Rotation horizontal_tracking_sensor(16);
-pros::Rotation vertical_tracking_sensor(6);
+pros::Rotation horizontal_tracking_sensor(14);
+pros::Rotation vertical_tracking_sensor(7);
 
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, 6.5, 1); //Units are in inches
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1,1);

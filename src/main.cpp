@@ -23,27 +23,19 @@ Intake *intake;
 
 
 void initialize() {
+
+    chassis.calibrate(); // calibrate sensors
     pros::Task commandSchedulerTask(update_loop);
-    intake = new Intake(pros::Motor(1));
+    intake = new Intake(pros::Motor(20));
     CommandScheduler::registerSubsystem(intake, intake->pctCommand(0.0));
-    primary.getTrigger(DIGITAL_R1)->whileTrue(intake->pctCommand(-1.0));
-    primary.getTrigger(DIGITAL_R2)->toggleOnTrue(intake->pctCommand(1.0));
+    primary.getTrigger(DIGITAL_L1)->whileTrue(intake->pctCommand(-1.0));
+    primary.getTrigger(DIGITAL_L2)->whileTrue(intake->pctCommand(1.0));
     primary.getTrigger(DIGITAL_A)->whileTrue(intake->pctCommand(-1.0)
                                                     ->withTimeout(300_ms)
                                                     ->andThen(intake->pctCommand(1.0)
                                                         ->withTimeout(300_ms))
                                                     ->repeatedly());
-    pros::lcd::initialize(); // initialize brain screen
-    chassis.calibrate(); // calibrate sensors
     // print position to brain screen
-    pros::Task screen_task([&]() {
-        while (true) {
-            pros::lcd::print(0, "X: %f", chassis.getPose().x);
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y);
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
-            pros::delay(20);
-        }
-    });
 }
 
 
@@ -56,13 +48,4 @@ void autonomous() {
 }
 
 void opcontrol() {
-    while (true) {
-            int leftControl = primary.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-            int rightControl = primary.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
-
-            // The 'chassis' object must be defined elsewhere
-            chassis.arcade(leftControl, rightControl);
-
-            pros::delay(20);
-        }
 }
