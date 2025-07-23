@@ -56,7 +56,7 @@ void autonomous() {
 }
 
 void opcontrol() {
-        while (true) {
+    while (true) {
             int leftControl = primary.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
             int rightControl = primary.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
