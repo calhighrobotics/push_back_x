@@ -6,6 +6,8 @@
 #include "subsystem.h"
 #include "eventLoop.h"
 #include <ranges>
+#include <vector>
+#include <functional>
 
 // Like WPILib's CommandScheduler class
 class CommandScheduler {

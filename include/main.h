@@ -35,9 +35,9 @@
 #define PROS_USE_LITERALS
 
 #include "api.h"
-#include "units/units.hpp"
 #include "command/includes.h"
 #include "Intake.h"
+#include "units/units.hpp"
 
 
 /**
