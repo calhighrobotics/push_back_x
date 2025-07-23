@@ -98,18 +98,18 @@ const std::vector<float> path_1_angular = {
 
 pros::Controller controller(CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({-11,2,1});
-pros::MotorGroup leftMotors({-16,14,-13});
+pros::MotorGroup rightMotors({11,12,13});
+pros::MotorGroup leftMotors({-18,-19,-20});
 
-lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10.1, 3.25, 450, 2);
+lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors, 10, 3.25, 120, 2);
 
-pros::IMU imu(3);
+pros::IMU imu(15);
 
-pros::Rotation horizontal_tracking_sensor(12);
-pros::Rotation vertical_tracking_sensor(15);
+pros::Rotation horizontal_tracking_sensor(-6);
+pros::Rotation vertical_tracking_sensor(-16);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 3.75, 9/2.54, 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 3.75, 7/100/2.54,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 3.75, 7.1*2.54/100, 1);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 3.75, 0.1*2.54/100,1);
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
@@ -141,8 +141,8 @@ lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sens
 
 std::vector<double> calculate_velocities(double linear, double angular)
 {   
-    double right_vel = linear + 0.5*angular*0.25654;
-    double left_vel = linear - 0.5*angular*0.25654;
+    double right_vel = linear + 0.5*angular*0.254;
+    double left_vel = linear - 0.5*angular*0.254;
     return std::vector<double>{right_vel, left_vel};
 }
 
@@ -243,11 +243,6 @@ void autonomous() {
 void opcontrol() {
     while (true)
     {
-        int rightControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-        int leftControl = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-
-        chassis.tank(leftControl, rightControl, false);
-
-        pros::delay(20);
+        chassis.turnToHeading(90, 3000);
     }
 }
