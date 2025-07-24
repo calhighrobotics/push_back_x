@@ -23,7 +23,6 @@ Intake *intake;
 
 
 void initialize() {
-
     chassis.calibrate(); // calibrate sensors
     pros::Task commandSchedulerTask(update_loop);
     intake = new Intake(pros::Motor(20));
@@ -38,7 +37,6 @@ void initialize() {
     // print position to brain screen
 }
 
-
 void disabled() {}
 
 void competition_initialize() {}
@@ -48,4 +46,5 @@ void autonomous() {
 }
 
 void opcontrol() {
+
 }
