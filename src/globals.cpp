@@ -56,7 +56,7 @@ lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
 // input curve for steer input during driver control
 lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
                                   10, // minimum output where drivetrain will move out of 127
-                                  1.012 // expo curve gain
+                                  1.002 // expo curve gain
 );
 
 lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
