@@ -29,7 +29,7 @@ void initialize() {
     intake = new Intake(pros::Motor(20));
     CommandScheduler::registerSubsystem(intake, intake->pctCommand(0.0));
     primary.getTrigger(DIGITAL_L1)->whileTrue(intake->pctCommand(-1.0));
-    primary.getTrigger(DIGITAL_L2)->whileTrue(intake->pctCommand(1.0));
+    primary.getTrigger(DIGITAL_2)->whileTrue(intake->pctCommand(1.0));
     primary.getTrigger(DIGITAL_A)->whileTrue(intake->pctCommand(-1.0)
                                                     ->withTimeout(300_ms)
                                                     ->andThen(intake->pctCommand(1.0)
