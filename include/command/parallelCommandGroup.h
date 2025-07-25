@@ -1,7 +1,7 @@
 #pragma once
 #include <set>
 #include "command.h"
-#include <ranges>
+
 #include <bits/ranges_algo.h>
 
 /**

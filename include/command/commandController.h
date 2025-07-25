@@ -2,10 +2,6 @@
 
 #include "commandScheduler.h"
 #include "trigger.h"
-#include <ranges>
-#include <vector>
-#include <functional>
-
 
 /**
  * @brief Command Controller overrides pros::Controller and makes it better interface with \refitem Trigger and command
