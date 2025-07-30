@@ -29,7 +29,7 @@ void initialize() {
 
     chassis.calibrate(); // calibrate sensors
     pros::Task commandSchedulerTask(update_loop);
-    intake = new Intake(pros::Motor(20));
+    intake = new Intake(pros::Motor(9));
     CommandScheduler::registerSubsystem(intake, intake->pctCommand(0.0));
     CommandScheduler::registerSubsystem(drivetrain_control, drivetrain_control->driverControl(0, 0));
     primary.getTrigger(DIGITAL_L1)->whileTrue(intake->pctCommand(-1.0));
@@ -39,7 +39,6 @@ void initialize() {
                                                     ->andThen(intake->pctCommand(1.0)
                                                         ->withTimeout(300_ms))
                                                     ->repeatedly());
-    // print position to brain screen
 
 }
 
