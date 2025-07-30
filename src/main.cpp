@@ -480,13 +480,9 @@ void initialize() {
     });
 }
 
-rd::Selector selector({
-    {"Test Ramsete Auton", ramsete_auton},
-});
-
 void autonomous()
 {
-    selector.run_auton();
+    ramsete_auton();
 }
 
 void disabled() 
