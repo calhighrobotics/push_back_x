@@ -1,5 +1,6 @@
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
+#include <memory>
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
