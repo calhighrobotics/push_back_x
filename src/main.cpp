@@ -572,8 +572,8 @@ void ramsete_auton() {
         rightMotors.move_voltage(right * 1000.0);
         leftMotors.move_voltage(left * 1000.0);
 
-        //std::cout << Vector2(chassis.getPose().x,chassis.getPose().y).latex() << ",";
-        //std::cout.flush();
+        std::cout << Vector2(chassis.getPose().x,chassis.getPose().y).latex() << ",";
+        std::cout.flush();
 
         
         pros::delay(10);
@@ -602,7 +602,6 @@ void initialize() {
 void autonomous()
 {
     ramsete_auton();
-
 }
 
 void disabled() 
