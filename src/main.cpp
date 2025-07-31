@@ -4,6 +4,7 @@
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/chassis/chassis.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
+#include "lemlib/util.hpp"
 #include "liblvgl/llemu.hpp"
 #include "pros/misc.h"
 #include "pros/motor_group.hpp"
@@ -357,6 +358,19 @@ lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
 
 lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sensors);
 
+class Vector2 {
+public:
+    Vector2(float x, float y) : x(x), y(y) {}
+    std::string latex() const {
+        std::ostringstream oss;
+        oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
+        return oss.str();
+    }
+
+    float x;
+    float y;
+};
+
 lemlib::PID right_vel_pid(0.109602958174,1.98706406926,0);
 lemlib::PID left_vel_pid(0.109602958174,1.98706406926,0);
 
@@ -376,14 +390,16 @@ struct State
     double x, y , heading, linear_vel, angular_vel;
 };
 
+float meter_to_inch = 39.3701;
+
 std::vector<State> prepare_trajectory() {
     std::vector<State> states;
     states.resize(X.size()); 
 
     for(int i = 0; i < X.size(); i++) {
-        states[i].x = X.at(i).first;
-        states[i].y = X.at(i).second;
-        states[i].linear_vel = L.at(i).second;
+        states[i].x = X.at(i).first * meter_to_inch;
+        states[i].y = X.at(i).second * meter_to_inch;
+        states[i].linear_vel = L.at(i).second * meter_to_inch;
         states[i].angular_vel = A.at(i).second;
     }
 
@@ -398,15 +414,108 @@ std::vector<State> prepare_trajectory() {
     return states;
 }
 
+class VelocityController {
+public:
+    // Gains
+    double kV; // velocity feedforward
+    double kA; // acceleration feedforward
+    double kS; // static friction compensation
+    double kP; // proportional gain
+    double kI; // integral gain
+
+    VelocityController(double kv, double ka, double ks, double kp, double ki)
+        : kV(kv), kA(ka), kS(ks), kP(kp), kI(ki), integral(0.0), lastTargetVelocity(0.0), pid(kp, ki, 0, 0, false) {}
+
+    double update(double targetVelocity, double measuredVelocity) {
+        // Velocity error
+        double error = targetVelocity - measuredVelocity;
+        // Change in target velocity (acceleration)
+        double deltaTargetVelocity = (targetVelocity - lastTargetVelocity)/0.01;
+        // Static compensation
+        double staticTerm = kS * sign(targetVelocity);
+        double integralTerm = integral + error * 0.01;
+
+        // Total output voltage
+        double voltage = kV * targetVelocity + kA * deltaTargetVelocity + staticTerm + kP * error + kI * integralTerm;
+
+        lastTargetVelocity = targetVelocity;
+        integral = integralTerm;
+        return voltage;
+    }
+
+private:
+    double integral;
+    double lastTargetVelocity;
+    lemlib::PID pid;
+
+    int sign(double x) {
+        return (x > 0) - (x < 0); // returns 1, 0, or -1
+    }
+};
+
+struct VelocityControllerConfig {
+    double kV = 0.0; // velocity feedforward
+    double kA = 0.0; // acceleration feedforward
+    double kS = 0.0; // static friction compensation
+    double kP = 0.0; // proportional gain
+    double kI = 0.0; // integral gain
+
+    VelocityControllerConfig() = default;
+
+    VelocityControllerConfig(double kv, double ka, double ks, double kp, double ki)
+        : kV(kv), kA(ka), kS(ks), kP(kp), kI(ki) {}
+};
+
+VelocityControllerConfig test_config{0.0536081766093, 0.00318573203587, 0.355059053395, 0.109602958174, 1.98706406926};
+
+/**
+void velocity_test(const VelocityControllerConfig &config, std::vector<std::pair<float, float>> linear_vel, std::vector<std::pair<float, float>>  angular_vel) {
+    VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
+    VelocityController left_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
+
+    std::cout << "\\left[";
+    const double wheel_circumference = 3.25 * 0.0254 * std::numbers::pi;
+    int i;
+    for (i = 0; i < linear_vel.size(); ++i) {
+        auto right = linear_vel.at(i).second/wheel_circumference - angular_vel.at(i).second;
+        auto left = linear_vel.at(i).second/wheel_circumference + angular_vel.at(i).second;
+        
+        
+
+        double right_speed = rightMotors.get_actual_velocity();
+        double left_speed = leftMotors.get_actual_velocity();
+
+        std::cout << Vector2(right_speed,left_speed).latex() << ",";
+        std::cout.flush();
+
+        //std::cout << Vector2(chassis.getPose().x,chassis.getPose().y).latex() << ",";
+        //std::cout.flush();
+        double rightVoltage = right_controller.update(right, right_speed);
+        double leftVoltage = left_controller.update(left, left_speed);
+        rightMotors.move_voltage(rightVoltage * 1000);
+        leftMotors.move_voltage(leftVoltage * 1000);
+        pros::delay(10);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+    std::cout << "\b" << std::endl;
+}
+*/
+
 void ramsete_auton() {
     chassis.setPose(0,0,0);
     const double b = 2.0; // Controls how strongly/Aggresiveley the controller follows the path
     const double zeta = 0.7; // Basically a damping term
-    const double track_width = 0.254;
+    const double track_width = 10;
     VelocityProfile vp; 
 
-    lemlib::PID left_vel_pid(0.109602958174, 1.98706406926, 0); 
-    lemlib::PID right_vel_pid(0.109602958174, 1.98706406926, 0);
+    //lemlib::PID left_vel_pid(0.109602958174, 1.98706406926, 0); 
+    //lemlib::PID right_vel_pid(0.109602958174, 1.98706406926, 0);
+
+    VelocityControllerConfig config{0.0536081766093, 0.00318573203587, 0.355059053395, 0.109602958174, 1.98706406926};
+    VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
+    VelocityController left_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
 
     std::vector<State> trajectory = prepare_trajectory();
     if (trajectory.empty()) return;
@@ -416,7 +525,7 @@ void ramsete_auton() {
     double last_linear_velocity = 0;
 
     for(const auto& target_state : trajectory) {
-        lemlib::Pose current_pose = chassis.getPose();
+        lemlib::Pose current_pose = chassis.getPose(true);
 
         Eigen::Matrix3d rotation_matrix;
         rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0,
@@ -426,7 +535,10 @@ void ramsete_auton() {
         Eigen::Vector3d global_error;
         global_error << target_state.x - current_pose.x,
                         target_state.y - current_pose.y,
-                        target_state.heading - current_pose.theta;
+                        lemlib::angleError(target_state.heading, current_pose.theta, true);
+
+        std::cout << Vector2(target_state.x,target_state.y).latex() << ",";
+        std::cout.flush();
         
         Eigen::Vector3d local_error = rotation_matrix * global_error;
         
@@ -443,24 +555,32 @@ void ramsete_auton() {
         
         double acceleration = (v - last_linear_velocity) / 0.01;
         last_linear_velocity = v;
-        
-        double left_ff_voltage = (vp.KS * sign(left_target_velocity)) + (vp.KV * left_target_velocity) + (vp.KA * acceleration);
-        double right_ff_voltage = (vp.KS * sign(right_target_velocity)) + (vp.KV * right_target_velocity) + (vp.KA * acceleration);
 
+
+        //double left_ff_voltage = (vp.KS * sign(left_target_velocity)) + (vp.KV * left_target_velocity) + (vp.KA * acceleration);
+        //double right_ff_voltage = (vp.KS * sign(right_target_velocity)) + (vp.KV * right_target_velocity) + (vp.KA * acceleration);
+        
         const double wheel_circumference = 3.25 * 0.0254 * std::numbers::pi;
         double left_actual_velocity = (leftMotors.get_actual_velocity() / 60.0) * wheel_circumference;
         double right_actual_velocity = (rightMotors.get_actual_velocity() / 60.0) * wheel_circumference;
-
+    
         double left_fb_voltage = left_vel_pid.update(left_target_velocity - left_actual_velocity);
         double right_fb_voltage = right_vel_pid.update(right_target_velocity - right_actual_velocity);
 
-        double left_total_voltage = left_ff_voltage + left_fb_voltage;
-        double right_total_voltage = right_ff_voltage + right_fb_voltage;
-
-        rightMotors.move_voltage(right_total_voltage * 1000.0);
-        leftMotors.move_voltage(left_total_voltage * 1000.0);
+        double right = right_controller.update(right_target_velocity , right_actual_velocity);
+        double left = left_controller.update(left_target_velocity , left_actual_velocity);
         
-        pros::delay(100);
+        //double left_total_voltage = left_ff_voltage + left_fb_voltage;
+        //double right_total_voltage = right_ff_voltage - right_fb_voltage;
+
+        rightMotors.move_voltage(right * 1000.0);
+        leftMotors.move_voltage(left * 1000.0);
+
+        //std::cout << Vector2(chassis.getPose().x,chassis.getPose().y).latex() << ",";
+        //std::cout.flush();
+
+        
+        pros::delay(10);
     }
 
     rightMotors.move_voltage(0);
@@ -480,9 +600,15 @@ void initialize() {
     });
 }
 
+
+
+
 void autonomous()
 {
+    chassis.setPose(0,0,0);
+    //velocity_test(test_config, L, A);
     ramsete_auton();
+
 }
 
 void disabled() 
