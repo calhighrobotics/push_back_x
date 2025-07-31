@@ -1,4 +1,3 @@
-#include <vector>
 #include "main.h"
 #include "fmt/core.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
@@ -11,6 +10,7 @@
 #include <vector>
 #include <utility> 
 #include "Eigen/Core"
+#include <cmath>
 
 
 
@@ -371,9 +371,6 @@ public:
     float y;
 };
 
-lemlib::PID right_vel_pid(0.109602958174,1.98706406926,0);
-lemlib::PID left_vel_pid(0.109602958174,1.98706406926,0);
-
 double sign(double x) {
     if (x > 0) return 1;
     if (x < 0) return -1;
@@ -507,7 +504,7 @@ void ramsete_auton() {
     chassis.setPose(0,0,0);
     const double b = 2.0; // Controls how strongly/Aggresiveley the controller follows the path
     const double zeta = 0.7; // Basically a damping term
-    const double track_width = 10;
+    const double track_width = 10.05;
     VelocityProfile vp; 
 
     //lemlib::PID left_vel_pid(0.109602958174, 1.98706406926, 0); 
@@ -537,8 +534,7 @@ void ramsete_auton() {
                         target_state.y - current_pose.y,
                         lemlib::angleError(target_state.heading, current_pose.theta, true);
 
-        std::cout << Vector2(target_state.x,target_state.y).latex() << ",";
-        std::cout.flush();
+        
         
         Eigen::Vector3d local_error = rotation_matrix * global_error;
         
@@ -564,8 +560,8 @@ void ramsete_auton() {
         double left_actual_velocity = (leftMotors.get_actual_velocity() / 60.0) * wheel_circumference;
         double right_actual_velocity = (rightMotors.get_actual_velocity() / 60.0) * wheel_circumference;
     
-        double left_fb_voltage = left_vel_pid.update(left_target_velocity - left_actual_velocity);
-        double right_fb_voltage = right_vel_pid.update(right_target_velocity - right_actual_velocity);
+        //double left_fb_voltage = left_vel_pid.update(left_target_velocity - left_actual_velocity);
+        //double right_fb_voltage = right_vel_pid.update(right_target_velocity - right_actual_velocity);
 
         double right = right_controller.update(right_target_velocity , right_actual_velocity);
         double left = left_controller.update(left_target_velocity , left_actual_velocity);
@@ -605,8 +601,6 @@ void initialize() {
 
 void autonomous()
 {
-    chassis.setPose(0,0,0);
-    //velocity_test(test_config, L, A);
     ramsete_auton();
 
 }
