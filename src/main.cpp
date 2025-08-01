@@ -465,43 +465,7 @@ struct VelocityControllerConfig {
 
 VelocityControllerConfig test_config{0.0536081766093, 0.00318573203587, 0.355059053395, 0.109602958174, 1.98706406926};
 
-/**
-void velocity_test(const VelocityControllerConfig &config, std::vector<std::pair<float, float>> linear_vel, std::vector<std::pair<float, float>>  angular_vel) {
-    VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
-    VelocityController left_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
-
-    std::cout << "\\left[";
-    const double wheel_circumference = 3.25 * 0.0254 * std::numbers::pi;
-    int i;
-    for (i = 0; i < linear_vel.size(); ++i) {
-        auto right = linear_vel.at(i).second/wheel_circumference - angular_vel.at(i).second;
-        auto left = linear_vel.at(i).second/wheel_circumference + angular_vel.at(i).second;
-        
-        
-
-        double right_speed = rightMotors.get_actual_velocity();
-        double left_speed = leftMotors.get_actual_velocity();
-
-        std::cout << Vector2(right_speed,left_speed).latex() << ",";
-        std::cout.flush();
-
-        //std::cout << Vector2(chassis.getPose().x,chassis.getPose().y).latex() << ",";
-        //std::cout.flush();
-        double rightVoltage = right_controller.update(right, right_speed);
-        double leftVoltage = left_controller.update(left, left_speed);
-        rightMotors.move_voltage(rightVoltage * 1000);
-        leftMotors.move_voltage(leftVoltage * 1000);
-        pros::delay(10);
-    }
-
-    leftMotors.brake();
-    rightMotors.brake();
-    std::cout << "\b" << std::endl;
-}
-*/
-
 void ramsete_auton() {
-    chassis.setPose(0,0,0);
     const double b = 2.0; // Controls how strongly/Aggresiveley the controller follows the path
     const double zeta = 0.7; // Basically a damping term
     const double track_width = 10.05;
@@ -517,7 +481,7 @@ void ramsete_auton() {
     std::vector<State> trajectory = prepare_trajectory();
     if (trajectory.empty()) return;
 
-    chassis.setPose(trajectory[0].x, trajectory[0].y, trajectory[0].heading);
+    chassis.setPose(trajectory[0].x, trajectory[0].y, trajectory[0].heading, true);
 
     double last_linear_velocity = 0;
 
@@ -530,9 +494,9 @@ void ramsete_auton() {
                           0, 0, 1;
 
         Eigen::Vector3d global_error;
-        global_error << target_state.x - current_pose.x,
-                        target_state.y - current_pose.y,
-                        lemlib::angleError(target_state.heading, current_pose.theta, true);
+                global_error << target_state.x - current_pose.x,
+                target_state.y - current_pose.y,
+                lemlib::angleError(target_state.heading, current_pose.theta, true);
 
         
         
@@ -549,14 +513,14 @@ void ramsete_auton() {
         double left_target_velocity = v - (track_width / 2.0) * w;
         double right_target_velocity = v + (track_width / 2.0) * w;
         
-        double acceleration = (v - last_linear_velocity) / 0.01;
+        double acceleration = (v - last_linear_velocity);
         last_linear_velocity = v;
 
 
         //double left_ff_voltage = (vp.KS * sign(left_target_velocity)) + (vp.KV * left_target_velocity) + (vp.KA * acceleration);
         //double right_ff_voltage = (vp.KS * sign(right_target_velocity)) + (vp.KV * right_target_velocity) + (vp.KA * acceleration);
         
-        const double wheel_circumference = 3.25 * 0.0254 * std::numbers::pi;
+        const double wheel_circumference = 4 * std::numbers::pi;
         double left_actual_velocity = (leftMotors.get_actual_velocity() / 60.0) * wheel_circumference;
         double right_actual_velocity = (rightMotors.get_actual_velocity() / 60.0) * wheel_circumference;
     
@@ -581,6 +545,26 @@ void ramsete_auton() {
 
     rightMotors.move_voltage(0);
     leftMotors.move_voltage(0);
+    rightMotors.brake();
+    leftMotors.brake();
+}
+
+void collect_voltage_step_data(float step_input, unsigned int duration) {
+    std::vector<float> outputs = {};
+    duration *= 100;
+    outputs.reserve(duration);
+
+    leftMotors.move_voltage(step_input * 1000);
+    rightMotors.move_voltage(step_input * 1000);
+
+    for (int i = 0; i < duration; ++i) {
+        auto speed = (leftMotors.get_actual_velocity()+rightMotors.get_actual_velocity())/2;
+        std::cout << Vector2((float)i / 100, speed).latex() << "," << std::flush;
+        pros::delay(10);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
 }
 
 void initialize() {
@@ -601,7 +585,9 @@ void initialize() {
 
 void autonomous()
 {
-    ramsete_auton();
+    //ramsete_auton();
+    chassis.setPose(0,0,0);
+    collect_voltage_step_data(12, 2);
 }
 
 void disabled() 
