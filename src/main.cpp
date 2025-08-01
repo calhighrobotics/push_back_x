@@ -29,12 +29,6 @@ Drivetrain *drivetrain_control;
     }
 }
 
-void blue_right_auton()
-{
-    ParallelCommandGroup(const std::initializer_list<Command> commands{});
-
-}
-
 
 void initialize() {
 
