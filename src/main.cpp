@@ -1,14 +1,19 @@
 #include "main.h"
 #include "command/commandScheduler.h"
 #include "command/commandController.h"
+#include "command/parallelCommandGroup.h"
 #include "globals.h" // Assuming 'chassis' is declared in here
 #include "Intake.h"  // Your intake subsystem
 #include "pros/misc.h"
 #include "units/units.hpp"
 #include "Drivetrain.h"
+#include <vector>
 
 using namespace units;
 
+ASSET(blue_right_1_txt);
+ASSET(blue_right_2_txt);
+ASSET(blue_right_3_txt);
 
 // Global Objects
 CommandController primary(pros::E_CONTROLLER_MASTER);
@@ -22,6 +27,12 @@ Drivetrain *drivetrain_control;
         CommandScheduler::run();
         pros::c::task_delay_until(&start_time, 10);
     }
+}
+
+void blue_right_auton()
+{
+    ParallelCommandGroup(const std::initializer_list<Command> commands{});
+
 }
 
 
@@ -49,8 +60,27 @@ void competition_initialize() {}
 
 void autonomous() {
     chassis.setPose(0,0,0);
-    drivetrain_control->moveToPoint(0, 24, 1000);
-    drivetrain_control->turnToPoint(90, 1000);
+    int i = 1;
+    switch(i)
+    {
+        case 1:
+        {
+
+            break;
+        }
+        case 2:
+        {
+            break;
+        }
+        case 3:
+        {
+            break;
+        }
+        case 4:
+        {
+            break;
+        }
+    }
 }
 
 void opcontrol() {

@@ -36,6 +36,11 @@ public:
         chassis.turnToHeading(heading, timeout);
     }
 
+    void follow_path(auto path, int timeout)
+    {
+        chassis.follow(path, 15, timeout);
+    }
+
     RunCommand* driverControl(const std::function<double()>& left_stick, const std::function<double()>& right_stick) {
         return new RunCommand(
             [this, left_stick, right_stick] () {
@@ -64,6 +69,18 @@ public:
             {this}
         );
     }
+
+    RunCommand* followPath(auto path, const int timeout)
+    {
+        return new RunCommand(
+            [this, path, timeout] ()
+            {
+                this->follow_path(path, timeout);
+            },
+            {this}
+        );
+    }
+    
 
 
     ~Drivetrain() override = default;
