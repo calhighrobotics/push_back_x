@@ -7,6 +7,7 @@
 #include "pros/misc.h"
 #include "units/units.hpp"
 #include "Drivetrain.h"
+#include <initializer_list>
 #include <vector>
 
 using namespace units;
@@ -14,7 +15,7 @@ using namespace units;
 // Global Objects
 CommandController primary(pros::E_CONTROLLER_MASTER);
 Intake *intake;
-Drivetrain *drivetrain_control;
+DrivetrainSubsystem *drivetrain_control;
 
 // Command scheduler loop
 [[noreturn]] void update_loop() {
@@ -31,9 +32,8 @@ void initialize() {
     chassis.calibrate(); // calibrate sensors
     pros::Task commandSchedulerTask(update_loop);
     intake = new Intake(pros::Motor(6));
-    drivetrain_control = new Drivetrain(chassis);
+    drivetrain_control = new DrivetrainSubsystem(std::initializer_list<int8_t>{8,-9,10}, std::initializer_list<int8_t>{-1,2,-3}, &chassis);
     CommandScheduler::registerSubsystem(intake, intake->pctCommand(0.0));
-    CommandScheduler::registerSubsystem(drivetrain_control, drivetrain_control->driverControl(0, 0));
     primary.getTrigger(DIGITAL_L1)->whileTrue(intake->pctCommand(-1.0));
     primary.getTrigger(DIGITAL_L2)->whileTrue(intake->pctCommand(1.0));
     primary.getTrigger(DIGITAL_A)->whileTrue(intake->pctCommand(-1.0)
@@ -41,6 +41,14 @@ void initialize() {
                                                     ->andThen(intake->pctCommand(1.0)
                                                         ->withTimeout(300_ms))
                                                     ->repeatedly());
+     CommandScheduler::registerSubsystem(drivetrain_control, new RunCommand(
+        [=]() {
+            double left_stick = primary.get_analog(ANALOG_LEFT_Y);
+            double right_stick = primary.get_analog(ANALOG_RIGHT_Y);
+            drivetrain_control->tank(left_stick, right_stick);
+        },
+        {drivetrain_control}
+    ));
     pros::delay(20);
 
 }
@@ -54,8 +62,4 @@ void autonomous() {
 }
 
 void opcontrol() {
-        while(true)
-        {
-            drivetrain_control->driverControl(primary.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y), primary.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y));
-        }
 }

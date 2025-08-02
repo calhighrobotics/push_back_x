@@ -1,69 +1,46 @@
 #pragma once
-#include "lemlib/api.hpp"
-#include "command/subsystem.h"
+
+#include <utility>
 #include "command/runCommand.h"
-#include "lemlib/asset.hpp"
+#include "command/subsystem.h"
+#include "lemlib/api.hpp"
+#include "pros/motor_group.hpp"
 
-class Drivetrain : public Subsystem {
+
+class DrivetrainSubsystem : public Subsystem {
 private:
-
-    lemlib::Chassis& chassis;
+    pros::MotorGroup left11W, right11W;
+    lemlib::Chassis* chassis;
 
 public:
-
-    explicit Drivetrain(lemlib::Chassis& chassis)
-        : chassis(chassis) { // Initialize the reference
+    DrivetrainSubsystem(const std::initializer_list<int8_t> left11_w, const std::initializer_list<int8_t> right11_w,
+                        lemlib::Chassis* chassis) : left11W(left11_w), right11W(right11_w), chassis(chassis)
+     {
+        left11W.set_gearing_all(pros::MotorGears::blue);
+        right11W.set_gearing_all(pros::MotorGears::blue);
+        left11W.set_encoder_units_all(pros::MotorEncoderUnits::rotations);
+        right11W.set_encoder_units_all(pros::MotorEncoderUnits::rotations);
     }
-    
-    /**
-     * @brief Periodic runs every frame (10ms) by the command scheduler.
-     */
+
+
     void periodic() override {
-        std::cout << "Pose: " << chassis.getPose().x << ", " << chassis.getPose().y << ", " << chassis.getPose().theta << std::endl;
     }
 
-
-    void Tank(const double left, const double right) {
-        this->chassis.tank(left, right);
+    void setPct(const double left, const double right) {
+        this->left11W.move_voltage(left * 12000.0);
+        this->right11W.move_voltage(right * 12000.0);
     }
 
-    void moveTo(double x, double y, double timeout) {
-        chassis.moveToPoint(x, y, timeout);
-    }
-
-    void turnTo(double heading, double timeout)
+    void tank(const double left, const double right)
     {
-        chassis.turnToHeading(heading, timeout);
+        chassis->tank(left, right);
     }
 
-    RunCommand* driverControl(const double left_stick, const double right_stick) {
-        return new RunCommand(
-            [this, left_stick, right_stick] () {
-                this->Tank(left_stick, right_stick);
-            },
-            {this}
-        );
+
+
+    RunCommand *pct(double left, double right) {
+        return new RunCommand([this, left, right]() { this->setPct(left, right); }, {this});
     }
 
-    RunCommand* moveToPoint(const double x, const double y, const double timeout) {
-        return new RunCommand(
-            [this, x, y, timeout] () {
-                this->moveTo(x, y, timeout);
-            },
-            {this}
-        );
-    }
-
-    RunCommand* turnToPoint(const double heading, const double timeout)
-    {
-        return new RunCommand(
-            [this, heading, timeout] ()
-            {
-                this->turnTo(heading, timeout);
-            },
-            {this}
-        );
-    }
-
-    ~Drivetrain() override = default;
+    ~DrivetrainSubsystem() override = default;
 };
