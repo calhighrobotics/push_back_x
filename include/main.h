@@ -35,15 +35,7 @@
 #define PROS_USE_LITERALS
 
 #include "api.h"
-#include "command/includes.h"
-#include "Intake.h"
-#include "units/units.hpp"
 
-
-/**
- * You should add more #includes here
- */
-//#include "okapi/api.hpp"
 
 /**
  * If you find doing pros::Motor() to be tedious and you'd prefer just to do

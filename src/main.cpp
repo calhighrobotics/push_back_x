@@ -1,65 +1,53 @@
 #include "main.h"
-#include "command/commandScheduler.h"
-#include "command/commandController.h"
-#include "command/parallelCommandGroup.h"
-#include "globals.h" // Assuming 'chassis' is declared in here
-#include "Intake.h"  // Your intake subsystem
-#include "pros/misc.h"
-#include "units/units.hpp"
-#include "Drivetrain.h"
-#include <initializer_list>
-#include <vector>
+#include "globals.h" 
+#include "subsystems/Intake.h"
+#include "subsystems/Pneumatics.h"
+#include "subsystems/Drivetrain.h"
 
-using namespace units;
+Intake* intake = new Intake(&intakeMotor);
+Pneumatics* piston = new Pneumatics('A');
+Drivetrain* drivetrain = new Drivetrain(&chassis);
+
 
 // Global Objects
-CommandController primary(pros::E_CONTROLLER_MASTER);
-Intake *intake;
-DrivetrainSubsystem *drivetrain_control;
-
-// Command scheduler loop
-[[noreturn]] void update_loop() {
-    while (true) {
-        auto start_time = pros::millis();
-        CommandScheduler::run();
-        pros::c::task_delay_until(&start_time, 10);
-    }
-}
-
-
 void initialize() {
+    pros::lcd::initialize();
+    chassis.calibrate();
+    pros::Task screen_task([&]() {
+        while (true) {
+            pros::lcd::print(0, "X: %f", chassis.getPose().x);
+            pros::lcd::print(1, "Y: %f", chassis.getPose().y);
+            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
+            pros::delay(20);
+        }
+    });
+}
 
-    chassis.calibrate(); // calibrate sensors
-    pros::Task commandSchedulerTask(update_loop);
-    intake = new Intake(pros::Motor(6));
-    drivetrain_control = new DrivetrainSubsystem(std::initializer_list<int8_t>{8,-9,10}, std::initializer_list<int8_t>{-1,2,-3}, &chassis);
-    CommandScheduler::registerSubsystem(intake, intake->pctCommand(0.0));
-    primary.getTrigger(DIGITAL_L1)->whileTrue(intake->pctCommand(-1.0));
-    primary.getTrigger(DIGITAL_L2)->whileTrue(intake->pctCommand(1.0));
-    primary.getTrigger(DIGITAL_A)->whileTrue(intake->pctCommand(-1.0)
-                                                    ->withTimeout(300_ms)
-                                                    ->andThen(intake->pctCommand(1.0)
-                                                        ->withTimeout(300_ms))
-                                                    ->repeatedly());
-     CommandScheduler::registerSubsystem(drivetrain_control, new RunCommand(
-        [=]() {
-            double left_stick = primary.get_analog(ANALOG_LEFT_Y);
-            double right_stick = primary.get_analog(ANALOG_RIGHT_Y);
-            drivetrain_control->tank(left_stick, right_stick);
-        },
-        {drivetrain_control}
-    ));
-    pros::delay(20);
+void disabled() {
 
 }
 
+void competition_initialize() {
 
-void disabled() {}
-
-void competition_initialize() {}
+}
 
 void autonomous() {
+    intake->auton_run_async(1.0);
+    piston->auton_run_async(true);
+    drivetrain->drive_to_async(0,24,1000);
+    pros::delay(5000);
+    intake->end();
+    piston->end();
+    drivetrain->end();
 }
 
 void opcontrol() {
+    while(true)
+    {
+        drivetrain->run();
+        intake->run();
+        piston->run();
+        pros::delay(10);
+    }
+
 }

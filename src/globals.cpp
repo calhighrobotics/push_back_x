@@ -1,13 +1,15 @@
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
-#include <memory>
+#include "pros/adi.h"
+#include "pros/adi.hpp"
+
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 pros::MotorGroup rightMotors({8,-9,10});
 pros::MotorGroup leftMotors({-1,2,-3});
 
-lemlib::Drivetrain drivetrain(
+lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
     11.5, 
@@ -60,4 +62,6 @@ lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
                                   1.012 // expo curve gain
 );
 
-lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
+lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
+
+pros::Motor intakeMotor(6);
