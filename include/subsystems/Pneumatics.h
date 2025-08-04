@@ -10,6 +10,7 @@ class Pneumatics {
         bool state = false;
         bool running = false;
 
+
     public:
         explicit Pneumatics(char port)
         {
@@ -53,8 +54,6 @@ class Pneumatics {
                 delete auton_task;  // Clean up old task
             }
             auton_task = new pros::Task([this, desired_state]() {
-                while(running)
-                {
                     if(desired_state)
                     {
                         if(!state)
@@ -64,7 +63,6 @@ class Pneumatics {
                     }
                     else { if(state) { this->retract(); } }
                     pros::delay(10);
-                }
             });
         }
 

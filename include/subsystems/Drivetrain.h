@@ -30,6 +30,11 @@ class Drivetrain {
             });
         }
 
+        lemlib::Pose getPose()
+        {
+            return chassis->getPose();
+        }    
+
         void drive_voltage(double left_pct, double right_pct, int duration_ms = 1000) {
             end(); 
             running = true;
@@ -52,6 +57,14 @@ class Drivetrain {
             leftMotors.move_voltage(0);
             rightMotors.move_voltage(0);
         }
+
+        void wait_for_completion() {
+            if (auton_task != nullptr) {
+                auton_task->join(); 
+                delete auton_task;
+                auton_task = nullptr;
+            }
+}
 };
 
 
