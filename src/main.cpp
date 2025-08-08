@@ -18,7 +18,6 @@ void initialize() {
             pros::lcd::print(0, "X: %f", chassis.getPose().x);
             pros::lcd::print(1, "Y: %f", chassis.getPose().y);
             pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
-            pros::lcd::print(3, "Piston State: %s", piston->getState() ? "Extended" : "Retracted"); 
             pros::delay(20);
         }
     });
@@ -33,13 +32,6 @@ void competition_initialize() {
 }
 
 void autonomous() {
-    intake->auton_run_async(1.0);
-    piston->auton_run_async(true);
-    drivetrain->drive_to_async(0,24,1000);
-    drivetrain->wait_for_completion();
-    intake->end();
-    piston->end();
-    drivetrain->end();
 }
 
 void opcontrol() {

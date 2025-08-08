@@ -25,7 +25,7 @@ class Drivetrain {
 
         void drive_to_async(float x = 0, float y = 0, float timeout = 0) {
             end(); 
-            auton_task = new pros::Task([=]() {
+            auton_task = new pros::Task([this, x, y, timeout]() {
                 chassis->moveToPoint(x, y, timeout);
             });
         }
@@ -38,7 +38,7 @@ class Drivetrain {
         void drive_voltage(double left_pct, double right_pct, int duration_ms = 1000) {
             end(); 
             running = true;
-            auton_task = new pros::Task([=]() {
+            auton_task = new pros::Task([this, left_pct, right_pct, duration_ms]() {
                 leftMotors.move_voltage(left_pct * 12000);
                 rightMotors.move_voltage(right_pct * 12000);
                 pros::delay(duration_ms);
