@@ -2,6 +2,7 @@
 #include "Eigen/Core"
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/util.hpp"
+#include "pros/llemu.hpp"
 #include "pros/misc.h"
 #include <type_traits>
 
@@ -777,8 +778,8 @@ pros::MotorGroup leftMotors({-18, -19, -20});
 
 // FIX: Convert track width and wheel diameter to meters
 lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors,
-                              10.05 * INCH_TO_METER, // 10 inches -> meters
-                              4 * INCH_TO_METER,     // LemLib handles this enum, but it's 4 inches
+                              10.05, // 10 inches -> meters
+                              4,     // LemLib handles this enum, but it's 4 inches
                               160, 2);
 
 pros::IMU imu(15);
@@ -787,12 +788,12 @@ pros::Rotation horizontal_tracking_sensor(6);
 pros::Rotation vertical_tracking_sensor(-16);
 
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor,
-                                                2 * INCH_TO_METER,   // 2 inch wheel diameter -> meters
-                                                7.1 * INCH_TO_METER, // 7.1 inch offset -> meters
+                                                2,   // 2 inch wheel diameter -> meters
+                                                7.1, // 7.1 inch offset -> meters
                                                 1);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor,
-                                              2 * INCH_TO_METER,   // 2 inch wheel diameter -> meters
-                                              0.1 * INCH_TO_METER, // 0.1 inch offset -> meters
+                                              2,   // 2 inch wheel diameter -> meters
+                                              0.1, // 0.1 inch offset -> meters
                                               1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
@@ -802,11 +803,11 @@ lemlib::ControllerSettings lateral_controller(10,                // kP
                                               0,                 // kI
                                               3,                 // kD
                                               3,                 // windup
-                                              1 * INCH_TO_METER, // small error range in meters
+                                              1, // small error range in meters
                                               100,
-                                              3 * INCH_TO_METER, // large error range in meters
+                                              3, // large error range in meters
                                               500,
-                                              20 * INCH_TO_METER // slew rate in meters/sec^2
+                                              20 // slew rate in meters/sec^2
 );
 
 // Angular controller error ranges are in degrees, so they don't need conversion
@@ -986,21 +987,21 @@ void ramsete_auton() {
         double sinc_error_heading = e_t == 0 ? 1.0 : std::sin(e_t) / e_t;
         double w = wd + k * e_t + (b * vd * sinc_error_heading * e_y);
 
-        double left_target_velocity = (60 * 1.25 / wheel_circumference) * (vd - (track_width / 2.0) * wd);
-        double right_target_velocity = (60 * 1.25 / wheel_circumference) * (vd + (track_width / 2.0) * wd);
+        double left_target_velocity = (60 * 1.25 / wheel_circumference) * (v - (track_width / 2.0) * w);
+        double right_target_velocity = (60 * 1.25 / wheel_circumference) * (v + (track_width / 2.0) * w);
 
-        double right = right_controller.update(right_target_velocity, rightMotors.get_actual_velocity());
         double left = left_controller.update(left_target_velocity, leftMotors.get_actual_velocity());
+        double right = right_controller.update(right_target_velocity, rightMotors.get_actual_velocity());
 
         rightMotors.move_voltage(right * 1000.0);
         leftMotors.move_voltage(left * 1000.0);
 
         // std::cout << Vector2(time, wd).latex() << ",";
         // std::cout.flush();
-        std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
+        // std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
         // std::cout << Vector2(time, left_target_velocity).latex() << ",";
         //  std::cout << Vector2(pros::millis()/1000,left_target_velocity).latex() << ",";
-        std::cout.flush();
+        // std::cout.flush();
 
         pros::delay(10);
         time += 0.01;
@@ -1011,19 +1012,40 @@ void ramsete_auton() {
 }
 
 void initialize() {
-    pros::lcd::initialize();
     chassis.calibrate();
+    pros::lcd::initialize();
+
     pros::Task screen_task([&]() {
         while (true) {
             pros::lcd::print(0, "X: %f", chassis.getPose().x);
             pros::lcd::print(1, "Y: %f", chassis.getPose().y);
-            pros::lcd::print(2, "Theta: %f", chassis.getPose(true).theta);
+            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
+
+            //Eigen::Matrix3d rotation_matrix;
+            //Eigen::Vector3d global_error;
+            //Eigen::Vector3d local_error;
+
+            //lemlib::Pose current_pose = chassis.getPose(true);
+
+            //rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0,
+            //    -std::sin(current_pose.theta), std::cos(current_pose.theta), 0, 0, 0, 1;
+
+            //global_error << 1.171 - current_pose.x, 0.82 - current_pose.y,
+            //    angleError(current_pose.theta, 0);
+            
+            //local_error = rotation_matrix * global_error;
+            //pros::lcd::print(0, "X Error: %f", local_error(0));
+            //pros::lcd::print(1, "Y Error: %f", local_error(1));
+            //pros::lcd::print(2, "T Error: %f", local_error(2));
             pros::delay(20);
         }
     });
 }
 
-void autonomous() { ramsete_auton(); }
+void autonomous() {
+    //ramsete_auton();
+    chassis.moveToPoint(0, 12, 10000);
+}
 
 void disabled() {}
 
