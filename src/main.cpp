@@ -4,6 +4,7 @@
 #include "lemlib/util.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
+#include <cmath>
 #include <type_traits>
 
 std::vector<std::pair<double, double>> X = {
@@ -799,11 +800,11 @@ lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor,
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // FIX: Convert lateral controller error ranges to meters
-lemlib::ControllerSettings lateral_controller(10,                // kP
-                                              0,                 // kI
-                                              3,                 // kD
-                                              3,                 // windup
-                                              1, // small error range in meters
+lemlib::ControllerSettings lateral_controller(10, // kP
+                                              0,  // kI
+                                              3,  // kD
+                                              3,  // windup
+                                              1,  // small error range in meters
                                               100,
                                               3, // large error range in meters
                                               500,
@@ -940,11 +941,24 @@ double angleError(double robotAngle, double targetAngle) {
 
     return diff;
 }
+//double angleError(double robotAngle, double targetAngle) {
+//    return std::remainder(robotAngle - targetAngle, M_PI_2);
+//}
+
 
 const double wheel_circumference = 4 * M_PI * INCH_TO_METER; // meters
 const double gear_ratio = 0.8;
 const double rps_to_mps_factor = (wheel_circumference / gear_ratio) / 60;
 VelocityControllerConfig config{0.0536081766093, 0.00318573203587, 0.355059053395, 0.109602958174, 1.98706406926};
+
+inline double sinc(double x) {
+    const double eps = 1e-9;
+    if (std::abs(x) < eps) {
+        // 1 - x^2/6 + O(x^4)
+        return 1.0 - (x * x) / 6.0;
+    }
+    return std::sin(x) / x;
+}
 
 void ramsete_auton() {
     const double b = 2;      // Controls how strongly/Aggresiveley the controller follows the path
@@ -959,12 +973,16 @@ void ramsete_auton() {
     if (trajectory.empty())
         return;
 
-    chassis.setPose(trajectory[0].x, trajectory[0].y, trajectory[0].heading, true);
+    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, trajectory[0].heading, true);
 
     float time = 0;
     for (const auto &target_state : trajectory) {
 
         lemlib::Pose current_pose = chassis.getPose(true);
+        current_pose.x *= INCH_TO_METER;
+        current_pose.y *= INCH_TO_METER;
+        current_pose.theta *= -1;
+        double AngleError = angleError(current_pose.theta, target_state.heading); 
 
         Eigen::Matrix3d rotation_matrix;
         rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0, -std::sin(current_pose.theta),
@@ -972,7 +990,7 @@ void ramsete_auton() {
 
         Eigen::Vector3d global_error;
         global_error << target_state.x - current_pose.x, target_state.y - current_pose.y,
-            angleError(current_pose.theta, target_state.heading);
+            AngleError;
 
         Eigen::Vector3d local_error = rotation_matrix * global_error;
 
@@ -982,10 +1000,12 @@ void ramsete_auton() {
         double e_y = local_error(1);
         double e_t = local_error(2);
 
-        double k = 2 * zeta * std::sqrt(wd * wd + b * vd * vd);
+        double k = 2.0 * zeta * std::sqrt(wd * wd + b * vd * vd);
         double v = vd * std::cos(e_t) + k * e_x;
-        double sinc_error_heading = e_t == 0 ? 1.0 : std::sin(e_t) / e_t;
-        double w = wd + k * e_t + (b * vd * sinc_error_heading * e_y);
+        double w = wd + k * e_t + (b * vd * sinc(e_t) * e_y);
+
+        std::cout << Vector2(time, local_error(2)).latex() << ",";
+        std::cout.flush();
 
         double left_target_velocity = (60 * 1.25 / wheel_circumference) * (v - (track_width / 2.0) * w);
         double right_target_velocity = (60 * 1.25 / wheel_circumference) * (v + (track_width / 2.0) * w);
@@ -996,7 +1016,7 @@ void ramsete_auton() {
         rightMotors.move_voltage(right * 1000.0);
         leftMotors.move_voltage(left * 1000.0);
 
-        // std::cout << Vector2(time, wd).latex() << ",";
+        // 
         // std::cout.flush();
         // std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
         // std::cout << Vector2(time, left_target_velocity).latex() << ",";
@@ -1019,20 +1039,21 @@ void initialize() {
         while (true) {
             pros::lcd::print(0, "X: %f", chassis.getPose().x);
             pros::lcd::print(1, "Y: %f", chassis.getPose().y);
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
+            pros::lcd::print(2, "Theta: %f", chassis.getPose(true).theta);
 
             //Eigen::Matrix3d rotation_matrix;
             //Eigen::Vector3d global_error;
             //Eigen::Vector3d local_error;
 
             //lemlib::Pose current_pose = chassis.getPose(true);
+            //current_pose.x *= INCH_TO_METER;
+            //current_pose.y *= INCH_TO_METER;
 
             //rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0,
             //    -std::sin(current_pose.theta), std::cos(current_pose.theta), 0, 0, 0, 1;
 
-            //global_error << 1.171 - current_pose.x, 0.82 - current_pose.y,
-            //    angleError(current_pose.theta, 0);
-            
+            //global_error << 1.171 - current_pose.x, 0.82 - current_pose.y, angleError(0, current_pose.theta);
+
             //local_error = rotation_matrix * global_error;
             //pros::lcd::print(0, "X Error: %f", local_error(0));
             //pros::lcd::print(1, "Y Error: %f", local_error(1));
@@ -1043,8 +1064,9 @@ void initialize() {
 }
 
 void autonomous() {
-    //ramsete_auton();
-    chassis.moveToPoint(0, 12, 10000);
+    ramsete_auton();
+    // chassis.moveToPoint(0, -12, 10000, {.forwards = false});
+    // chassis.turnToHeading(-120, 10000);
 }
 
 void disabled() {}
