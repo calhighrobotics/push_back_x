@@ -865,7 +865,7 @@ std::vector<State> prepare_trajectory() {
     }
 
     for (int i = 0; i < states.size() - 1; i++) {
-        states[i].heading = atan2(states[i + 1].y - states[i].y, states[i + 1].x - states[i].x) - M_PI_2;
+        states[i].heading = atan2(states[i + 1].y - states[i].y, states[i + 1].x - states[i].x);
     }
 
     if (!states.empty()) {
@@ -961,7 +961,7 @@ inline double sinc(double x) {
 }
 
 void ramsete_auton() {
-    const double b = 2;      // Controls how strongly/Aggresiveley the controller follows the path
+    const double b = 2.0;      // Controls how strongly/Aggresiveley the controller follows the path
     const double zeta = 0.7; // Basically a damping term
     const double track_width = 10.05 * INCH_TO_METER;
     VelocityProfile vp;
@@ -973,26 +973,28 @@ void ramsete_auton() {
     if (trajectory.empty())
         return;
 
-    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, trajectory[0].heading, true);
-
+    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, chassis.getPose(true).theta, true);
+    std::vector<std::string> logs;
     float time = 0;
     for (const auto &target_state : trajectory) {
 
         lemlib::Pose current_pose = chassis.getPose(true);
+        Eigen::Matrix3d rotation_matrix;
+        Eigen::Vector3d global_error;
+        Eigen::Vector3d local_error;
+
         current_pose.x *= INCH_TO_METER;
         current_pose.y *= INCH_TO_METER;
-        current_pose.theta *= -1;
+        current_pose.theta = M_PI_2 - current_pose.theta;
         double AngleError = angleError(current_pose.theta, target_state.heading); 
 
-        Eigen::Matrix3d rotation_matrix;
         rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0, -std::sin(current_pose.theta),
             std::cos(current_pose.theta), 0, 0, 0, 1;
 
-        Eigen::Vector3d global_error;
         global_error << target_state.x - current_pose.x, target_state.y - current_pose.y,
             AngleError;
 
-        Eigen::Vector3d local_error = rotation_matrix * global_error;
+        local_error = rotation_matrix * global_error;
 
         double vd = target_state.linear_vel;
         double wd = target_state.angular_vel;
@@ -1004,8 +1006,8 @@ void ramsete_auton() {
         double v = vd * std::cos(e_t) + k * e_x;
         double w = wd + k * e_t + (b * vd * sinc(e_t) * e_y);
 
-        std::cout << Vector2(time, local_error(2)).latex() << ",";
-        std::cout.flush();
+        //std::cout << Vector2(time, local_error.norm()).latex() << ",";
+        //std::cout.flush();
 
         double left_target_velocity = (60 * 1.25 / wheel_circumference) * (v - (track_width / 2.0) * w);
         double right_target_velocity = (60 * 1.25 / wheel_circumference) * (v + (track_width / 2.0) * w);
@@ -1016,6 +1018,22 @@ void ramsete_auton() {
         rightMotors.move_voltage(right * 1000.0);
         leftMotors.move_voltage(left * 1000.0);
 
+        std::ostringstream ss;
+        ss << "time=" << time
+           << " e_x=" << e_x
+           << " e_y=" << e_y
+           << " e_t=" << e_t
+           << " vd=" << vd
+           << " wd=" << wd
+           << " v=" << v
+           << " w=" << w
+           << " left_target_velocity=" << left_target_velocity
+           << " right_target_velocity=" << right_target_velocity
+           << " current_pose.x=" << current_pose.x
+           << " current_pose.y=" << current_pose.y
+           << " current_pose.theta=" << current_pose.theta;
+        logs.push_back(ss.str());
+
         // 
         // std::cout.flush();
         // std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
@@ -1025,6 +1043,10 @@ void ramsete_auton() {
 
         pros::delay(10);
         time += 0.01;
+    }
+    for (const auto& line : logs) {
+        std::cout << line << std::endl;
+        pros::delay(200);
     }
 
     rightMotors.brake();
@@ -1037,27 +1059,29 @@ void initialize() {
 
     pros::Task screen_task([&]() {
         while (true) {
-            pros::lcd::print(0, "X: %f", chassis.getPose().x);
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y);
-            pros::lcd::print(2, "Theta: %f", chassis.getPose(true).theta);
+            //pros::lcd::print(0, "X: %f", chassis.getPose().x);
+            //pros::lcd::print(1, "Y: %f", chassis.getPose().y);
+            //pros::lcd::print(2, "Theta: %f", chassis.getPose(true).theta);
 
-            //Eigen::Matrix3d rotation_matrix;
-            //Eigen::Vector3d global_error;
-            //Eigen::Vector3d local_error;
+            Eigen::Matrix3d rotation_matrix;
+            Eigen::Vector3d global_error;
+            Eigen::Vector3d local_error;
 
-            //lemlib::Pose current_pose = chassis.getPose(true);
-            //current_pose.x *= INCH_TO_METER;
-            //current_pose.y *= INCH_TO_METER;
+            lemlib::Pose current_pose = chassis.getPose(true);
+            current_pose.x *= INCH_TO_METER;
+            current_pose.y *= INCH_TO_METER;
+            current_pose.theta = M_PI_2 - current_pose.theta;
+            double AngleError = angleError(current_pose.theta, M_PI_2); 
 
-            //rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0,
-            //    -std::sin(current_pose.theta), std::cos(current_pose.theta), 0, 0, 0, 1;
+            rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0, -std::sin(current_pose.theta),
+                std::cos(current_pose.theta), 0, 0, 0, 1;
 
-            //global_error << 1.171 - current_pose.x, 0.82 - current_pose.y, angleError(0, current_pose.theta);
+            global_error << 1.171 - current_pose.x, 0.82 - current_pose.y, AngleError;
 
-            //local_error = rotation_matrix * global_error;
-            //pros::lcd::print(0, "X Error: %f", local_error(0));
-            //pros::lcd::print(1, "Y Error: %f", local_error(1));
-            //pros::lcd::print(2, "T Error: %f", local_error(2));
+            local_error = rotation_matrix * global_error;
+            pros::lcd::print(0, "X Error: %f", local_error(0));
+            pros::lcd::print(1, "Y Error: %f", local_error(1));
+            pros::lcd::print(2, "T Error: %f", local_error(2));
             pros::delay(20);
         }
     });
