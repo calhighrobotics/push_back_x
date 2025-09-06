@@ -2,22 +2,48 @@
 #include "globals.h" 
 #include "pros/misc.h"
 
+void auton1()
+{
+    chassis.moveToPoint(0, 12, 1000);
+}
+
+void auton2()
+{
+    chassis.turnToHeading(90, 1000);
+}
+
+void auton3()
+{
+    chassis.moveToPoint(0, -12, 1000);
+}
+
+
+rd::Selector selector({
+    {"Test auton 1", auton1},
+    {"Test auton 2", auton2},
+    {"Test auton 3", auton3},
+});
+
+
+
 // Global Objects
 void initialize() {
     pros::lcd::initialize();
     chassis.calibrate();
+    rd::Console console;
     pros::Task screen_task([&]() {
         while (true) {
-            pros::lcd::print(0, "X: %f", chassis.getPose().x);
-            pros::lcd::print(1, "Y: %f", chassis.getPose().y);
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta);
+            lemlib::Pose pose = chassis.getPose();
+            console.printf("X: %f\n", pose.x);
+            console.printf("Y: %f\n", pose.y);
+            console.printf("Theta: %f\n", pose.theta);
             pros::delay(20);
         }
     });
 }
 
 void disabled() {
-
+    selector.focus();
 }
 
 void competition_initialize() {
@@ -25,7 +51,7 @@ void competition_initialize() {
 }
 
 void autonomous() {
-
+    selector.run_auton();
 }
 
 void opcontrol() {
