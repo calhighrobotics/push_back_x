@@ -6,7 +6,7 @@
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({8,-9,10});
+pros::MotorGroup rightMotors({11,-12,13});
 pros::MotorGroup leftMotors({-1,2,-3});
 
 lemlib::Drivetrain drivebase(
@@ -65,3 +65,11 @@ lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(6);
+pros::Motor agitator(16);
+
+pros::adi::Pneumatics topRoller('B', true);
+pros::adi::Pneumatics midRollerHeight('A', true);
+pros::adi::Pneumatics basketExtension('D', false);
+pros::adi::Pneumatics midRollerDirection('C', false);
+
+
