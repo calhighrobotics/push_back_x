@@ -61,7 +61,7 @@ void opcontrol() {
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
         {
-            agitator.move_voltage(12000);
+            agitator.move_voltage(-12000);
         }
         else {
             agitator.brake();
