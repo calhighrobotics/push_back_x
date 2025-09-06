@@ -17,10 +17,10 @@ lemlib::Drivetrain drivebase(
     450, 
     2);
 
-pros::IMU imu(8);
+pros::IMU imu(4);
 
-pros::Rotation horizontal_tracking_sensor(9);
-pros::Rotation vertical_tracking_sensor(10);
+pros::Rotation horizontal_tracking_sensor(14);
+pros::Rotation vertical_tracking_sensor(7);
 
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, 6.5, 1); //Units are in inches
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1,1);
