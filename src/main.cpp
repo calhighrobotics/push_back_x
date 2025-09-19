@@ -29,7 +29,6 @@ rd::Console console;
 
 // Global Objects
 void initialize() {
-    pros::lcd::initialize();
     chassis.calibrate();
     pros::Task screen_task([&]() {
         while (true) {
