@@ -61,35 +61,46 @@ void opcontrol() {
         double x = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
         chassis.arcade(y, x, false);
 
+        //R1 - outake long goal
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
         {
+            topRoller.extend();
+            agitator.move_voltage(12000);
             intakeMotor.move_voltage(12000);
+            if(midRollerDirection.is_extended())
+            {
+                midRollerDirection.retract();
+            }
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
         {
+            //R2 - Bottom goal
+            agitator.move_voltage(12000);
             intakeMotor.move_voltage(-12000);
+            if(midRollerDirection.is_extended())
+            {
+                midRollerDirection.retract();
+            }
         }
-        else {
-            intakeMotor.brake();
-        }
-
-        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
         {
-            topRoller.toggle();
-        }
-
-        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y))
-        {
-            midRollerDirection.toggle();
-            midRollerHeight.toggle();
-        }
-
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
-        {
-            agitator.move_voltage(-12000);
-        }
-        else {
+            //R2 - Bottom goal
             agitator.brake();
+            intakeMotor.move_voltage(12000);
+            topRoller.retract();
+            if(midRollerDirection.is_extended())
+            {
+                midRollerDirection.retract();
+            }
+        }
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
+        {
+            agitator.move_voltage(12000);
+            intakeMotor.move_voltage(12000);
+            if(!midRollerDirection.is_extended())
+            {
+                midRollerDirection.extend();
+            }
         }
 
 
@@ -101,3 +112,8 @@ void opcontrol() {
 //Extended: Score top goal
 //Deactivate top roller for storage
 //Activate storage to extend
+
+//R1 - outake long goal
+//R2 - Bottom goal
+//L1 - Intake into hopper
+//l2 - outtake onto mid goal
