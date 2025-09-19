@@ -2,6 +2,7 @@
 #include "globals.h" 
 #include "pros/misc.h"
 
+
 void auton1()
 {
     chassis.moveToPoint(0, 12, 1000);
@@ -24,13 +25,12 @@ rd::Selector selector({
     {"Test auton 3", auton3},
 });
 
-
+rd::Console console;
 
 // Global Objects
 void initialize() {
     pros::lcd::initialize();
     chassis.calibrate();
-    rd::Console console;
     pros::Task screen_task([&]() {
         while (true) {
             lemlib::Pose pose = chassis.getPose();
