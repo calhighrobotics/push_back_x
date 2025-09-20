@@ -76,16 +76,17 @@ void opcontrol() {
             //R2 - Bottom goal
             agitator.move_voltage(-12000);
             intakeMotor.move_voltage(-12000);
-            if(midRollerDirection.is_extended())
-            {
-                midRollerDirection.retract();
-            }
+
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
         {
-            //R2 - Bottom goal
+            //Intake
+            if(midRollerHeight.is_extended())
+            {
+                midRollerHeight.retract();
+            }
             agitator.brake();
-            intakeMotor.move_voltage(-12000);
+            intakeMotor.move_voltage(12000);
             topRoller.retract();
             if(midRollerDirection.is_extended())
             {
@@ -104,8 +105,12 @@ void opcontrol() {
         else {
             intakeMotor.brake();
             agitator.brake();
+            if(!midRollerHeight.is_extended())
+            {
+                midRollerHeight.extend();
+            }
         }
-
+        
         
         pros::delay(20);
 
