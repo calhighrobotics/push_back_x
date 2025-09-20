@@ -64,7 +64,6 @@ void opcontrol() {
         //R1 - outake long goal
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
         {
-            topRoller.extend();
             agitator.move_voltage(-12000);
             intakeMotor.move_voltage(12000);
             if(midRollerDirection.is_extended())
