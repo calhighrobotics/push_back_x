@@ -207,9 +207,9 @@ inline double sinc(double x) {
 }
 
 void ramsete_auton() {
-    const double b = 4;      // Controls how strongly/Aggresiveley the controller follows the path
-    const double zeta = 0; // Basically a damping term
-    const double track_width = 10.05 * INCH_TO_METER;
+    const double b = 9;      // Controls how strongly/Aggresiveley the controller follows the path
+    const double zeta = 0.1; // Basically a damping term
+    const double track_width = (10.05+4) * INCH_TO_METER;
     VelocityProfile vp;
 
     VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
@@ -255,12 +255,10 @@ void ramsete_auton() {
         //std::cout << Vector2(time, local_error.norm()).latex() << ",";
         //std::cout.flush();
 
-        double left_target_velocity = (60 * 1.25 / wheel_circumference) * (v - (track_width / 2.0) * w);
-        double right_target_velocity = (60 * 1.25 / wheel_circumference) * (v + (track_width / 2.0) * w);
-
-        double left = left_controller.update(left_target_velocity, leftMotors.get_actual_velocity());
-        double right = right_controller.update(right_target_velocity, rightMotors.get_actual_velocity());
-
+        double left_target_velocity = (60 * 1.25 / wheel_circumference) * (vd - (track_width / 2.0) * wd);
+        double right_target_velocity = (60 * 1.25 / wheel_circumference) * (vd + (track_width / 2.0) * wd);
+            double left = left_controller.update(left_target_velocity, leftMotors.get_actual_velocity());
+            double right = right_controller.update(right_target_velocity, rightMotors.get_actual_velocity());
 
         rightMotors.move_voltage(right * 1000.0);
         leftMotors.move_voltage(left * 1000.0);
@@ -269,12 +267,13 @@ void ramsete_auton() {
         //leftMotors.move_velocity(left_target_velocity);
         
         std::ostringstream ss;
-        ss << Vector2(time,e_x).latex() << ",";
+        ss << Vector2(time, rightMotors.get_actual_velocity()).latex() << ",";
+        /*
         std::ostringstream s2;
         s2 << Vector2(time, e_y).latex() << ",";
         std::ostringstream s3;
         s3 << Vector2(time, e_t).latex() << ",";
-        
+        */
         //std::ostringstream s5;
         //s5 << Vector2(current_pose.x, current_pose.y).latex() << ",";
         
@@ -293,15 +292,19 @@ void ramsete_auton() {
            << " current_pose.x=" << current_pose.x
            << " current_pose.y=" << current_pose.y
            << " current_pose.theta=" << current_pose.theta;*/
+
+        
         logs.push_back(ss.str());
+        /*
         logs.push_back(s2.str());
         logs.push_back(s3.str());
+        */
         //logs.push_back(s4.str());
         //logs.push_back(s5.str());
 
         // 
-        // std::cout.flush();
-        ////std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
+        //std::cout.flush();
+        //std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
         //std::cout << Vector2(current_pose.x, current_pose.y).latex() << ",";
         //  std::cout << Vector2(pros::millis()/1000,left_target_velocity).latex() << ",";
         //std::cout.flush();
