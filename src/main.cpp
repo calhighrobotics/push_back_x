@@ -1,6 +1,7 @@
 #include "main.h"
 #include "Eigen/Core"
 #include "lemlib/api.hpp" // IWYU pragma: keep
+#include "lemlib/pid.hpp"
 #include "lemlib/util.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
@@ -323,6 +324,118 @@ void ramsete_auton() {
     }
 }
 
+void custom_controller_auton() {
+    // --- New Tuning Parameters for this Controller ---
+    const double k_lat = 2; // Lateral correction gain, TUNE THIS
+    
+    // You MUST tune the gains for these PID controllers
+    lemlib::PID linear_pid(5, 0.0, 0.0);   // TUNE P, I, D for linear movement
+    lemlib::PID angular_pid(5, 0.0, 0.01); // TUNE P, I, D for turning movement
+
+    // --- Robot Constants ---
+    const double track_width = (10.05 + 0) * INCH_TO_METER;
+
+    // --- Drivetrain Velocity Controllers (Feedforward + PID) ---
+    VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
+    VelocityController left_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
+
+    // --- Trajectory Following Loop ---
+    std::vector<State> trajectory = prepare_trajectory();
+    if (trajectory.empty()) return;
+
+    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, chassis.getPose(true).theta, true);
+
+    for (const auto &target_state : trajectory) {
+        lemlib::Pose current_pose = chassis.getPose(true);
+
+        // --- 1. Calculate Error in Robot's Local Frame ---
+        current_pose.x *= INCH_TO_METER;
+        current_pose.y *= INCH_TO_METER;
+        current_pose.theta = M_PI_2 - current_pose.theta;
+
+        Eigen::Vector2d global_pos_error;
+        global_pos_error << target_state.x - current_pose.x, target_state.y - current_pose.y;
+
+        Eigen::Matrix2d rotation_matrix;
+        rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta),
+                          -std::sin(current_pose.theta), std::cos(current_pose.theta);
+
+        Eigen::Vector2d local_pos_error = rotation_matrix * global_pos_error;
+        double e_x = local_pos_error(0);
+        double e_y = local_pos_error(1);
+
+        // --- 2. Apply the Custom Control Law ---
+
+        double e_theta_bearing = std::atan2(e_y, e_x);
+        double forward_sign = (std::cos(e_theta_bearing) >= 0) ? 1.0 : -1.0;
+        double distance_error = std::sqrt(e_x * e_x + e_y * e_y);
+        double linear_measurement = distance_error * forward_sign;
+        
+        // CORRECTED: Pass the error directly (setpoint - measurement)
+        // Since setpoint is 0, error is -measurement.
+        double vd = linear_pid.update(-linear_measurement);
+        double w_from_pid = angular_pid.update(-e_theta_bearing);
+
+        // Calculate final chassis velocities
+        double v = std::abs(std::cos(e_theta_bearing)) * vd;
+        double w = w_from_pid + k_lat * vd * e_y * sinc(e_theta_bearing);
+
+        // --- 3. Convert Chassis Speeds to Wheel Speeds & Command Motors ---
+        double left_linear_velocity = v - (track_width / 2.0) * w;
+        double right_linear_velocity = v + (track_width / 2.0) * w;
+
+        const double mps_to_rpm = (60 * 1.25 / wheel_circumference); // Assuming 1.25 is gear ratio
+        double left_target_rpm = left_linear_velocity * mps_to_rpm;
+        double right_target_rpm = right_linear_velocity * mps_to_rpm;
+
+        double left_voltage = left_controller.update(left_target_rpm, leftMotors.get_actual_velocity());
+        double right_voltage = right_controller.update(right_target_rpm, rightMotors.get_actual_velocity());
+
+        leftMotors.move_voltage(left_voltage * 1000.0);
+        rightMotors.move_voltage(right_voltage * 1000.0);
+        
+        std::ostringstream ss;
+        ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
+        /*
+        std::ostringstream s2;
+        s2 << Vector2(time, e_y).latex() << ",";
+        std::ostringstream s3;
+        s3 << Vector2(time, e_t).latex() << ",";
+        */
+        //std::ostringstream s5;
+        //s5 << Vector2(current_pose.x, current_pose.y).latex() << ",";
+        
+        //std::ostringstream s4;
+        //s4 << Vector2(time, right_target_velocity).latex() << ",";
+        /*<< "time=" << time
+           << " e_x=" << e_x
+           << " e_y=" << e_y
+           << " e_t=" << e_t
+           << " vd=" << vd
+           << " wd=" << wd
+           << " v=" << v
+           << " w=" << w
+           << " left_target_velocity=" << left_target_velocity
+           << " right_target_velocity=" << right_target_velocity
+           << " current_pose.x=" << current_pose.x
+           << " current_pose.y=" << current_pose.y
+           << " current_pose.theta=" << current_pose.theta;*/
+
+        
+        logs.push_back(ss.str());
+        pros::delay(10);
+    }
+    
+    leftMotors.move_voltage(0);
+    rightMotors.move_voltage(0);
+
+    for (const auto& line : logs) {
+        std::cout << line;
+        pros::delay(100);
+    }
+    
+}
+
 void test_w_controller() {
     double right = 0;
     double left = 0;
@@ -383,6 +496,7 @@ void initialize() {
 void autonomous() {
     //test_w_controller();
     ramsete_auton();
+    custom_controller_auton();
     // chassis.moveToPoint(0, -12, 10000, {.forwards = false});
     // chassis.turnToHeading(-120, 10000);
 }
