@@ -93,11 +93,12 @@ void opcontrol() {
         {
             agitator.move_voltage(-12000);
             intakeMotor.move_voltage(12000);
-            midMotor.move_voltage(-12000);
+            midMotor.move_voltage(12000);
         }
         else {
             intakeMotor.brake();
             agitator.brake();
+            midMotor.brake();
             if(!midRollerHeight.is_extended())
             {
                 midRollerHeight.extend();
