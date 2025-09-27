@@ -28,8 +28,9 @@ extern lemlib::ExpoDriveCurve steer_curve;
 extern lemlib::Chassis chassis;
 extern pros::Motor intakeMotor;
 extern pros::Motor agitator;
+extern pros::Motor midMotor;
 
 extern pros::adi::Pneumatics topRoller;
 extern pros::adi::Pneumatics midRollerHeight;
 extern pros::adi::Pneumatics matchload_mech;
-extern pros::adi::Pneumatics midRollerDirection;
+
