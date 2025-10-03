@@ -33,4 +33,5 @@ extern pros::Motor midMotor;
 extern pros::adi::Pneumatics topRoller;
 extern pros::adi::Pneumatics midRollerHeight;
 extern pros::adi::Pneumatics matchload_mech;
+extern pros::adi::Pneumatics aligner;
 

@@ -1,7 +1,9 @@
+#include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
 #include "pros/adi.h"
 #include "pros/adi.hpp"
+#include "pros/motors.h"
 
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -52,25 +54,29 @@ lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
 );
 
 lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
-                                      35,   // minimum output where drivetrain will move out of 127
-                                      1.002 // expo curve gain
+                                      10,   // minimum output where drivetrain will move out of 127
+                                      1.02 // expo curve gain
 );
 
 // input curve for steer input during driver control
 lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
                                   10, // minimum output where drivetrain will move out of 127
-                                  1.012 // expo curve gain
+                                  1.035 // expo curve gain
 );
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(6);
-pros::Motor agitator(16);
+pros::Motor agitator(16, pros::v5::MotorGears::green);
 pros::Motor midMotor(20);
+
+
+
 
 pros::adi::Pneumatics topRoller('B', false);
 pros::adi::Pneumatics midRollerHeight('A', true);
 pros::adi::Pneumatics matchload_mech('D', false);
+pros::adi::Pneumatics aligner('C', true);
 
 
 
