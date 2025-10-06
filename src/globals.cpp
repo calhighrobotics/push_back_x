@@ -55,13 +55,13 @@ lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
 
 lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
                                       10,   // minimum output where drivetrain will move out of 127
-                                      1.02 // expo curve gain
+                                      1 // expo curve gain
 );
 
 // input curve for steer input during driver control
 lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
-                                  10, // minimum output where drivetrain will move out of 127
-                                  1.035 // expo curve gain
+                                  5, // minimum output where drivetrain will move out of 127
+                                  1.02 // expo curve gain
 );
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
@@ -71,6 +71,10 @@ pros::Motor agitator(16, pros::v5::MotorGears::green);
 pros::Motor midMotor(20);
 
 
+pros::Distance right(4);
+pros::Distance left(5);
+pros::Distance front(7);
+pros::Distance back(8);
 
 
 pros::adi::Pneumatics topRoller('B', false);

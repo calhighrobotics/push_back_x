@@ -58,7 +58,8 @@ void opcontrol() {
     {
         double y = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         double x = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
-        chassis.arcade(y, x, false);
+        chassis.curvature(y, x, false);
+
         /*
         double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
         double left = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
