@@ -191,6 +191,40 @@
                 "user_files": [],
                 "version": "0.1.8"
             },
+            "libcommand": {
+                "location": "/Users/balajisaravanagupta/Library/Application Support/PROS/templates/libcommand@0.1.8",
+                "metadata": {
+                    "origin": "local"
+                },
+                "name": "libcommand",
+                "py/object": "pros.conductor.templates.local_template.LocalTemplate",
+                "supported_kernels": "^4.1.0",
+                "system_files": [
+                    "include/command/commandScheduler.h",
+                    "include/command/scheduleCommand.h",
+                    "include/command/conditionalCommand.h",
+                    "include/command/trigger.h",
+                    "include/command/repeatCommand.h",
+                    "include/command/instantCommand.h",
+                    "include/command/command.h",
+                    "include/command/functionalCommand.h",
+                    "include/command/proxyCommand.h",
+                    "include/command/subsystem.h",
+                    "include/command/waitCommand.h",
+                    "include/command/runCommand.h",
+                    "include/command/eventLoop.h",
+                    "include/command/sequence.h",
+                    "include/command/commandController.h",
+                    "include/command/includes.h",
+                    "include/command/parallelRaceGroup.h",
+                    "include/command/parallelCommandGroup.h",
+                    "include/command/waitUntilCommand.h",
+                    "firmware/libcommand.a"
+                ],
+                "target": "v5",
+                "user_files": [],
+                "version": "0.1.8"
+            },
             "liblvgl": {
                 "location": "/home/avco/.config/pros/templates/liblvgl@9.2.0",
                 "metadata": {
@@ -715,7 +749,48 @@
                 ],
                 "target": "v5",
                 "user_files": [],
+                "version": "8.3.8"
+            },
+            "libunit": {
+                "location": "/Users/balajisaravanagupta/Library/Application Support/PROS/templates/libunit@1.1.0",
+                "metadata": {
+                    "origin": "local"
+                },
+                "name": "libunit",
+                "py/object": "pros.conductor.templates.local_template.LocalTemplate",
+                "supported_kernels": "^4.1.0",
+                "system_files": [
+                    "include/units/units.hpp",
+                    "firmware/libunit.a"
+                ],
+                "target": "v5",
+                "user_files": [],
                 "version": "1.1.0"
+            },
+            "robodash": {
+                "location": "/Users/balajisaravanagupta/Library/Application Support/PROS/templates/robodash@2.3.0",
+                "metadata": {
+                    "origin": "robodash"
+                },
+                "name": "robodash",
+                "py/object": "pros.conductor.templates.local_template.LocalTemplate",
+                "supported_kernels": "^4.1.0",
+                "system_files": [
+                    "include/robodash/views/image.hpp",
+                    "firmware/robodash.a",
+                    "include/robodash/views/selector.hpp",
+                    "include/robodash/impl/styles.h",
+                    "include/robodash/impl/assets.h",
+                    "ASSET_FILES",
+                    "include/robodash/api.h",
+                    "include/robodash/apix.h",
+                    "include/robodash/views/console.hpp",
+                    "include/robodash/core.h",
+                    "include/robodash/impl/filesystem.h"
+                ],
+                "target": "v5",
+                "user_files": [],
+                "version": "2.3.0"
             }
         },
         "upload_options": {},

@@ -1,7 +1,11 @@
 #pragma once
 
-#include "lemlib/api.hpp"
+#include "pros/distance.hpp"
 #include "pros/misc.h"
+#include "lemlib/chassis/chassis.hpp"
+#include "pros/adi.h"
+#include "pros/adi.hpp"
+#include "pros/motors.h"
 
 extern pros::Controller controller;
 
@@ -28,8 +32,18 @@ extern lemlib::ExpoDriveCurve steer_curve;
 extern lemlib::Chassis chassis;
 extern pros::Motor intakeMotor;
 extern pros::Motor agitator;
+extern pros::Motor midMotor;
+
+
+extern pros::Distance right(4);
+extern pros::Distance left(5);
+extern pros::Distance front(7);
+extern pros::Distance back(8);
+
+
 
 extern pros::adi::Pneumatics topRoller;
 extern pros::adi::Pneumatics midRollerHeight;
-extern pros::adi::Pneumatics basketExtension;
-extern pros::adi::Pneumatics midRollerDirection;
+extern pros::adi::Pneumatics matchload_mech;
+extern pros::adi::Pneumatics aligner;
+
