@@ -15,9 +15,3 @@ temp.log
 temp.errors
 *.ini
 .d/
-
-# Mac
-.DS_Store
-
-# Include .vale.ini
-!.vale.ini
