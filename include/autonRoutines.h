@@ -6,4 +6,8 @@
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
 
-void red_right();
+void right_auton();
+
+void left_auton();
+
+void carry_auton();

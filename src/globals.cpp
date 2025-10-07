@@ -15,14 +15,14 @@ lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
     11.5, 
-    lemlib::Omniwheel::NEW_325, 
+    2.75, 
     450, 
     2);
 
 pros::IMU imu(8);
 
 pros::Rotation horizontal_tracking_sensor(9);
-pros::Rotation vertical_tracking_sensor(10);
+pros::Rotation vertical_tracking_sensor(-10);
 
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, 6.5, 1); //Units are in inches
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1,1);
@@ -30,9 +30,9 @@ lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(30, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(20, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              100, // derivative gain (kD)
+                                              140, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
@@ -42,9 +42,9 @@ lemlib::ControllerSettings lateral_controller(30, // proportional gain (kP)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
+lemlib::ControllerSettings angular_controller(4.3, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              24.5, // derivative gain (kD)
+                                              39.7, // derivative gain (kD)
                                               3, // anti windup
                                               1, // small error range, in degrees
                                               100, // small error range timeout, in milliseconds
@@ -70,12 +70,12 @@ pros::Motor intakeMotor(6);
 pros::Motor agitator(16, pros::v5::MotorGears::green);
 pros::Motor midMotor(20);
 
-
+/*
 pros::Distance right(4);
 pros::Distance left(5);
 pros::Distance front(7);
 pros::Distance back(8);
-
+*/
 
 pros::adi::Pneumatics topRoller('B', false);
 pros::adi::Pneumatics midRollerHeight('A', true);

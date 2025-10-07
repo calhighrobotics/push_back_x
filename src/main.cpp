@@ -7,42 +7,36 @@
 
 
 
-void auton2()
-{
-    chassis.turnToHeading(90, 1000);
-}
-
-void auton3()
-{
-    chassis.moveToPoint(0, -12, 1000);
-}
 
 
+/*
 rd::Selector selector({
-    {"Red Right", red_right},
-    {"Test auton 2", auton2},
-    {"Test auton 3", auton3},
+    {"Right", right_auton},
+    {"Left", left_auton},
+    {"Carry", carry_auton},
 });
+*/
 
 rd::Console console;
 
 // Global Objects
 void initialize() {
     chassis.calibrate();
-    agitator.set_voltage_limit(6500);
     pros::Task screen_task([&]() {
         while (true) {
+            console.clear();
             lemlib::Pose pose = chassis.getPose();
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
+            controller.print(1, 0, "X: %f", pose.x, "Y: %f",pose.y, "T: %f",pose.theta);
             pros::delay(20);
         }
     });
 }
 
 void disabled() {
-    selector.focus();
+    //selector.focus();
 }
 
 void competition_initialize() {
@@ -50,7 +44,12 @@ void competition_initialize() {
 }
 
 void autonomous() {
-    selector.run_auton();
+
+    //selector.run_auton();
+    right_auton();
+    //chassis.setPose(0,0,0);
+    //chassis.turnToHeading(90, 1000);
+    //chassis.moveToPoint(0,12,2000);
 }
 
 void opcontrol() {

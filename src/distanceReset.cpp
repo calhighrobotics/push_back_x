@@ -18,6 +18,7 @@ const double OFFSET_TO_FRONT_SENSOR = 165.0;
 
 std::pair<double, double> distanceReset()
 {
+    /*
     double dist_left = left.get_distance();
     double dist_right = right.get();
     double dist_back = back.get();
@@ -71,6 +72,6 @@ std::pair<double, double> distanceReset()
     // Rotate robot-local offset vector into global frame
     double global_x = ref_x + x_local * cos_h - y_local * sin_h;
     double global_y = ref_y + x_local * sin_h + y_local * cos_h;
-
-    return {global_x, global_y};
+    */
+    return {0,0};
 }

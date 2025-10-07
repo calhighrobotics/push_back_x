@@ -34,12 +34,12 @@ extern pros::Motor intakeMotor;
 extern pros::Motor agitator;
 extern pros::Motor midMotor;
 
-
-extern pros::Distance right(4);
-extern pros::Distance left(5);
-extern pros::Distance front(7);
-extern pros::Distance back(8);
-
+/*
+extern pros::Distance right;
+extern pros::Distance left;
+extern pros::Distance front;
+extern pros::Distance back;
+*/
 
 
 extern pros::adi::Pneumatics topRoller;
