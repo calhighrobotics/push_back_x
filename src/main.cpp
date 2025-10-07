@@ -14,6 +14,8 @@ rd::Selector selector({
     {"Right", right_auton},
     {"Left", left_auton},
     {"Carry", carry_auton},
+    {"Elim", elim_auton},
+    {"AWP", awp_auton}
 });
 */
 
@@ -29,7 +31,7 @@ void initialize() {
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
-            controller.print(1, 0, "X: %f", pose.x, "Y: %f",pose.y, "T: %f",pose.theta);
+            controller.print(1, 0, "X: %f", pose.x, " Y: %f", pose.y, " T: %f", pose.theta);
             pros::delay(20);
         }
     });

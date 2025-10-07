@@ -26,15 +26,22 @@ void right_auton()
     pros::delay(3000);
     intake_stop();
 
-    //Matchload and Long goal
-    chassis.moveToPoint(42.15, 22.5, 3000, {.forwards = false, .maxSpeed = 100});
+    //Matchload and Long goal Scoring
+    chassis.moveToPoint(34.6, 22.5, 3000, {.forwards = false, .maxSpeed = 100});
     aligner.retract();
     chassis.turnToPoint(34.6, 29.9, 1000);
-    matchload_mech.extend();
-    pros::delay(200);
+    matchload_prep();
+    intake();
+    pros::delay(2000);
+    intake_stop();
     chassis.moveToPoint(34.6, 29.9, 1000);
-
-
+    chassis.moveToPoint(34.6, 22.5, 1500, {.forwards = false, .maxSpeed = 75});
+    longgoal_prep();
+    chassis.turnToPoint(34.6, 50, 1000);
+    chassis.moveToPoint(34.6, 40, 1000, {.forwards = true, .maxSpeed = 75});
+    score_longgoal();
+    pros::delay(3000);
+    intake_stop();
 }
 
 void left_auton() {
@@ -45,3 +52,7 @@ void left_auton() {
 void carry_auton() {
     chassis.moveToPoint(0,12,2000);
 }
+
+void elim_auton() {}
+
+void awp_auton() {}
