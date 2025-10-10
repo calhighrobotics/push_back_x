@@ -50,6 +50,7 @@ void left_auton() {
 }
 
 void carry_auton() {
+    chassis.setPose(0,0,0);
     chassis.moveToPoint(0,12,2000);
 }
 

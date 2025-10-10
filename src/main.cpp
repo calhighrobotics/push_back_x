@@ -5,10 +5,6 @@
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
 
-
-
-
-
 /*
 rd::Selector selector({
     {"Right", right_auton},
@@ -136,3 +132,5 @@ void opcontrol() {
 //R2 - Bottom goal
 //L1 - Intake into hopper
 //l2 - outtake onto mid goal
+
+

@@ -8,8 +8,8 @@
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({11,-12,13});
-pros::MotorGroup leftMotors({-1,2,-3});
+pros::MotorGroup rightMotors({11,-12,13}, pros::MotorGears::blue);
+pros::MotorGroup leftMotors({-1,2,-3}, pros::MotorGears::blue);
 
 lemlib::Drivetrain drivebase(
     &leftMotors, 
