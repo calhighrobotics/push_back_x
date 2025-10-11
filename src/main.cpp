@@ -5,7 +5,7 @@
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
 
-/*
+
 rd::Selector selector({
     {"Right", right_auton},
     {"Left", left_auton},
@@ -13,7 +13,7 @@ rd::Selector selector({
     {"Elim", elim_auton},
     {"AWP", awp_auton}
 });
-*/
+
 
 rd::Console console;
 
@@ -27,14 +27,13 @@ void initialize() {
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
-            controller.print(1, 0, "X: %f", pose.x, " Y: %f", pose.y, " T: %f", pose.theta);
             pros::delay(20);
         }
     });
 }
 
 void disabled() {
-    //selector.focus();
+    selector.focus();
 }
 
 void competition_initialize() {
@@ -43,11 +42,10 @@ void competition_initialize() {
 
 void autonomous() {
 
-    //selector.run_auton();
-    right_auton();
+    selector.run_auton();
     //chassis.setPose(0,0,0);
     //chassis.turnToHeading(90, 1000);
-    //chassis.moveToPoint(0,12,2000);
+    //chassis.moveToPoint(0,48,10000);
 }
 
 void opcontrol() {
@@ -86,7 +84,7 @@ void opcontrol() {
             {
                 midRollerHeight.retract();
             }
-            agitator.brake();
+            agitator.move_voltage(6500);
             intakeMotor.move_voltage(12000);
             topRoller.retract();
             midMotor.move_voltage(-12000);

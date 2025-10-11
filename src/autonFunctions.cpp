@@ -12,7 +12,7 @@ void intake()
     {
         midRollerHeight.retract();
     }
-    agitator.brake();
+    agitator.move_voltage(6500);
     intakeMotor.move_voltage(12000);
     topRoller.retract();
     midMotor.move_voltage(-12000);

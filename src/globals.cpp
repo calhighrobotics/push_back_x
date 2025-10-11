@@ -30,25 +30,25 @@ lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(20, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(12, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              140, // derivative gain (kD)
+                                              82, // derivative gain (kD)
                                               3, // anti windup
-                                              1, // small error range, in inches
+                                              0.25, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
                                               500, // large error range timeout, in milliseconds
-                                              20 // maximum acceleration (slew)
+                                              0 // maximum acceleration (slew)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(4.3, // proportional gain (kP)
+lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              39.7, // derivative gain (kD)
-                                              3, // anti windup
-                                              1, // small error range, in degrees
+                                              37, // derivative gain (kD)
+                                               3, // anti windup
+                                              0.5, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
-                                              3, // large error range, in degrees
+                                              3, // large error range, in inches
                                               500, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
@@ -66,7 +66,7 @@ lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-pros::Motor intakeMotor(6);
+pros::Motor intakeMotor(6, pros::v5::MotorGears::blue);
 pros::Motor agitator(16, pros::v5::MotorGears::green);
 pros::Motor midMotor(20);
 
