@@ -4,6 +4,7 @@
 #include "autonRoutines.h"
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
+#include "autonFunctions.h"
 
 
 rd::Selector selector({
@@ -64,6 +65,10 @@ void opcontrol() {
         //R1 - outake long goal
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
         {
+            if(!midRollerHeight.is_extended())
+            {
+                midRollerHeight.extend();
+            }
             midMotor.move_voltage(-12000);
             agitator.move_voltage(-6500);
             intakeMotor.move_voltage(12000);
@@ -97,16 +102,25 @@ void opcontrol() {
             midMotor.move_voltage(12000);
         }
         else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
-        {   
-            aligner.toggle();
+        {   if(!aligner.is_extended())
+            {
+                longgoal_prep();
+            }
+            else
+            {
+                aligner.retract();
+            }
         }
         else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
         {   
-            matchload_mech.toggle();
-        }
-        else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
-        {   
-            topRoller.toggle();
+            if(!matchload_mech.is_extended())
+            {
+                matchload_prep();
+            }
+            else
+            {
+                matchload_mech.retract();
+            }
         }
         else {
             intakeMotor.brake();

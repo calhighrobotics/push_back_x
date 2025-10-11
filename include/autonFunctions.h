@@ -21,3 +21,6 @@ void intake_stop();
 void matchload_prep();
 
 void longgoal_prep();
+
+void reset_odometry();
+
