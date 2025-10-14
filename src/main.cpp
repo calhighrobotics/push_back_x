@@ -508,6 +508,8 @@ const double OFFSET_TO_BACK_SENSOR = 170.0 * MM_TO_IN;
 const double OFFSET_TO_FRONT_SENSOR = 165.0 * MM_TO_IN;
 
 const double MAX_SENSOR_RANGE = 2000.0 * MM_TO_IN;
+// How much closer a reading can be before it's considered an obstacle (in inches)
+const double OBSTACLE_TOLERANCE = 6.0;
 
 std::pair<double, double> calculateGlobalPosition(
     double dist_left, double dist_right,
@@ -539,46 +541,68 @@ std::pair<double, double> calculateGlobalPosition(
         double offset_x = s.sx * cos_h - s.sy * sin_h;
         double offset_y = s.sx * sin_h + s.sy * cos_h;
 
+        // Global position of the sensor
+        double sensor_global_x = current_pose.x + offset_x;
+        double sensor_global_y = current_pose.y + offset_y;
+
         bool x_constraint_plausible = false;
         bool y_constraint_plausible = false;
 
-        double wall_x;
-        if (dir_x < 0) {
-            wall_x = 0.0;
-        } else {
-            wall_x = FIELD_WIDTH;
-        }
-        double robot_x_from_x_wall = wall_x - s.dist * dir_x - offset_x;
-        double sensor_y_at_x_wall = (current_pose.y + offset_y) + (wall_x - (current_pose.x + offset_x)) * (dir_y / dir_x);
-        if (sensor_y_at_x_wall >= 0 && sensor_y_at_x_wall <= FIELD_HEIGHT) {
-            x_constraint_plausible = true;
-        }
+        // Check against vertical walls (X-constraints)
+        // Guard against division by zero
+        if (std::fabs(dir_x) > 1e-6) {
+            double wall_x = (dir_x < 0) ? 0.0 : FIELD_WIDTH;
+            double expected_dist_to_x_wall = (wall_x - sensor_global_x) / dir_x;
 
-        double wall_y;
-        if (dir_y < 0) {
-            wall_y = 0.0;
-        } else {
-            wall_y = FIELD_HEIGHT;
-        }
-        double robot_y_from_y_wall = wall_y - s.dist * dir_y - offset_y;
-        double sensor_x_at_y_wall = (current_pose.x + offset_x) + (wall_y - (current_pose.y + offset_y)) * (dir_x / dir_y);
-        if (sensor_x_at_y_wall >= 0 && sensor_x_at_y_wall <= FIELD_WIDTH) {
-            y_constraint_plausible = true;
-        }
-
-        if (x_constraint_plausible && !y_constraint_plausible) {
-            constraints.push_back({'x', robot_x_from_x_wall});
-        } else if (!x_constraint_plausible && y_constraint_plausible) {
-            constraints.push_back({'y', robot_y_from_y_wall});
-        } else {
-            if (std::fabs(dir_x) > std::fabs(dir_y)) {
-                constraints.push_back({'x', robot_x_from_x_wall});
+            // Model-based check: if measured dist is much smaller, it's an obstacle
+            if (s.dist < expected_dist_to_x_wall - OBSTACLE_TOLERANCE) {
+                 // Skip this sensor, it's likely hitting an obstacle
             } else {
+                double sensor_y_at_x_wall = sensor_global_y + expected_dist_to_x_wall * dir_y;
+                double tolerance = 2;
+                if (sensor_y_at_x_wall >= -tolerance && sensor_y_at_x_wall <= FIELD_HEIGHT + tolerance) {
+                    x_constraint_plausible = true;
+                }
+            }
+        }
+
+        // Check against horizontal walls (Y-constraints)
+        // Guard against division by zero
+        if (std::fabs(dir_y) > 1e-6) {
+            double wall_y = (dir_y < 0) ? 0.0 : FIELD_HEIGHT;
+            double expected_dist_to_y_wall = (wall_y - sensor_global_y) / dir_y;
+
+            // Model-based check: if measured dist is much smaller, it's an obstacle
+            if (s.dist < expected_dist_to_y_wall - OBSTACLE_TOLERANCE) {
+                // Skip this sensor, it's likely hitting an obstacle
+            } else {
+                double sensor_x_at_y_wall = sensor_global_x + expected_dist_to_y_wall * dir_x;
+                if (sensor_x_at_y_wall >= 0 && sensor_x_at_y_wall <= FIELD_WIDTH) {
+                    y_constraint_plausible = true;
+                }
+            }
+        }
+
+        // Add constraints if plausible
+        if (x_constraint_plausible || y_constraint_plausible) {
+            double robot_x_from_x_wall = (dir_x < 0 ? 0.0 : FIELD_WIDTH) - s.dist * dir_x - offset_x;
+            double robot_y_from_y_wall = (dir_y < 0 ? 0.0 : FIELD_HEIGHT) - s.dist * dir_y - offset_y;
+
+            if (x_constraint_plausible && !y_constraint_plausible) {
+                constraints.push_back({'x', robot_x_from_x_wall});
+            } else if (!x_constraint_plausible && y_constraint_plausible) {
                 constraints.push_back({'y', robot_y_from_y_wall});
+            } else { // Both are plausible, use the dominant direction
+                if (std::fabs(dir_x) > std::fabs(dir_y)) {
+                    constraints.push_back({'x', robot_x_from_x_wall});
+                } else {
+                    constraints.push_back({'y', robot_y_from_y_wall});
+                }
             }
         }
     }
 
+    // Averaging the valid constraints
     double sum_x = 0, sum_y = 0;
     int count_x = 0, count_y = 0;
     for (const auto& c : constraints) {
@@ -586,19 +610,8 @@ std::pair<double, double> calculateGlobalPosition(
         else { sum_y += c.second; count_y++; }
     }
     
-    double est_x;
-    if (count_x > 0) {
-        est_x = sum_x / count_x;
-    } else {
-        est_x = current_pose.x;
-    }
-
-    double est_y;
-    if (count_y > 0) {
-        est_y = sum_y / count_y;
-    } else {
-        est_y = current_pose.y;
-    }
+    double est_x = (count_x > 0) ? (sum_x / count_x) : current_pose.x;
+    double est_y = (count_y > 0) ? (sum_y / count_y) : current_pose.y;
 
     return {est_x, est_y};
 }
