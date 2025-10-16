@@ -105,6 +105,209 @@ struct State {
     double x, y, heading, linear_vel, angular_vel;
 };
 
+// Field constants
+const double MM_TO_IN = 0.0393701;
+const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
+const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
+const double HALF_WIDTH = FIELD_WIDTH / 2.0;
+const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
+
+// General constants
+const double MAX_SENSOR_RANGE = 2000.0 * MM_TO_IN;
+const double OBSTACLE_TOLERANCE = 6.0;
+
+// =======================================================================================
+// FIX: Define sensor positions using a clear, robot-relative struct.
+// This prevents confusion between X/Y axes and Forward/Strafe directions.
+// =======================================================================================
+struct SensorConfig {
+    double forward_offset; // Distance from center: +forward, -backward
+    double strafe_offset;  // Distance from center: +left, -right
+    double mounting_angle; // Angle relative to front of robot (degrees)
+};
+
+// --- USER CONFIGURATION: Set your robot's measurements here ---
+// Based on your original variable names, it seems your robot's +Y was forward.
+// I have translated those values into the new system. Please double-check them.
+
+const SensorConfig front_sensor_cfg = {
+    165.0 * MM_TO_IN,  // forward_offset: 165mm forward
+    -5.0 * MM_TO_IN,   // strafe_offset: 5mm to the right
+    0                    // mounting_angle: Points straight forward
+};
+
+const SensorConfig left_sensor_cfg = {
+    10.0 * MM_TO_IN,   // forward_offset: 10mm forward
+    150.0 * MM_TO_IN,  // strafe_offset: 150mm to the left
+    90                   // mounting_angle: Points straight left
+};
+
+const SensorConfig right_sensor_cfg = {
+    10.0 * MM_TO_IN,   // forward_offset: 10mm forward
+    -155.0 * MM_TO_IN, // strafe_offset: 155mm to the right
+    -90                  // mounting_angle: Points straight right
+};
+
+const SensorConfig back_sensor_cfg = {
+    -170.0 * MM_TO_IN, // forward_offset: 170mm backward
+    0.0,               // strafe_offset: Centered
+    180                // mounting_angle: Points straight backward
+};
+// --- END OF USER CONFIGURATION ---
+
+
+std::pair<double, double> calculateGlobalPosition(
+    double dist_left, double dist_right,
+    double dist_back, double dist_front,
+    double heading_deg, lemlib::Pose current_pose)
+{
+    double heading_rad = lemlib::degToRad(heading_deg);
+    double cos_h = std::cos(heading_rad);
+    double sin_h = std::sin(heading_rad);
+
+    struct Sensor {
+        SensorConfig cfg;
+        double dist;
+    } sensors[] = {
+        {left_sensor_cfg, dist_left},
+        {right_sensor_cfg, dist_right},
+        {back_sensor_cfg, dist_back},
+        {front_sensor_cfg, dist_front}
+    };
+
+    // CHANGE 1: The vector now stores a tuple: {axis, position, weight}
+    std::vector<std::tuple<char, double, double>> constraints;
+
+    for (const auto& s : sensors) {
+        if (s.dist > MAX_SENSOR_RANGE) continue;
+
+        double sx = s.cfg.forward_offset;
+        double sy = s.cfg.strafe_offset;
+
+        double sensor_angle = heading_rad + lemlib::degToRad(s.cfg.mounting_angle);
+        double dir_x = std::cos(sensor_angle);
+        double dir_y = std::sin(sensor_angle);
+
+        double offset_x = sx * cos_h - sy * sin_h;
+        double offset_y = sx * sin_h + sy * cos_h;
+
+        double sensor_global_x = current_pose.x + offset_x;
+        double sensor_global_y = current_pose.y + offset_y;
+
+        bool x_constraint_plausible = false;
+        bool y_constraint_plausible = false;
+
+        // ... (Plausibility check logic remains exactly the same) ...
+        if (std::fabs(dir_x) > 1e-6) {
+            double wall_x = (dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH;
+            double expected_dist_to_x_wall = (wall_x - sensor_global_x) / dir_x;
+            if (!(s.dist < expected_dist_to_x_wall - OBSTACLE_TOLERANCE)) {
+                double sensor_y_at_x_wall = sensor_global_y + expected_dist_to_x_wall * dir_y;
+                if (sensor_y_at_x_wall >= -HALF_HEIGHT - 2.0 && sensor_y_at_x_wall <= HALF_HEIGHT + 2.0) {
+                    x_constraint_plausible = true;
+                }
+            }
+        }
+
+        if (std::fabs(dir_y) > 1e-6) {
+            double wall_y = (dir_y < 0) ? -HALF_HEIGHT : HALF_HEIGHT;
+            double expected_dist_to_y_wall = (wall_y - sensor_global_y) / dir_y;
+            if (!(s.dist < expected_dist_to_y_wall - OBSTACLE_TOLERANCE)) {
+                double sensor_x_at_y_wall = sensor_global_x + expected_dist_to_y_wall * dir_x;
+                if (sensor_x_at_y_wall >= -HALF_WIDTH - 2.0 && sensor_x_at_y_wall <= HALF_WIDTH + 2.0) {
+                    y_constraint_plausible = true;
+                }
+            }
+        }
+        // ... (End of plausibility check logic) ...
+
+        if (x_constraint_plausible || y_constraint_plausible) {
+            double robot_x_from_x_wall = ((dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH) - s.dist * dir_x - offset_x;
+            double robot_y_from_y_wall = ((dir_y < 0) ? -HALF_HEIGHT : HALF_HEIGHT) - s.dist * dir_y - offset_y;
+            
+            // The absolute value of the cosine of the angle to a wall's normal
+            // gives a perfect 0-1 confidence score. For a vertical (X) wall, this is
+            // simply the x-component of the sensor's direction vector.
+            double weight_x = std::fabs(dir_x);
+            double weight_y = std::fabs(dir_y);
+
+            if (x_constraint_plausible && !y_constraint_plausible) {
+                constraints.emplace_back('x', robot_x_from_x_wall, weight_x);
+            } else if (!x_constraint_plausible && y_constraint_plausible) {
+                constraints.emplace_back('y', robot_y_from_y_wall, weight_y);
+            } else { // Both are plausible, pick the one with the higher weight
+                if (weight_x > weight_y) {
+                    constraints.emplace_back('x', robot_x_from_x_wall, weight_x);
+                } else {
+                    constraints.emplace_back('y', robot_y_from_y_wall, weight_y);
+                }
+            }
+        }
+    }
+
+    // CHANGE 2: Calculate the weighted average
+    double weighted_sum_x = 0, total_weight_x = 0;
+    double weighted_sum_y = 0, total_weight_y = 0;
+
+    for (const auto& c : constraints) {
+        char axis = std::get<0>(c);
+        double pos = std::get<1>(c);
+        double weight = std::get<2>(c);
+
+        if (axis == 'x') {
+            weighted_sum_x += pos * weight;
+            total_weight_x += weight;
+        } else {
+            weighted_sum_y += pos * weight;
+            total_weight_y += weight;
+        }
+    }
+
+    double est_x = (total_weight_x > 0) ? (weighted_sum_x / total_weight_x) : current_pose.x;
+    double est_y = (total_weight_y > 0) ? (weighted_sum_y / total_weight_y) : current_pose.y;
+
+    return {est_x, est_y};
+}
+
+void distanceReset() {
+    lemlib::Pose current_pose = chassis.getPose();
+    double heading_deg = current_pose.theta;
+
+
+    double dist_left = left.get_distance() * MM_TO_IN;
+    double dist_right = right.get_distance() * MM_TO_IN;
+    double dist_front = front.get_distance() * MM_TO_IN;
+    double dist_back = back.get_distance() * MM_TO_IN;
+
+    std::pair<double, double> estimated_position = calculateGlobalPosition(
+        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
+    );
+
+    chassis.setPose(estimated_position.first, estimated_position.second, current_pose.theta);
+}
+
+std::pair<double, double> distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
+    lemlib::Pose current_pose = chassis.getPose();
+    double heading_deg = current_pose.theta;
+
+    double dist_left = left.get_distance() * MM_TO_IN;
+    double dist_right = right.get_distance() * MM_TO_IN;
+    double dist_front = front.get_distance() * MM_TO_IN;
+    double dist_back = back.get_distance() * MM_TO_IN;
+
+    if(!left_use) {dist_left = 10000;}
+    if(!right_use) {dist_right = 10000;}
+    if(!front_use) {dist_front = 10000;}
+    if(!back_use) {dist_back = 10000;}
+
+    std::pair<double, double> estimated_position = calculateGlobalPosition(
+        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
+    );
+
+    return {estimated_position.first, estimated_position.second};
+}
+
+
 std::vector<State> prepare_trajectory() {
     std::vector<State> states;
     states.resize(X.size());
@@ -329,118 +532,6 @@ void ramsete_auton() {
     }
 }
 
-void custom_controller_auton() {
-    // --- New Tuning Parameters for this Controller ---
-    const double k_lat = 2; // Lateral correction gain, TUNE THIS
-    
-    // You MUST tune the gains for these PID controllers
-    lemlib::PID linear_pid(5, 0.0, 0.0);   // TUNE P, I, D for linear movement
-    lemlib::PID angular_pid(5, 0.0, 0.01); // TUNE P, I, D for turning movement
-
-    // --- Robot Constants ---
-    const double track_width = (10.05 + 0) * INCH_TO_METER;
-
-    // --- Drivetrain Velocity Controllers (Feedforward + PID) ---
-    VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
-    VelocityController left_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
-
-    // --- Trajectory Following Loop ---
-    std::vector<State> trajectory = prepare_trajectory();
-    if (trajectory.empty()) return;
-
-    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, chassis.getPose(true).theta, true);
-
-    for (const auto &target_state : trajectory) {
-        lemlib::Pose current_pose = chassis.getPose(true);
-
-        // --- 1. Calculate Error in Robot's Local Frame ---
-        current_pose.x *= INCH_TO_METER;
-        current_pose.y *= INCH_TO_METER;
-        current_pose.theta = M_PI_2 - current_pose.theta;
-
-        Eigen::Vector2d global_pos_error;
-        global_pos_error << target_state.x - current_pose.x, target_state.y - current_pose.y;
-
-        Eigen::Matrix2d rotation_matrix;
-        rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta),
-                          -std::sin(current_pose.theta), std::cos(current_pose.theta);
-
-        Eigen::Vector2d local_pos_error = rotation_matrix * global_pos_error;
-        double e_x = local_pos_error(0);
-        double e_y = local_pos_error(1);
-
-        // --- 2. Apply the Custom Control Law ---
-
-        double e_theta_bearing = std::atan2(e_y, e_x);
-        double forward_sign = (std::cos(e_theta_bearing) >= 0) ? 1.0 : -1.0;
-        double distance_error = std::sqrt(e_x * e_x + e_y * e_y);
-        double linear_measurement = distance_error * forward_sign;
-        
-        // CORRECTED: Pass the error directly (setpoint - measurement)
-        // Since setpoint is 0, error is -measurement.
-        double vd = linear_pid.update(-linear_measurement);
-        double w_from_pid = angular_pid.update(-e_theta_bearing);
-
-        // Calculate final chassis velocities
-        double v = std::abs(std::cos(e_theta_bearing)) * vd;
-        double w = w_from_pid + k_lat * vd * e_y * sinc(e_theta_bearing);
-
-        // --- 3. Convert Chassis Speeds to Wheel Speeds & Command Motors ---
-        double left_linear_velocity = v - (track_width / 2.0) * w;
-        double right_linear_velocity = v + (track_width / 2.0) * w;
-
-        const double mps_to_rpm = (60 * 1.25 / wheel_circumference); // Assuming 1.25 is gear ratio
-        double left_target_rpm = left_linear_velocity * mps_to_rpm;
-        double right_target_rpm = right_linear_velocity * mps_to_rpm;
-
-        double left_voltage = left_controller.update(left_target_rpm, leftMotors.get_actual_velocity());
-        double right_voltage = right_controller.update(right_target_rpm, rightMotors.get_actual_velocity());
-
-        leftMotors.move_voltage(left_voltage * 1000.0);
-        rightMotors.move_voltage(right_voltage * 1000.0);
-        
-        std::ostringstream ss;
-        ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
-        /*
-        std::ostringstream s2;
-        s2 << Vector2(time, e_y).latex() << ",";
-        std::ostringstream s3;
-        s3 << Vector2(time, e_t).latex() << ",";
-        */
-        //std::ostringstream s5;
-        //s5 << Vector2(current_pose.x, current_pose.y).latex() << ",";
-        
-        //std::ostringstream s4;
-        //s4 << Vector2(time, right_target_velocity).latex() << ",";
-        /*<< "time=" << time
-           << " e_x=" << e_x
-           << " e_y=" << e_y
-           << " e_t=" << e_t
-           << " vd=" << vd
-           << " wd=" << wd
-           << " v=" << v
-           << " w=" << w
-           << " left_target_velocity=" << left_target_velocity
-           << " right_target_velocity=" << right_target_velocity
-           << " current_pose.x=" << current_pose.x
-           << " current_pose.y=" << current_pose.y
-           << " current_pose.theta=" << current_pose.theta;*/
-
-        
-        //logs.push_back(ss.str());
-        pros::delay(10);
-    }
-    
-    leftMotors.move_voltage(0);
-    rightMotors.move_voltage(0);
-    /*
-    for (const auto& line : logs) {
-        std::cout << line;
-        pros::delay(100);
-    }
-    */
-}
-
 void test_w_controller() {
     double right = 0;
     double left = 0;
@@ -469,11 +560,18 @@ void initialize() {
     pros::lcd::initialize();
 
     pros::Task screen_task([&]() {
+        std::pair<double, double> distance_position;
         while (true) {
-            //pros::lcd::print(0, "X: %f", chassis.getPose().x);
-            //pros::lcd::print(1, "Y: %f", chassis.getPose().y);
-            //pros::lcd::print(2, "Theta: %f", chassis.getPose(true).theta);
-
+            lemlib::Pose current_pose = chassis.getPose();
+            pros::lcd::print(0, "X: %f", current_pose.x);
+            pros::lcd::print(1, "Y: %f", current_pose.y);
+            pros::lcd::print(2, "T_rad: %f", chassis.getPose(true).theta, " T_deg %f", current_pose.theta);
+            distance_position = distanceReset(true, true, true, true);
+            pros::lcd::print(3, "X_d: %f", distance_position.first);
+            pros::lcd::print(4, "Y_d: %f", distance_position.second);
+            pros::lcd::print(5, "F: %f", front.get()/1000, "B: %f", back.get()/1000, "R: %f", right.get()/1000, "L: %f", left.get()/1000);
+            pros::lcd::print(6, "Difference: X: %f", std::fabs(current_pose.x - distance_position.first), " Y: %f", std::fabs(current_pose.y - distance_position.second));
+            /*
             Eigen::Matrix3d rotation_matrix;
             Eigen::Vector3d global_error;
             Eigen::Vector3d local_error;
@@ -493,170 +591,36 @@ void initialize() {
             pros::lcd::print(0, "X Error: %f", local_error(0));
             pros::lcd::print(1, "Y Error: %f", local_error(1));
             pros::lcd::print(2, "T Error: %f", local_error(2));
+            */
             pros::delay(20);
         }
     });
 }
 
-const double MM_TO_IN = 0.0393701;
-const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
-const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
-
-const double OFFSET_TO_LEFT_SENSOR = 150.0 * MM_TO_IN;
-const double OFFSET_TO_RIGHT_SENSOR = 155.0 * MM_TO_IN;
-const double OFFSET_TO_BACK_SENSOR = 170.0 * MM_TO_IN;
-const double OFFSET_TO_FRONT_SENSOR = 165.0 * MM_TO_IN;
-
-const double MAX_SENSOR_RANGE = 2000.0 * MM_TO_IN;
-// How much closer a reading can be before it's considered an obstacle (in inches)
-const double OBSTACLE_TOLERANCE = 6.0;
-
-std::pair<double, double> calculateGlobalPosition(
-    double dist_left, double dist_right,
-    double dist_back, double dist_front,
-    double heading_deg, lemlib::Pose current_pose)
+void useWeightedPosition()
 {
-    double heading_rad = lemlib::degToRad(heading_deg);
-    double cos_h = std::cos(heading_rad);
-    double sin_h = std::sin(heading_rad);
+    pros::Task position_task([&]() {
+        while (true) {
+            lemlib::Pose current_pose = chassis.getPose();
+            double odomWeight = 0.75;
+            double distanceWeight = (1-odomWeight);
 
-    struct Sensor {
-        double sx, sy, angle_deg, dist;
-    } sensors[] = {
-        {-OFFSET_TO_LEFT_SENSOR, 0, -90, dist_left},
-        {OFFSET_TO_RIGHT_SENSOR, 0, 90, dist_right},
-        {0, -OFFSET_TO_BACK_SENSOR, 180, dist_back},
-        {0, OFFSET_TO_FRONT_SENSOR, 0, dist_front}
-    };
+            std::pair<double, double> distance_position = distanceReset(true, true, true, true);
 
-    std::vector<std::pair<char, double>> constraints;
+            double weighted_x = (current_pose.x * odomWeight) + (distance_position.first * distanceWeight);
+            double weighted_y = (current_pose.y * odomWeight) + (distance_position.second * distanceWeight);
 
-    for (const auto& s : sensors) {
-        if (s.dist > MAX_SENSOR_RANGE) continue;
-
-        double sensor_angle = heading_rad + lemlib::degToRad(s.angle_deg);
-        double dir_x = std::cos(sensor_angle);
-        double dir_y = std::sin(sensor_angle);
-
-        double offset_x = s.sx * cos_h - s.sy * sin_h;
-        double offset_y = s.sx * sin_h + s.sy * cos_h;
-
-        // Global position of the sensor
-        double sensor_global_x = current_pose.x + offset_x;
-        double sensor_global_y = current_pose.y + offset_y;
-
-        bool x_constraint_plausible = false;
-        bool y_constraint_plausible = false;
-
-        // Check against vertical walls (X-constraints)
-        // Guard against division by zero
-        if (std::fabs(dir_x) > 1e-6) {
-            double wall_x = (dir_x < 0) ? 0.0 : FIELD_WIDTH;
-            double expected_dist_to_x_wall = (wall_x - sensor_global_x) / dir_x;
-
-            // Model-based check: if measured dist is much smaller, it's an obstacle
-            if (s.dist < expected_dist_to_x_wall - OBSTACLE_TOLERANCE) {
-                 // Skip this sensor, it's likely hitting an obstacle
-            } else {
-                double sensor_y_at_x_wall = sensor_global_y + expected_dist_to_x_wall * dir_y;
-                double tolerance = 2;
-                if (sensor_y_at_x_wall >= -tolerance && sensor_y_at_x_wall <= FIELD_HEIGHT + tolerance) {
-                    x_constraint_plausible = true;
-                }
-            }
+            chassis.setPose(weighted_x, weighted_y, current_pose.theta);
+            pros::delay(20);
         }
-
-        // Check against horizontal walls (Y-constraints)
-        // Guard against division by zero
-        if (std::fabs(dir_y) > 1e-6) {
-            double wall_y = (dir_y < 0) ? 0.0 : FIELD_HEIGHT;
-            double expected_dist_to_y_wall = (wall_y - sensor_global_y) / dir_y;
-
-            // Model-based check: if measured dist is much smaller, it's an obstacle
-            if (s.dist < expected_dist_to_y_wall - OBSTACLE_TOLERANCE) {
-                // Skip this sensor, it's likely hitting an obstacle
-            } else {
-                double sensor_x_at_y_wall = sensor_global_x + expected_dist_to_y_wall * dir_x;
-                if (sensor_x_at_y_wall >= 0 && sensor_x_at_y_wall <= FIELD_WIDTH) {
-                    y_constraint_plausible = true;
-                }
-            }
-        }
-
-        // Add constraints if plausible
-        if (x_constraint_plausible || y_constraint_plausible) {
-            double robot_x_from_x_wall = (dir_x < 0 ? 0.0 : FIELD_WIDTH) - s.dist * dir_x - offset_x;
-            double robot_y_from_y_wall = (dir_y < 0 ? 0.0 : FIELD_HEIGHT) - s.dist * dir_y - offset_y;
-
-            if (x_constraint_plausible && !y_constraint_plausible) {
-                constraints.push_back({'x', robot_x_from_x_wall});
-            } else if (!x_constraint_plausible && y_constraint_plausible) {
-                constraints.push_back({'y', robot_y_from_y_wall});
-            } else { // Both are plausible, use the dominant direction
-                if (std::fabs(dir_x) > std::fabs(dir_y)) {
-                    constraints.push_back({'x', robot_x_from_x_wall});
-                } else {
-                    constraints.push_back({'y', robot_y_from_y_wall});
-                }
-            }
-        }
-    }
-
-    // Averaging the valid constraints
-    double sum_x = 0, sum_y = 0;
-    int count_x = 0, count_y = 0;
-    for (const auto& c : constraints) {
-        if (c.first == 'x') { sum_x += c.second; count_x++; }
-        else { sum_y += c.second; count_y++; }
-    }
-    
-    double est_x = (count_x > 0) ? (sum_x / count_x) : current_pose.x;
-    double est_y = (count_y > 0) ? (sum_y / count_y) : current_pose.y;
-
-    return {est_x, est_y};
-}
-void distanceReset() {
-    lemlib::Pose current_pose = chassis.getPose();
-    double heading_deg = current_pose.theta;
-
-
-    double dist_left = left.get_distance() * MM_TO_IN;
-    double dist_right = right.get_distance() * MM_TO_IN;
-    double dist_front = front.get_distance() * MM_TO_IN;
-    double dist_back = back.get_distance() * MM_TO_IN;
-
-    std::pair<double, double> estimated_position = calculateGlobalPosition(
-        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
-    );
-
-    chassis.setPose(estimated_position.first, estimated_position.second, current_pose.theta);
-}
-
-void distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
-    lemlib::Pose current_pose = chassis.getPose();
-    double heading_deg = current_pose.theta;
-
-    double dist_left = left.get_distance() * MM_TO_IN;
-    double dist_right = right.get_distance() * MM_TO_IN;
-    double dist_front = front.get_distance() * MM_TO_IN;
-    double dist_back = back.get_distance() * MM_TO_IN;
-
-    if(!left_use) {dist_left = 10000;}
-    if(!right_use) {dist_right = 10000;}
-    if(!front_use) {dist_front = 10000;}
-    if(!back_use) {dist_back = 10000;}
-
-    std::pair<double, double> estimated_position = calculateGlobalPosition(
-        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
-    );
-
-    chassis.setPose(estimated_position.first, estimated_position.second, current_pose.theta);
+    });
 }
 
 void right_auton()
 {
     //Intake 3 blocks
     chassis.setPose(-50.474, -7.451, 117);
+    //useWeightedPosition();
     chassis.turnToPoint(-28.718, -19.281, 500);
     chassis.waitUntilDone();
     chassis.moveToPoint(-28.718, -19.281, 2000);
@@ -676,23 +640,19 @@ void right_auton()
     distanceReset();
     chassis.waitUntilDone();
     chassis.turnToPoint(-58.36, -47.156, 1000);
-    //distanceReset(true, true, true, false);
+    distanceReset(true, true, true, false);
     chassis.waitUntilDone();
     chassis.moveToPoint(-58.36, -47.156, 1000);
     chassis.moveToPoint(-46.803, -47.02, 1000, {.forwards = true});
-    //distanceReset(true, true, false, true);
+    distanceReset(true, true, false, true);
     chassis.waitUntilDone();
     chassis.turnToPoint(-30.893, -47.02, 1000);
-    //distanceReset(true, true, false, true);
+    distanceReset(true, true, false, true);
     chassis.waitUntilDone();
     chassis.moveToPoint(-30.893, -47.02, 1000);
 }
 
 void autonomous() {
-    pros::delay(1000);
-    distanceReset();
-    pros::delay(1000);
-    std::cout << "After Reset: X=" << chassis.getPose().x << " Y=" << chassis.getPose().y << " Theta=" << chassis.getPose().theta << std::endl;
     //ramsete_auton();
 }
 
