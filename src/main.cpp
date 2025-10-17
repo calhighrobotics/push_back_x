@@ -75,6 +75,8 @@ pros::Distance left(2);
 pros::Distance back(3);
 pros::Distance front(4);
 
+ASSET(skills_1_txt);
+
 class Vector2 {
 public:
     Vector2(float x, float y) : x(x), y(y) {}
@@ -116,19 +118,12 @@ const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
 const double MAX_SENSOR_RANGE = 2000.0 * MM_TO_IN;
 const double OBSTACLE_TOLERANCE = 6.0;
 
-// =======================================================================================
-// FIX: Define sensor positions using a clear, robot-relative struct.
-// This prevents confusion between X/Y axes and Forward/Strafe directions.
-// =======================================================================================
 struct SensorConfig {
     double forward_offset; // Distance from center: +forward, -backward
     double strafe_offset;  // Distance from center: +left, -right
     double mounting_angle; // Angle relative to front of robot (degrees)
 };
 
-// --- USER CONFIGURATION: Set your robot's measurements here ---
-// Based on your original variable names, it seems your robot's +Y was forward.
-// I have translated those values into the new system. Please double-check them.
 
 const SensorConfig front_sensor_cfg = {
     165.0 * MM_TO_IN,  // forward_offset: 165mm forward
@@ -153,8 +148,6 @@ const SensorConfig back_sensor_cfg = {
     0.0,               // strafe_offset: Centered
     180                // mounting_angle: Points straight backward
 };
-// --- END OF USER CONFIGURATION ---
-
 
 std::pair<double, double> calculateGlobalPosition(
     double dist_left, double dist_right,
@@ -168,18 +161,18 @@ std::pair<double, double> calculateGlobalPosition(
     struct Sensor {
         SensorConfig cfg;
         double dist;
+        int confidence;
     } sensors[] = {
-        {left_sensor_cfg, dist_left},
-        {right_sensor_cfg, dist_right},
-        {back_sensor_cfg, dist_back},
-        {front_sensor_cfg, dist_front}
+        {left_sensor_cfg, dist_left, left.get_confidence()},
+        {right_sensor_cfg, dist_right, right.get_confidence()},
+        {back_sensor_cfg, dist_back, back.get_confidence()},
+        {front_sensor_cfg, dist_front, front.get_confidence()}
     };
 
-    // CHANGE 1: The vector now stores a tuple: {axis, position, weight}
     std::vector<std::tuple<char, double, double>> constraints;
 
     for (const auto& s : sensors) {
-        if (s.dist > MAX_SENSOR_RANGE) continue;
+        if (s.dist > MAX_SENSOR_RANGE || s.confidence < 25) continue;
 
         double sx = s.cfg.forward_offset;
         double sy = s.cfg.strafe_offset;
@@ -197,7 +190,6 @@ std::pair<double, double> calculateGlobalPosition(
         bool x_constraint_plausible = false;
         bool y_constraint_plausible = false;
 
-        // ... (Plausibility check logic remains exactly the same) ...
         if (std::fabs(dir_x) > 1e-6) {
             double wall_x = (dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH;
             double expected_dist_to_x_wall = (wall_x - sensor_global_x) / dir_x;
@@ -219,15 +211,11 @@ std::pair<double, double> calculateGlobalPosition(
                 }
             }
         }
-        // ... (End of plausibility check logic) ...
 
         if (x_constraint_plausible || y_constraint_plausible) {
             double robot_x_from_x_wall = ((dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH) - s.dist * dir_x - offset_x;
             double robot_y_from_y_wall = ((dir_y < 0) ? -HALF_HEIGHT : HALF_HEIGHT) - s.dist * dir_y - offset_y;
-            
-            // The absolute value of the cosine of the angle to a wall's normal
-            // gives a perfect 0-1 confidence score. For a vertical (X) wall, this is
-            // simply the x-component of the sensor's direction vector.
+        
             double weight_x = std::fabs(dir_x);
             double weight_y = std::fabs(dir_y);
 
@@ -235,7 +223,7 @@ std::pair<double, double> calculateGlobalPosition(
                 constraints.emplace_back('x', robot_x_from_x_wall, weight_x);
             } else if (!x_constraint_plausible && y_constraint_plausible) {
                 constraints.emplace_back('y', robot_y_from_y_wall, weight_y);
-            } else { // Both are plausible, pick the one with the higher weight
+            } else { 
                 if (weight_x > weight_y) {
                     constraints.emplace_back('x', robot_x_from_x_wall, weight_x);
                 } else {
@@ -245,7 +233,6 @@ std::pair<double, double> calculateGlobalPosition(
         }
     }
 
-    // CHANGE 2: Calculate the weighted average
     double weighted_sum_x = 0, total_weight_x = 0;
     double weighted_sum_y = 0, total_weight_y = 0;
 
@@ -269,7 +256,7 @@ std::pair<double, double> calculateGlobalPosition(
     return {est_x, est_y};
 }
 
-void distanceReset() {
+std::pair<double, double> distanceReset() {
     lemlib::Pose current_pose = chassis.getPose();
     double heading_deg = current_pose.theta;
 
@@ -283,7 +270,8 @@ void distanceReset() {
         dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
     );
 
-    chassis.setPose(estimated_position.first, estimated_position.second, current_pose.theta);
+    return {estimated_position.first, estimated_position.second};
+    
 }
 
 std::pair<double, double> distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
@@ -396,9 +384,6 @@ double angleError(double robotAngle, double targetAngle) {
 
     return diff;
 }
-//double angleError(double robotAngle, double targetAngle) {
-//    return std::remainder(robotAngle - targetAngle, M_PI_2);
-//}
 
 
 const double wheel_circumference = 4 * M_PI * INCH_TO_METER; // meters
@@ -418,7 +403,7 @@ inline double sinc(double x) {
 void ramsete_auton() {
     const double b = 9;      // Controls how strongly/Aggresiveley the controller follows the path
     const double zeta = 0.1; // Basically a damping term
-    const double track_width = (10.05+4) * INCH_TO_METER;
+    const double track_width = 10.05 * INCH_TO_METER;
     VelocityProfile vp;
 
     VelocityController right_controller(config.kV, config.kA, config.kS, config.kP, config.kI);
@@ -466,8 +451,8 @@ void ramsete_auton() {
 
         double left_target_velocity = (60 * 1.25 / wheel_circumference) * (vd - (track_width / 2.0) * wd);
         double right_target_velocity = (60 * 1.25 / wheel_circumference) * (vd + (track_width / 2.0) * wd);
-            double left = left_controller.update(left_target_velocity, leftMotors.get_actual_velocity());
-            double right = right_controller.update(right_target_velocity, rightMotors.get_actual_velocity());
+        double left = left_controller.update(left_target_velocity, leftMotors.get_actual_velocity());
+        double right = right_controller.update(right_target_velocity, rightMotors.get_actual_velocity());
 
         rightMotors.move_voltage(right * 1000.0);
         leftMotors.move_voltage(left * 1000.0);
@@ -571,6 +556,7 @@ void initialize() {
             pros::lcd::print(4, "Y_d: %f", distance_position.second);
             pros::lcd::print(5, "F: %f", front.get()/1000, "B: %f", back.get()/1000, "R: %f", right.get()/1000, "L: %f", left.get()/1000);
             pros::lcd::print(6, "Difference: X: %f", std::fabs(current_pose.x - distance_position.first), " Y: %f", std::fabs(current_pose.y - distance_position.second));
+            pros::delay(30);
             /*
             Eigen::Matrix3d rotation_matrix;
             Eigen::Vector3d global_error;
@@ -592,7 +578,6 @@ void initialize() {
             pros::lcd::print(1, "Y Error: %f", local_error(1));
             pros::lcd::print(2, "T Error: %f", local_error(2));
             */
-            pros::delay(20);
         }
     });
 }
@@ -605,22 +590,24 @@ void useWeightedPosition()
             double odomWeight = 0.75;
             double distanceWeight = (1-odomWeight);
 
-            std::pair<double, double> distance_position = distanceReset(true, true, true, true);
+            std::pair<double, double> distance_position = distanceReset();
 
             double weighted_x = (current_pose.x * odomWeight) + (distance_position.first * distanceWeight);
             double weighted_y = (current_pose.y * odomWeight) + (distance_position.second * distanceWeight);
 
             chassis.setPose(weighted_x, weighted_y, current_pose.theta);
-            pros::delay(20);
+            pros::delay(30);
         }
     });
 }
 
 void right_auton()
 {
+    std::pair<double, double> distance_position;
     //Intake 3 blocks
     chassis.setPose(-50.474, -7.451, 117);
-    //useWeightedPosition();
+    useWeightedPosition();
+
     chassis.turnToPoint(-28.718, -19.281, 500);
     chassis.waitUntilDone();
     chassis.moveToPoint(-28.718, -19.281, 2000);
@@ -631,29 +618,47 @@ void right_auton()
 
     //Go to Center and Score
     chassis.turnToPoint(-12.401, -12.437, 500);
-    distanceReset(true, true, false, true);
+
+    //distance_position = distanceReset(true, true, false, true);
+    //chassis.setPose(distance_position.first, distance_position.second, chassis.getPose().theta, true);
+
     chassis.waitUntilDone();
     chassis.moveToPoint(-12.401, -12.437, 2000);
 
     //Matchload and longgoal
     chassis.moveToPoint(-46.803, -47.02, 2000, {.forwards = true});
-    distanceReset();
+
+    //distance_position = distanceReset();
+    //chassis.setPose(distance_position.first, distance_position.second, chassis.getPose().theta, true);
+
     chassis.waitUntilDone();
     chassis.turnToPoint(-58.36, -47.156, 1000);
-    distanceReset(true, true, true, false);
+
+    //distance_position = distanceReset(true, true, true, false);
+    //chassis.setPose(distance_position.first, distance_position.second, chassis.getPose().theta, true);
+
     chassis.waitUntilDone();
     chassis.moveToPoint(-58.36, -47.156, 1000);
     chassis.moveToPoint(-46.803, -47.02, 1000, {.forwards = true});
-    distanceReset(true, true, false, true);
+
+    //distance_position = distanceReset(true, true, false, true);
+    //chassis.setPose(distance_position.first, distance_position.second, chassis.getPose().theta, true);
+
     chassis.waitUntilDone();
     chassis.turnToPoint(-30.893, -47.02, 1000);
-    distanceReset(true, true, false, true);
+
+    //distance_position = distanceReset(true, true, false, true);
+    //chassis.setPose(distance_position.first, distance_position.second, chassis.getPose().theta, true);
+
     chassis.waitUntilDone();
     chassis.moveToPoint(-30.893, -47.02, 1000);
 }
 
+
 void autonomous() {
     //ramsete_auton();
+    //right_auton();
+    //chassis.follow(skills_1_txt, 10, 2000);
 }
 
 void disabled() {}
