@@ -3,6 +3,7 @@
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/pid.hpp"
 #include "lemlib/util.hpp"
+#include "pros/imu.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
 #include "pros/rtos.hpp"
@@ -70,10 +71,10 @@ lemlib::ControllerSettings angular_controller(4,    // kP
 
 lemlib::Chassis chassis(drivetrain, lateral_controller, angular_controller, sensors);
 
-pros::Distance right(1);
-pros::Distance left(2);
-pros::Distance back(3);
-pros::Distance front(4);
+pros::Distance right(3);
+pros::Distance left(4);
+pros::Distance back(2);
+pros::Distance front(17);
 
 ASSET(skills_1_txt);
 
@@ -107,54 +108,51 @@ struct State {
     double x, y, heading, linear_vel, angular_vel;
 };
 
-// Field constants
+
+// Field and Sensor constants remain the same...
 const double MM_TO_IN = 0.0393701;
 const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
 const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
 const double HALF_WIDTH = FIELD_WIDTH / 2.0;
 const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
-
-// General constants
 const double MAX_SENSOR_RANGE = 2000.0 * MM_TO_IN;
-const double OBSTACLE_TOLERANCE = 6.0;
+// OBSTACLE_TOLERANCE is no longer needed
 
 struct SensorConfig {
-    double forward_offset; // Distance from center: +forward, -backward
-    double strafe_offset;  // Distance from center: +left, -right
-    double mounting_angle; // Angle relative to front of robot (degrees)
+    double forward_offset;
+    double strafe_offset;
+    double mounting_angle;
 };
 
+const SensorConfig front_sensor_cfg = {9, -0.25, 0};
+const SensorConfig left_sensor_cfg = {5, 0, 90};
+const SensorConfig right_sensor_cfg = {5, -4, -90};
+const SensorConfig back_sensor_cfg = {-8, 0.25, 180};
 
-const SensorConfig front_sensor_cfg = {
-    165.0 * MM_TO_IN,  // forward_offset: 165mm forward
-    -5.0 * MM_TO_IN,   // strafe_offset: 5mm to the right
-    0                    // mounting_angle: Points straight forward
-};
 
-const SensorConfig left_sensor_cfg = {
-    10.0 * MM_TO_IN,   // forward_offset: 10mm forward
-    150.0 * MM_TO_IN,  // strafe_offset: 150mm to the left
-    90                   // mounting_angle: Points straight left
-};
+/**
+ * @brief Calculates global position using only IMU and distance sensors.
+ *
+ * @param heading_deg The robot's current absolute heading from the IMU.
+ * @return std::pair<double, double> Estimated {X, Y} position.
+ * Returns {NAN, NAN} if a position cannot be determined.
+ */
 
-const SensorConfig right_sensor_cfg = {
-    10.0 * MM_TO_IN,   // forward_offset: 10mm forward
-    -155.0 * MM_TO_IN, // strafe_offset: 155mm to the right
-    -90                  // mounting_angle: Points straight right
-};
+struct distancePose
+ {
+    double x;
+    double y;
+    bool using_odom_x;
+    bool using_odom_y;
+ };
 
-const SensorConfig back_sensor_cfg = {
-    -170.0 * MM_TO_IN, // forward_offset: 170mm backward
-    0.0,               // strafe_offset: Centered
-    180                // mounting_angle: Points straight backward
-};
-
-std::pair<double, double> calculateGlobalPosition(
+distancePose calculateGlobalPosition(
     double dist_left, double dist_right,
     double dist_back, double dist_front,
-    double heading_deg, lemlib::Pose current_pose)
+    double heading_deg)
 {
-    double heading_rad = lemlib::degToRad(heading_deg);
+    // Sets 0 degrees to be facing left (-Y axis)
+    double heading_rad = lemlib::degToRad(heading_deg - 90);
     double cos_h = std::cos(heading_rad);
     double sin_h = std::sin(heading_rad);
 
@@ -169,131 +167,111 @@ std::pair<double, double> calculateGlobalPosition(
         {front_sensor_cfg, dist_front, front.get_confidence()}
     };
 
-    std::vector<std::tuple<char, double, double>> constraints;
+    double weighted_sum_x = 0, total_weight_x = 0;
+    double weighted_sum_y = 0, total_weight_y = 0;
 
     for (const auto& s : sensors) {
-        if (s.dist > MAX_SENSOR_RANGE || s.confidence < 25) continue;
+        // Ignore sensor readings that are out of a practical range
+        if (s.dist >= MAX_SENSOR_RANGE || s.confidence < 20) continue;
 
-        double sx = s.cfg.forward_offset;
-        double sy = s.cfg.strafe_offset;
-
+        // Sensor's orientation in the global frame
         double sensor_angle = heading_rad + lemlib::degToRad(s.cfg.mounting_angle);
         double dir_x = std::cos(sensor_angle);
         double dir_y = std::sin(sensor_angle);
 
-        double offset_x = sx * cos_h - sy * sin_h;
-        double offset_y = sx * sin_h + sy * cos_h;
-
-        double sensor_global_x = current_pose.x + offset_x;
-        double sensor_global_y = current_pose.y + offset_y;
-
-        bool x_constraint_plausible = false;
-        bool y_constraint_plausible = false;
-
-        if (std::fabs(dir_x) > 1e-6) {
-            double wall_x = (dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH;
-            double expected_dist_to_x_wall = (wall_x - sensor_global_x) / dir_x;
-            if (!(s.dist < expected_dist_to_x_wall - OBSTACLE_TOLERANCE)) {
-                double sensor_y_at_x_wall = sensor_global_y + expected_dist_to_x_wall * dir_y;
-                if (sensor_y_at_x_wall >= -HALF_HEIGHT - 2.0 && sensor_y_at_x_wall <= HALF_HEIGHT + 2.0) {
-                    x_constraint_plausible = true;
-                }
-            }
-        }
-
-        if (std::fabs(dir_y) > 1e-6) {
-            double wall_y = (dir_y < 0) ? -HALF_HEIGHT : HALF_HEIGHT;
-            double expected_dist_to_y_wall = (wall_y - sensor_global_y) / dir_y;
-            if (!(s.dist < expected_dist_to_y_wall - OBSTACLE_TOLERANCE)) {
-                double sensor_x_at_y_wall = sensor_global_x + expected_dist_to_y_wall * dir_x;
-                if (sensor_x_at_y_wall >= -HALF_WIDTH - 2.0 && sensor_x_at_y_wall <= HALF_WIDTH + 2.0) {
-                    y_constraint_plausible = true;
-                }
-            }
-        }
-
-        if (x_constraint_plausible || y_constraint_plausible) {
-            double robot_x_from_x_wall = ((dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH) - s.dist * dir_x - offset_x;
-            double robot_y_from_y_wall = ((dir_y < 0) ? -HALF_HEIGHT : HALF_HEIGHT) - s.dist * dir_y - offset_y;
+        // Sensor's position relative to the robot center, rotated by heading
+        double offset_x = s.cfg.forward_offset * cos_h - s.cfg.strafe_offset * sin_h;
+        double offset_y = s.cfg.forward_offset * sin_h + s.cfg.strafe_offset * cos_h;
         
-            double weight_x = std::fabs(dir_x);
-            double weight_y = std::fabs(dir_y);
 
-            if (x_constraint_plausible && !y_constraint_plausible) {
-                constraints.emplace_back('x', robot_x_from_x_wall, weight_x);
-            } else if (!x_constraint_plausible && y_constraint_plausible) {
-                constraints.emplace_back('y', robot_y_from_y_wall, weight_y);
-            } else { 
-                if (weight_x > weight_y) {
-                    constraints.emplace_back('x', robot_x_from_x_wall, weight_x);
-                } else {
-                    constraints.emplace_back('y', robot_y_from_y_wall, weight_y);
-                }
-            }
-        }
+        // Calculate potential X position
+        double wall_x = (dir_x < 0) ? -HALF_WIDTH : HALF_WIDTH;
+        double robot_x = wall_x - s.dist * dir_x - offset_x;
+        // Weight the X contribution by how much the sensor points along the X axis.
+        // Squaring the weight makes it more pronounced.
+        double weight_x = std::pow(std::fabs(dir_x), 2); 
+        weighted_sum_x += robot_x * weight_x;
+        total_weight_x += weight_x;
+        
+        // Calculate potential Y position
+        double wall_y = (dir_y < 0) ? -HALF_HEIGHT : HALF_HEIGHT;
+        double robot_y = wall_y - s.dist * dir_y - offset_y;
+        // Weight the Y contribution by how much the sensor points along the Y axis.
+        double weight_y = std::pow(std::fabs(dir_y), 2);
+        weighted_sum_y += robot_y * weight_y;
+        total_weight_y += weight_y;
     }
 
-    double weighted_sum_x = 0, total_weight_x = 0;
-    double weighted_sum_y = 0, total_weight_y = 0;
-
-    for (const auto& c : constraints) {
-        char axis = std::get<0>(c);
-        double pos = std::get<1>(c);
-        double weight = std::get<2>(c);
-
-        if (axis == 'x') {
-            weighted_sum_x += pos * weight;
-            total_weight_x += weight;
-        } else {
-            weighted_sum_y += pos * weight;
-            total_weight_y += weight;
-        }
-    }
-
-    double est_x = (total_weight_x > 0) ? (weighted_sum_x / total_weight_x) : current_pose.x;
-    double est_y = (total_weight_y > 0) ? (weighted_sum_y / total_weight_y) : current_pose.y;
-
-    return {est_x, est_y};
-}
-
-std::pair<double, double> distanceReset() {
     lemlib::Pose current_pose = chassis.getPose();
-    double heading_deg = current_pose.theta;
+    double est_x = current_pose.x;
+    double est_y = current_pose.y;
+    bool using_odom_x = false;
+    bool using_odom_y = false;
 
-
-    double dist_left = left.get_distance() * MM_TO_IN;
-    double dist_right = right.get_distance() * MM_TO_IN;
-    double dist_front = front.get_distance() * MM_TO_IN;
-    double dist_back = back.get_distance() * MM_TO_IN;
-
-    std::pair<double, double> estimated_position = calculateGlobalPosition(
-        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
-    );
-
-    return {estimated_position.first, estimated_position.second};
     
+
+    est_x = weighted_sum_x / total_weight_x;
+    est_y = weighted_sum_y / total_weight_y;
+    distancePose pose;
+    pose.x = est_x;
+    pose.y = est_y;
+    // The pose is considered "pure odometry" only if BOTH axes had to fall back.
+    pose.using_odom_x = using_odom_x;
+    pose.using_odom_y = using_odom_y;
+
+    return pose;
 }
 
-std::pair<double, double> distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
-    lemlib::Pose current_pose = chassis.getPose();
-    double heading_deg = current_pose.theta;
+
+// These functions now call the new version of calculateGlobalPosition
+distancePose distanceReset() {
+    // Assumes you can get the IMU heading directly from the chassis or an IMU object
+    double heading_deg = chassis.getPose().theta; // Or imu.get_rotation(), etc.
 
     double dist_left = left.get_distance() * MM_TO_IN;
     double dist_right = right.get_distance() * MM_TO_IN;
     double dist_front = front.get_distance() * MM_TO_IN;
     double dist_back = back.get_distance() * MM_TO_IN;
 
-    if(!left_use) {dist_left = 10000;}
-    if(!right_use) {dist_right = 10000;}
-    if(!front_use) {dist_front = 10000;}
-    if(!back_use) {dist_back = 10000;}
-
-    std::pair<double, double> estimated_position = calculateGlobalPosition(
-        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
-    );
-
-    return {estimated_position.first, estimated_position.second};
+    return calculateGlobalPosition(dist_left, dist_right, dist_back, dist_front, heading_deg);
 }
+
+distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
+    double heading_deg = chassis.getPose().theta; // Or imu.get_rotation(), etc.
+
+    // Set unused sensor distances to a value that will be ignored
+    const double invalid_dist = 10000;
+    double dist_left = left_use ? left.get_distance() * MM_TO_IN : invalid_dist;
+    double dist_right = right_use ? right.get_distance() * MM_TO_IN : invalid_dist;
+    double dist_front = front_use ? front.get_distance() * MM_TO_IN : invalid_dist;
+    double dist_back = back_use ? back.get_distance() * MM_TO_IN : invalid_dist;
+
+    return calculateGlobalPosition(dist_left, dist_right, dist_back, dist_front, heading_deg);
+}
+
+/**
+ * Example of how you might use the new function and handle NAN values
+ */
+void apply_localization() {
+    distancePose estimated_pos = distanceReset();
+
+    double new_x = estimated_pos.x;
+    double new_y = estimated_pos.y;
+
+    lemlib::Pose current_pose = chassis.getPose();
+    double current_x = current_pose.x;
+    double current_y = current_pose.y;
+    double current_theta = current_pose.theta;
+
+    // Only update the pose with valid coordinates. If a sensor for an axis
+    // was not available, its value will be NAN, and we keep the old odometry value.
+    if (!std::isnan(new_x)) { current_x = new_x; }
+    if (!std::isnan(new_y)) { current_y = new_y; }
+
+    chassis.setPose(current_x, current_y, current_theta);
+}
+
+
 
 
 std::vector<State> prepare_trajectory() {
@@ -545,18 +523,30 @@ void initialize() {
     pros::lcd::initialize();
 
     pros::Task screen_task([&]() {
-        std::pair<double, double> distance_position;
+        distancePose distance_position;
+        chassis.setPose(-119.516, -59.411, 90);
+
         while (true) {
             lemlib::Pose current_pose = chassis.getPose();
-            pros::lcd::print(0, "X: %f", current_pose.x);
-            pros::lcd::print(1, "Y: %f", current_pose.y);
-            pros::lcd::print(2, "T_rad: %f", chassis.getPose(true).theta, " T_deg %f", current_pose.theta);
-            distance_position = distanceReset(true, true, true, true);
-            pros::lcd::print(3, "X_d: %f", distance_position.first);
-            pros::lcd::print(4, "Y_d: %f", distance_position.second);
-            pros::lcd::print(5, "F: %f", front.get()/1000, "B: %f", back.get()/1000, "R: %f", right.get()/1000, "L: %f", left.get()/1000);
-            pros::lcd::print(6, "Difference: X: %f", std::fabs(current_pose.x - distance_position.first), " Y: %f", std::fabs(current_pose.y - distance_position.second));
-            pros::delay(30);
+            //pros::lcd::print(0, "X: %f", current_pose.x);
+            //pros::lcd::print(1, "Y: %f", current_pose.y);
+            //pros::lcd::print(2," T_deg %f", current_pose.theta);
+            distance_position = distanceReset();
+            pros::lcd::print(0, "X_d: %f", distance_position.x);
+            pros::lcd::print(1, "Y_d: %f", distance_position.y);
+            pros::lcd::print(2, "Using Odom x: %s", distance_position.using_odom_x ? "Yes" : "No");
+            pros::lcd::print(3, "Using Odom y: %s", distance_position.using_odom_y ? "Yes" : "No");
+            /*
+            pros::lcd::print(4, "Left Dist: %f", (double)left.get() * MM_TO_IN);
+            pros::lcd::print(5, "Right Dist: %f", (double)right.get() * MM_TO_IN);
+            pros::lcd::print(6, "Front Dist: %f", (double)front.get() * MM_TO_IN);
+            pros::lcd::print(7, "Back Dist: %f", (double)back.get() * MM_TO_IN);
+            */
+
+            pros::lcd::print(4, "Diffx: %f", current_pose.x - distance_position.x);
+            pros::lcd::print(5, "Diffy: %f", current_pose.y - distance_position.y);
+            //pros::lcd::print(8, "Diff: %f", current_pose.x - distance_position.x);
+            pros::delay(100);
             /*
             Eigen::Matrix3d rotation_matrix;
             Eigen::Vector3d global_error;
@@ -590,10 +580,10 @@ void useWeightedPosition()
             double odomWeight = 0.75;
             double distanceWeight = (1-odomWeight);
 
-            std::pair<double, double> distance_position = distanceReset();
+            distancePose distance_position = distanceReset();
 
-            double weighted_x = (current_pose.x * odomWeight) + (distance_position.first * distanceWeight);
-            double weighted_y = (current_pose.y * odomWeight) + (distance_position.second * distanceWeight);
+            double weighted_x = (current_pose.x * odomWeight) + (distance_position.x * distanceWeight);
+            double weighted_y = (current_pose.y * odomWeight) + (distance_position.y * distanceWeight);
 
             chassis.setPose(weighted_x, weighted_y, current_pose.theta);
             pros::delay(30);
@@ -603,10 +593,10 @@ void useWeightedPosition()
 
 void right_auton()
 {
-    std::pair<double, double> distance_position;
+    //std::pair<double, double> distance_position;
     //Intake 3 blocks
     chassis.setPose(-50.474, -7.451, 117);
-    useWeightedPosition();
+    //useWeightedPosition();
 
     chassis.turnToPoint(-28.718, -19.281, 500);
     chassis.waitUntilDone();
@@ -659,10 +649,14 @@ void autonomous() {
     //ramsete_auton();
     //right_auton();
     //chassis.follow(skills_1_txt, 10, 2000);
+    chassis.setPose(-47.054, -23.741, 0);
+    distancePose distance_position = distanceReset();
+    controller.print(0, 0, "X_d: %f", distance_position.x, " Y_d: %f", distance_position.y);
 }
 
 void disabled() {}
 
 void competition_initialize() {}
 
-void opcontrol() {}
+void opcontrol() {
+}
