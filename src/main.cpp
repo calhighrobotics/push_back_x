@@ -1,12 +1,15 @@
 #include "main.h"
 #include "Eigen/Core"
+#include "Eigen/src/Core/util/Meta.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/pid.hpp"
 #include "lemlib/util.hpp"
+#include "pros/colors.h"
 #include "pros/imu.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
 #include "pros/rtos.hpp"
+#include "pros/vision.hpp"
 #include <cmath>
 #include <sstream>
 #include <type_traits>
@@ -77,7 +80,11 @@ pros::Distance left(4);
 pros::Distance back(2);
 pros::Distance front(17);
 
-ASSET(skills_1_txt);
+pros::Optical color_sensor(14);
+
+pros::Vision vision_sensor(1);
+
+ASSET(skills_2_txt);
 
 class Vector2 {
 public:
@@ -365,19 +372,19 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
     const int invalid_confidence = 0; // This will fail the MIN_CONFIDENCE check
 
     SensorReadings front_data = front_use
-        ? SensorReadings{front.get_distance() * MM_TO_IN, front.get_object_size(), front.get_confidence()}
+        ? SensorReadings{(double)front.get_distance(), front.get_object_size(), front.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
     
     SensorReadings left_data = left_use
-        ? SensorReadings{left.get_distance() * MM_TO_IN, left.get_object_size(), left.get_confidence()}
+        ? SensorReadings{(double)left.get_distance(), left.get_object_size(), left.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings right_data = right_use
-        ? SensorReadings{right.get_distance() * MM_TO_IN, right.get_object_size(), right.get_confidence()}
+        ? SensorReadings{(double)right.get_distance(), right.get_object_size(), right.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings back_data = back_use
-        ? SensorReadings{back.get_distance() * MM_TO_IN, back.get_object_size(), back.get_confidence()}
+        ? SensorReadings{(double)back.get_distance() ,back.get_object_size(), back.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
 
@@ -385,6 +392,76 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
 }
 
 
+
+enum Color {
+    NONE = 0,
+    RED = 1,
+    BLUE = 2
+};
+
+int get_color() {
+    double hue = color_sensor.get_hue();
+    // return red
+    Color color = NONE;
+    if ((hue > 0 && hue < 50) || (hue > 310 && hue < 361)) {
+        color = RED;
+        return color;
+    }
+    // return blue
+    if (hue > 150 && hue < 270) {
+        color = BLUE;
+    }
+    return color;
+}
+
+bool alignToGoal() {
+    lemlib::PID aligner_pid(1,0,1); 
+    int alignedFrames = 0;
+    const int CENTER_X = 158;
+    const int TARGET_SIG1 = 1, TARGET_SIG2 = 2;
+    double time = 0;
+    bool aligned = false;
+
+    vision_sensor.clear_led();
+
+    while (time < 2000) {
+        pros::vision_object_s_t goal = vision_sensor.get_by_size(0);
+        if (goal.signature == TARGET_SIG1 || goal.signature == TARGET_SIG2) {
+            int error = CENTER_X - goal.x_middle_coord;
+            float output = aligner_pid.update((float)error);
+
+            if (std::abs(error) < 5) {
+                alignedFrames++;
+                leftMotors.move_velocity(0);
+                rightMotors.move_velocity(0);
+                vision_sensor.set_led(pros::c::COLOR_GREEN); // Aligned
+                if (alignedFrames > 10) 
+                {
+                    aligned = true;
+                    break;
+                }
+            } else {
+                alignedFrames = 0;
+                leftMotors.move_velocity(output); // Turn robot
+                rightMotors.move_velocity(-output); // Turn robot
+            }
+        } else {
+            alignedFrames = 0;
+            leftMotors.move_velocity(20);
+            rightMotors.move_velocity(-20);
+            vision_sensor.set_led(pros::c::COLOR_RED); // No goal found
+        }
+
+        pros::delay(20);
+        time += 20;
+    }
+    aligner_pid.reset();
+    if(!aligned)
+    {
+        vision_sensor.set_led(pros::c::COLOR_YELLOW); //Timeout fail
+    }
+    return aligned;
+}
 
 
 std::vector<State> prepare_trajectory() {
@@ -634,8 +711,8 @@ void test_w_controller() {
 void initialize() {
     chassis.calibrate();
     pros::lcd::initialize();
-
-    pros::Task screen_task([&]() {
+    color_sensor.set_led_pwm(100);
+    pros::Task screen_odom([&]() {
         distancePose distance_position;
         chassis.setPose(-47.603, -47.603, 90);
 
@@ -644,10 +721,6 @@ void initialize() {
             pros::lcd::print(0, "X: %f", current_pose.x);
             pros::lcd::print(1, "Y: %f", current_pose.y);
             pros::lcd::print(2, "T: %f", current_pose.theta);
-            distancePose distance_position = distanceReset();
-            pros::lcd::print(3, "Dist X: %f", distance_position.x);
-            pros::lcd::print(4, "Dist Y: %f", distance_position.y);
-
             /*
             Eigen::Matrix3d rotation_matrix;
             Eigen::Vector3d global_error;
@@ -669,29 +742,22 @@ void initialize() {
             pros::lcd::print(1, "Y Error: %f", local_error(1));
             pros::lcd::print(2, "T Error: %f", local_error(2));
             */
+            pros::delay(20);
+        }
+    });
+    pros::Task screen_distance([&]() {
+        distancePose distance_position;
+        while (true) {
+            distance_position = distanceReset();
+            pros::lcd::print(3, "Dist X: %f", distance_position.x);
+            pros::lcd::print(4, "Dist Y: %f", distance_position.y);
+            pros::lcd::print(5, "Color: %i", get_color());
             pros::delay(100);
         }
     });
 }
 
-void useWeightedPosition()
-{
-    pros::Task position_task([&]() {
-        while (true) {
-            lemlib::Pose current_pose = chassis.getPose();
-            double odomWeight = 0.75;
-            double distanceWeight = (1-odomWeight);
 
-            distancePose distance_position = distanceReset();
-
-            double weighted_x = (current_pose.x * odomWeight) + (distance_position.x * distanceWeight);
-            double weighted_y = (current_pose.y * odomWeight) + (distance_position.y * distanceWeight);
-
-            chassis.setPose(weighted_x, weighted_y, current_pose.theta);
-            pros::delay(30);
-        }
-    });
-}
 
 void right_auton()
 {
@@ -747,9 +813,10 @@ void right_auton()
 
 
 void autonomous() {
-    ramsete_auton();
+    //ramsete_auton();
     //right_auton();
-    //chassis.follow(skills_1_txt, 10, 2000);
+    chassis.setPose(-46.472, -23.304, 90);
+    chassis.follow(skills_2_txt, 20, 5000);
     
 }
 
