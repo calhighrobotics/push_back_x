@@ -4,6 +4,8 @@
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/pid.hpp"
 #include "lemlib/util.hpp"
+#include "liblvgl/llemu.hpp"
+#include "pros/abstract_motor.hpp"
 #include "pros/colors.h"
 #include "pros/imu.hpp"
 #include "pros/llemu.hpp"
@@ -26,8 +28,8 @@ const double INCH_TO_METER = 0.0254;
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({11, 12, 13});
-pros::MotorGroup leftMotors({-18, -19, -20});
+pros::MotorGroup rightMotors({11, 12, 13}, pros::v5::MotorGears::green);
+pros::MotorGroup leftMotors({-18, -19, -20}, pros::v5::MotorGears::green);
 
 // FIX: Convert track width and wheel diameter to meters
 lemlib::Drivetrain drivetrain(&leftMotors, &rightMotors,
@@ -124,22 +126,6 @@ struct State {
 const double MIN_CONFIDENCE = 20;
 
 /**
- * @brief Minimum object size (in mm) for a sensor to consider it a wall.
- * (VEX V5 sensor specific)
- */
-const double MIN_WALL_OBJECT_SIZE = 5;
-
-/**
- * @brief How "perpendicular" a sensor must be to a wall to be trusted.
- * 1.0 = perfectly perpendicular (90 deg to wall).
- * 0.866 = within 30 degrees.
- * 0.707 = within 45 degrees.
- * LOWER: Trusts sensors at sharper angles, but may be less accurate.
- * HIGHER: Requires a more direct "look" at the wall, relies on odom more.
- */
-const double MIN_PERPENDICULARITY = 0; // within 45 degrees
-
-/**
  * @brief The maximum allowed difference (in inches) between sensor readings
  * for the same axis. If the disparity is larger, the readings are
  * considered conflicting, and odometry will be used instead.
@@ -226,10 +212,6 @@ distancePose calculateGlobalPosition(
     std::vector<double> x_cands;
     std::vector<double> y_cands;
 
-    // --- THIS IS THE FIX ---
-    // Helper lambda to calculate the global offset of a sensor
-    // This math is for a CLOCKWISE system (0 = +Y, 90 = +X)
-    // which matches the logic in your if/else blocks.
     auto get_global_offsets = [&](const SensorConfig& cfg, double heading_rad) {
         double cos_h = std::cos(heading_rad);
         double sin_h = std::sin(heading_rad);
@@ -712,10 +694,8 @@ void initialize() {
     chassis.calibrate();
     pros::lcd::initialize();
     color_sensor.set_led_pwm(100);
+    chassis.setPose(-47.603, -47.603, 90);
     pros::Task screen_odom([&]() {
-        distancePose distance_position;
-        chassis.setPose(-47.603, -47.603, 90);
-
         while (true) {
             lemlib::Pose current_pose = chassis.getPose();
             pros::lcd::print(0, "X: %f", current_pose.x);
@@ -747,12 +727,35 @@ void initialize() {
     });
     pros::Task screen_distance([&]() {
         distancePose distance_position;
+        std::vector<double> temperatures;
+        bool overheat;
         while (true) {
+            overheat = false;
             distance_position = distanceReset();
             pros::lcd::print(3, "Dist X: %f", distance_position.x);
             pros::lcd::print(4, "Dist Y: %f", distance_position.y);
             pros::lcd::print(5, "Color: %i", get_color());
-            pros::delay(100);
+            temperatures = leftMotors.get_temperature_all();
+            for(int i = 0; i < temperatures.size(); i++) {
+                if(temperatures[i] >= 60) {
+                    pros::lcd::print(6, "Left Motor %d Overheat!", i+1);
+                    overheat = true;
+                }
+            }
+            temperatures = rightMotors.get_temperature_all();
+            for(int i = 0; i < temperatures.size(); i++) {
+                if(temperatures[i] >= 60) {
+                    pros::lcd::print(7, "Right Motor %d Overheat!", i+1);
+                    overheat = true;
+                }
+            }
+
+            if(!overheat) {
+                pros::lcd::clear_line(6);
+                pros::lcd::clear_line(7);
+            }
+
+            pros::delay(150);
         }
     });
 }
@@ -815,8 +818,8 @@ void right_auton()
 void autonomous() {
     //ramsete_auton();
     //right_auton();
-    chassis.setPose(-46.472, -23.304, 90);
-    chassis.follow(skills_2_txt, 20, 5000);
+    //chassis.setPose(-46.472, -23.304, 90);
+    //chassis.follow(skills_2_txt, 20, 5000);
     
 }
 
@@ -827,9 +830,9 @@ void competition_initialize() {}
 void opcontrol() {
     while (true) {
         double left = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
+        double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-        chassis.tank(left, right);
+        chassis.curvature(left, right);
 
         pros::delay(10);
     }
