@@ -2,6 +2,7 @@
 #include "Eigen/Core"
 #include "Eigen/src/Core/util/Meta.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
+#include "lemlib/chassis/chassis.hpp"
 #include "lemlib/pid.hpp"
 #include "lemlib/util.hpp"
 #include "liblvgl/llemu.hpp"
@@ -10,7 +11,9 @@
 #include "pros/imu.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
+#include "pros/motors.h"
 #include "pros/rtos.hpp"
+#include "pros/vision.h"
 #include "pros/vision.hpp"
 #include <cmath>
 #include <sstream>
@@ -23,7 +26,6 @@ std::vector<std::pair<double, double>> A = {{0.000000, 0.000000}, {0.010000, 0.4
 
 
 
-// Define a conversion constant for clarity
 const double INCH_TO_METER = 0.0254;
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -82,11 +84,12 @@ pros::Distance left(4);
 pros::Distance back(2);
 pros::Distance front(17);
 
-pros::Optical color_sensor(14);
+pros::Optical color_sensor(5);
+pros::Vision vision_sensor(14);
 
-pros::Vision vision_sensor(1);
 
-ASSET(skills_2_txt);
+bool controller_screen_avilable;
+ASSET(test_txt);
 
 class Vector2 {
 public:
@@ -119,19 +122,6 @@ struct State {
 };
 
 
-/**
- * @brief Minimum confidence level from a sensor to be considered valid.
- * (Range: 0-100)
- */
-const double MIN_CONFIDENCE = 20;
-
-/**
- * @brief The maximum allowed difference (in inches) between sensor readings
- * for the same axis. If the disparity is larger, the readings are
- * considered conflicting, and odometry will be used instead.
- * LOWER: Trusts sensors less, relies on odometry more.
- */
-const double MAX_CANDIDATE_DISPARITY = 16; // 10 inches
 
 // --- Field & Sensor Constants ---
 const double MM_TO_IN = 0.0393701;
@@ -149,25 +139,20 @@ struct SensorConfig {
     double mounting_angle; // degrees
 };
 
-// Sensor positions relative to robot center (forward_offset = +Y, strafe_offset = +X)
-const SensorConfig front_sensor_cfg = {9, 0.25, 0};   // 9" fwd, 0.25" left, points 0 deg (fwd)
-const SensorConfig left_sensor_cfg  = {-1.25, -5.5, 90};    // 5" fwd, 0" strafe, points 90 deg (left)
-const SensorConfig right_sensor_cfg = {-1.25, 5.5, -90};   // 5" fwd, 4" right, points -90 deg (right)
-const SensorConfig back_sensor_cfg  = {-7.75, -0.25, 180}; // 8" back, 0.25" right, points 180 deg (back)
+
+const SensorConfig front_sensor_cfg = {9, 0.25, 0};   
+const SensorConfig left_sensor_cfg  = {-1.25, -5.5, 90};   
+const SensorConfig right_sensor_cfg = {-1.25, 5.5, -90};  
+const SensorConfig back_sensor_cfg  = {-7.75, -0.25, 180}; 
 
 
-/**
- * @brief Holds all data from a single distance sensor reading.
- */
 struct SensorReadings {
     double dist_mm;
     int object_size;
     int confidence;
 };
 
-/**
- * @brief Return struct for the global position calculation.
- */
+
 struct distancePose {
     double x;            // Estimated global X
     double y;            // Estimated global Y
@@ -191,20 +176,19 @@ distancePose calculateGlobalPosition(
     bool using_odom_x = true;
     bool using_odom_y = true;
 
-    // (SensorData array and is_valid helper are unchanged)
-    struct SensorData { SensorConfig cfg; double dist_in; };
+    struct SensorData { SensorConfig cfg; double dist_in; int confidence;};
     const SensorData sensors[] = {
-        {front_sensor_cfg, front_data.dist_mm * MM_TO_IN},
-        {left_sensor_cfg,  left_data.dist_mm * MM_TO_IN},
-        {right_sensor_cfg, right_data.dist_mm * MM_TO_IN},
-        {back_sensor_cfg,  back_data.dist_mm * MM_TO_IN}
+        {front_sensor_cfg, front_data.dist_mm * MM_TO_IN, front.get_confidence()},
+        {left_sensor_cfg,  left_data.dist_mm * MM_TO_IN, left.get_confidence()},
+        {right_sensor_cfg, right_data.dist_mm * MM_TO_IN, right.get_confidence()},
+        {back_sensor_cfg,  back_data.dist_mm * MM_TO_IN, back.get_confidence()}
     };
     auto is_valid = [&](int i) {
         return (sensors[i].dist_in < MAX_SENSOR_RANGE && 
-                sensors[i].dist_in >= MIN_SENSOR_RANGE);
+                sensors[i].dist_in >= MIN_SENSOR_RANGE &&
+                sensors[i].confidence > 20);
     };
 
-    // (Heading normalization and TOLERANCE are unchanged)
     double norm_heading = std::fmod(heading_deg, 360.0);
     if (norm_heading < 0) norm_heading += 360.0;
     const double TOLERANCE = 40.0; 
@@ -215,17 +199,12 @@ distancePose calculateGlobalPosition(
     auto get_global_offsets = [&](const SensorConfig& cfg, double heading_rad) {
         double cos_h = std::cos(heading_rad);
         double sin_h = std::sin(heading_rad);
-        
-        // [FIXED] This is the correct rotation math for your 0 = +Y system
         double global_offset_x = (cfg.forward_offset * sin_h) + (cfg.strafe_offset * cos_h);
         double global_offset_y = (cfg.forward_offset * cos_h) - (cfg.strafe_offset * sin_h);
         
         return std::make_pair(global_offset_x, global_offset_y);
     };
-    // --- END OF FIX ---
 
-
-    // (Case 1: Facing UP - unchanged)
     if (norm_heading <= TOLERANCE || norm_heading >= 360.0 - TOLERANCE) {
         double angle_off_rad = (norm_heading <= TOLERANCE) ? 
             lemlib::degToRad(norm_heading) : lemlib::degToRad(norm_heading - 360.0);
@@ -343,15 +322,12 @@ distancePose distanceReset() {
     return calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
 }
 
-/**
- * @brief Helper function to calculate position using only specified sensors.
- */
-distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
-    double heading_deg = chassis.getPose().theta; // Or imu.get_rotation(), etc.
 
-    // This distance (in mm) is larger than MAX_SENSOR_RANGE, so it will be ignored
+distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
+    double heading_deg = chassis.getPose().theta; 
+
     const int invalid_dist_mm = 10000; 
-    const int invalid_confidence = 0; // This will fail the MIN_CONFIDENCE check
+    const int invalid_confidence = 0; 
 
     SensorReadings front_data = front_use
         ? SensorReadings{(double)front.get_distance(), front.get_object_size(), front.get_confidence()}
@@ -387,63 +363,192 @@ int get_color() {
     Color color = NONE;
     if ((hue > 0 && hue < 50) || (hue > 310 && hue < 361)) {
         color = RED;
-        return color;
     }
     // return blue
-    if (hue > 150 && hue < 270) {
+    else if (hue > 150 && hue < 270) {
         color = BLUE;
     }
     return color;
 }
 
-bool alignToGoal() {
-    lemlib::PID aligner_pid(1,0,1); 
-    int alignedFrames = 0;
+
+bool alignToGoal(int SIG_NUM, int exposure) {
+
+    lemlib::PID aligner_pid(0.45, 0,0);
+    //Center of screen
     const int CENTER_X = 158;
-    const int TARGET_SIG1 = 1, TARGET_SIG2 = 2;
-    double time = 0;
+  
+    int alignedFrames = 0;
     bool aligned = false;
+    double time = 0;
 
     vision_sensor.clear_led();
+    // (brightness on utility)
+    vision_sensor.set_exposure(exposure); 
+  
+    while (time < 2000 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+        pros::vision_object_s_t goal = vision_sensor.get_by_sig(0, SIG_NUM);
 
-    while (time < 2000) {
-        pros::vision_object_s_t goal = vision_sensor.get_by_size(0);
-        if (goal.signature == TARGET_SIG1 || goal.signature == TARGET_SIG2) {
-            int error = CENTER_X - goal.x_middle_coord;
-            float output = aligner_pid.update((float)error);
+        if (goal.width > 10) { 
+            int error = -CENTER_X + goal.x_middle_coord;
+            float output = aligner_pid.update(error);
 
-            if (std::abs(error) < 5) {
+            if (std::abs(error) < 10) {
                 alignedFrames++;
                 leftMotors.move_velocity(0);
                 rightMotors.move_velocity(0);
-                vision_sensor.set_led(pros::c::COLOR_GREEN); // Aligned
-                if (alignedFrames > 10) 
-                {
+                vision_sensor.set_led(pros::c::COLOR_GREEN);
+
+                if (alignedFrames > 10) {
                     aligned = true;
                     break;
                 }
             } else {
                 alignedFrames = 0;
-                leftMotors.move_velocity(output); // Turn robot
-                rightMotors.move_velocity(-output); // Turn robot
+                leftMotors.move_velocity(-output);
+                rightMotors.move_velocity(output);
+                vision_sensor.set_led(pros::c::COLOR_BLUE);
             }
         } else {
             alignedFrames = 0;
-            leftMotors.move_velocity(20);
-            rightMotors.move_velocity(-20);
-            vision_sensor.set_led(pros::c::COLOR_RED); // No goal found
+            leftMotors.move_velocity(-70);
+            rightMotors.move_velocity(70);
+            vision_sensor.set_led(pros::c::COLOR_YELLOW);
         }
-
-        pros::delay(20);
         time += 20;
+        pros::delay(20);
     }
+
+
+
     aligner_pid.reset();
-    if(!aligned)
-    {
-        vision_sensor.set_led(pros::c::COLOR_YELLOW); //Timeout fail
-    }
+    leftMotors.move_velocity(0);
+    rightMotors.move_velocity(0);
+
+    if (!aligned)
+        vision_sensor.set_led(pros::c::COLOR_RED);
+    else if(aligned && front.get_object_size() > 10 && front.get_object_size() < 140 && front.get()*MM_TO_IN < 25)
+        {
+            time = 0;
+            lemlib::PID forward_goal_pid(5,0,10);
+            while(time < 1000)
+            {
+                double forward_error = front.get();
+                double vel = forward_goal_pid.update(forward_error);
+                leftMotors.move_velocity(vel);
+                rightMotors.move_velocity(vel);
+                if(front.get() < 300)
+                {
+                    leftMotors.move_velocity(0);
+                    rightMotors.move_velocity(0);
+                    break;
+                }
+                time += 20;
+                pros::delay(20);
+            }
+            forward_goal_pid.reset();
+        }
     return aligned;
 }
+
+bool autoAlignEnabled = false;
+double autoTurn = 0;
+
+void alignment_mode(int SIG_NUM, int exposure) {
+    pros::Task align_task([SIG_NUM, exposure]() {
+        lemlib::PID aligner_pid(0.45, 0, 0);
+        const int CENTER_X = 158;
+        const int MIN_WIDTH = 8;
+
+
+        bool alignmentAchieved = false;
+        int alignedFrames = 0;
+
+        vision_sensor.set_exposure(exposure);
+
+        while (true) {
+            if (!autoAlignEnabled) {
+                autoTurn = 0;
+                alignmentAchieved = false;
+                alignedFrames = 0;
+                vision_sensor.clear_led();
+                pros::delay(50);
+                continue;
+            }
+
+            pros::vision_object_s_t goal = vision_sensor.get_by_sig(0, SIG_NUM);
+
+            if (goal.width > MIN_WIDTH) {
+                int error = goal.x_middle_coord - CENTER_X;
+                autoTurn = aligner_pid.update(error);
+
+                vision_sensor.set_led(pros::c::COLOR_BLUE);
+
+                if (std::abs(error) < 10) { 
+                    alignedFrames++;
+                } else {
+                    alignedFrames = 0;
+                }
+
+                if (alignedFrames > 10 && !alignmentAchieved) {
+                    alignmentAchieved = true;
+
+                    vision_sensor.set_led(pros::c::COLOR_GREEN);
+                    pros::delay(200);
+                    vision_sensor.set_led(pros::c::COLOR_BLUE);
+                    controller.rumble(".-"); 
+                }
+            } else {
+                autoTurn = 0;
+                alignedFrames = 0;
+                alignmentAchieved = false;
+                vision_sensor.set_led(pros::c::COLOR_YELLOW);
+            }
+
+            pros::delay(20);
+        }
+    });
+}
+
+void temp_warning()
+{
+    pros::Task temp_screening([]() {
+        while (true) {
+            std::vector<double> left_temps = leftMotors.get_temperature_all();
+            std::vector<double> right_temps = rightMotors.get_temperature_all();
+            double total_temp = 0;
+            for(int i = 0; i < 3; i++)
+            {
+                if(left_temps[i] > 55.0 || right_temps[i] > 55.0)
+                {
+                    controller.rumble("...");
+                    controller.clear();
+                    controller.print(0,0, "OVERHEAT!");
+                    controller_screen_avilable = false;
+                    pros::delay(8000);
+                    controller_screen_avilable = true;
+                    controller.clear();
+                    break;
+                }
+            }
+            pros::delay(2000);
+        }
+    });
+}
+
+void calibrate_vision() {
+    pros::Task calibrate_vision([]() {
+        pros::vision_signature_s_t SIG_1 = pros::Vision::signature_from_utility(1, 4263, 4643, 4453, -3003, -2203, -2603, 8.7, 0);
+        vision_sensor.set_signature(1, &SIG_1);
+        vision_sensor.set_auto_white_balance(true);
+        pros::delay(1500); 
+        int wb_value = vision_sensor.get_white_balance();
+        vision_sensor.set_auto_white_balance(false);
+        pros::Task::current().remove();
+    });
+}
+
+
 
 
 std::vector<State> prepare_trajectory() {
@@ -667,6 +772,7 @@ void ramsete_auton() {
     }
 }
 
+/*
 void test_w_controller() {
     double right = 0;
     double left = 0;
@@ -689,76 +795,27 @@ void test_w_controller() {
         std::cout << Vector2(pros::millis() - time, leftMotors.get_actual_velocity()).latex() << ",";
     }
 }
+*/
 
 void initialize() {
     chassis.calibrate();
+    calibrate_vision();
     pros::lcd::initialize();
     color_sensor.set_led_pwm(100);
-    chassis.setPose(-47.603, -47.603, 90);
-    pros::Task screen_odom([&]() {
+    chassis.setPose(0,0,0);
+
+    pros::Task screen_odom([]() {
         while (true) {
             lemlib::Pose current_pose = chassis.getPose();
-            pros::lcd::print(0, "X: %f", current_pose.x);
-            pros::lcd::print(1, "Y: %f", current_pose.y);
-            pros::lcd::print(2, "T: %f", current_pose.theta);
-            /*
-            Eigen::Matrix3d rotation_matrix;
-            Eigen::Vector3d global_error;
-            Eigen::Vector3d local_error;
-            
-            lemlib::Pose current_pose = chassis.getPose(true);
-            current_pose.x *= INCH_TO_METER;
-            current_pose.y *= INCH_TO_METER;
-            current_pose.theta = M_PI_2 - current_pose.theta;
-            double AngleError = angleError(current_pose.theta, M_PI_2); 
-
-            rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0, -std::sin(current_pose.theta),
-                std::cos(current_pose.theta), 0, 0, 0, 1;
-
-            global_error << -0.865 - current_pose.x, -0.011 - current_pose.y, AngleError;
-            
-            local_error = rotation_matrix * global_error;
-            pros::lcd::print(0, "X Error: %f", local_error(0));
-            pros::lcd::print(1, "Y Error: %f", local_error(1));
-            pros::lcd::print(2, "T Error: %f", local_error(2));
-            */
+            pros::lcd::print(0, "X: %.2f", current_pose.x);
+            pros::lcd::print(1, "Y: %.2f", current_pose.y);
+            pros::lcd::print(2, "T: %.2f", current_pose.theta);
+            pros::lcd::print(3, "# Objects: %d", vision_sensor.get_object_count());
             pros::delay(20);
         }
     });
-    pros::Task screen_distance([&]() {
-        distancePose distance_position;
-        std::vector<double> temperatures;
-        bool overheat;
-        while (true) {
-            overheat = false;
-            distance_position = distanceReset();
-            pros::lcd::print(3, "Dist X: %f", distance_position.x);
-            pros::lcd::print(4, "Dist Y: %f", distance_position.y);
-            pros::lcd::print(5, "Color: %i", get_color());
-            temperatures = leftMotors.get_temperature_all();
-            for(int i = 0; i < temperatures.size(); i++) {
-                if(temperatures[i] >= 60) {
-                    pros::lcd::print(6, "Left Motor %d Overheat!", i+1);
-                    overheat = true;
-                }
-            }
-            temperatures = rightMotors.get_temperature_all();
-            for(int i = 0; i < temperatures.size(); i++) {
-                if(temperatures[i] >= 60) {
-                    pros::lcd::print(7, "Right Motor %d Overheat!", i+1);
-                    overheat = true;
-                }
-            }
-
-            if(!overheat) {
-                pros::lcd::clear_line(6);
-                pros::lcd::clear_line(7);
-            }
-
-            pros::delay(150);
-        }
-    });
 }
+
 
 
 
@@ -774,7 +831,6 @@ void right_auton()
     chassis.moveToPoint(-22.567, -22.981, 2000);
     chassis.turnToPoint(-11.1, -11.1, 500);
     chassis.waitUntilDone();
-    pros::delay(100000);
 
     //Go to Center and Score
     chassis.turnToPoint(-12.401, -12.437, 500);
@@ -816,10 +872,7 @@ void right_auton()
 
 
 void autonomous() {
-    //ramsete_auton();
-    //right_auton();
-    //chassis.setPose(-46.472, -23.304, 90);
-    //chassis.follow(skills_2_txt, 20, 5000);
+    
     
 }
 
@@ -828,12 +881,46 @@ void disabled() {}
 void competition_initialize() {}
 
 void opcontrol() {
+    alignment_mode(1, 82);
+    temp_warning();
     while (true) {
         double left = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+        double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
 
-        chassis.curvature(left, right);
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+            if(autoAlignEnabled)
+            {
+                autoAlignEnabled = false;
+                vision_sensor.clear_led();
+                controller.rumble(".");
+            }
+            else
+            {
+                autoAlignEnabled = true;
+                controller.rumble(".");
+            }
+        }
 
-        pros::delay(10);
+
+        if(autoAlignEnabled)
+        {
+            left += autoTurn;
+            right -= autoTurn;
+        }
+
+        if(controller_screen_avilable)
+            controller.print(0,0,"AutoAlign: %s", autoAlignEnabled ? "ON " : "OFF");
+
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B))
+        {
+            chassis.tank(0,0);
+            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
+        }
+        else
+        {
+            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+            chassis.tank(left, right, false);
+        }
+        pros::delay(20);
     }
 }
