@@ -7,10 +7,13 @@
 #include "lemlib/util.hpp"
 #include "liblvgl/llemu.hpp"
 #include "pros/abstract_motor.hpp"
+#include "pros/adi.h"
+#include "pros/adi.hpp"
 #include "pros/colors.h"
 #include "pros/imu.hpp"
 #include "pros/llemu.hpp"
 #include "pros/misc.h"
+#include "pros/misc.hpp"
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include "pros/vision.h"
@@ -83,9 +86,13 @@ pros::Distance right(3);
 pros::Distance left(4);
 pros::Distance back(2);
 pros::Distance front(17);
+pros::Distance front_2(9);
 
-pros::Optical color_sensor(5);
+pros::Optical color_sensor(10);
 pros::Vision vision_sensor(14);
+pros::ADIAnalogIn line_sensor_left('H');
+pros::ADIAnalogIn line_sensor_right('G');
+pros::ADIDigitalIn bumper_sensor('A');
 
 
 bool controller_screen_avilable;
@@ -123,7 +130,6 @@ struct State {
 
 
 
-// --- Field & Sensor Constants ---
 const double MM_TO_IN = 0.0393701;
 const double FIELD_WIDTH = 3657.6 * MM_TO_IN;  // 144 inches
 const double FIELD_HEIGHT = 3657.6 * MM_TO_IN; // 144 inches
@@ -161,7 +167,10 @@ struct distancePose {
 };
 
 
-
+/*
+This function doesn't work at 45 degrees or other denominations of (pi/2, 3pi/2, 5pi/2 or 7pi/2)
+for reliability.
+*/
 distancePose calculateGlobalPosition(
     const SensorReadings& front_data,
     const SensorReadings& left_data,
@@ -286,7 +295,6 @@ distancePose calculateGlobalPosition(
         if (is_valid(2)) { y_cands.push_back(HALF_HEIGHT - perp_dist_2 - offset_2.second); }
     }
 
-    // --- 4. Average the results (unchanged) ---
     if (!x_cands.empty()) {
         est_x = std::accumulate(x_cands.begin(), x_cands.end(), 0.0) / x_cands.size();
         using_odom_x = false;
@@ -297,7 +305,7 @@ distancePose calculateGlobalPosition(
         using_odom_y = false;
     }
 
-    // --- 5. Return Final Pose (unchanged) ---
+
     distancePose pose;
     pose.x = est_x;
     pose.y = est_y;
@@ -374,7 +382,7 @@ int get_color() {
 
 bool alignToGoal(int SIG_NUM, int exposure) {
 
-    lemlib::PID aligner_pid(0.45, 0,0);
+    lemlib::PID aligner_pid(0.2, 0,0);
     //Center of screen
     const int CENTER_X = 158;
   
@@ -384,9 +392,8 @@ bool alignToGoal(int SIG_NUM, int exposure) {
 
     vision_sensor.clear_led();
     // (brightness on utility)
-    vision_sensor.set_exposure(exposure); 
   
-    while (time < 2000 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+    while (time < 5000 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
         pros::vision_object_s_t goal = vision_sensor.get_by_sig(0, SIG_NUM);
 
         if (goal.width > 10) { 
@@ -405,14 +412,14 @@ bool alignToGoal(int SIG_NUM, int exposure) {
                 }
             } else {
                 alignedFrames = 0;
-                leftMotors.move_velocity(-output);
-                rightMotors.move_velocity(output);
+                leftMotors.move_velocity(output);
+                rightMotors.move_velocity(-output);
                 vision_sensor.set_led(pros::c::COLOR_BLUE);
             }
         } else {
             alignedFrames = 0;
-            leftMotors.move_velocity(-70);
-            rightMotors.move_velocity(70);
+            leftMotors.move_velocity(20);
+            rightMotors.move_velocity(-20);
             vision_sensor.set_led(pros::c::COLOR_YELLOW);
         }
         time += 20;
@@ -427,11 +434,11 @@ bool alignToGoal(int SIG_NUM, int exposure) {
 
     if (!aligned)
         vision_sensor.set_led(pros::c::COLOR_RED);
-    else if(aligned && front.get_object_size() > 10 && front.get_object_size() < 140 && front.get()*MM_TO_IN < 25)
+    else if((aligned && front.get_object_size() > 5 && front.get_object_size() < 140 && front.get()*MM_TO_IN < 100) || (front_2.get_object_size() > 5 && front_2.get_object_size() < 140 && front_2.get()*MM_TO_IN < 100))
         {
             time = 0;
-            lemlib::PID forward_goal_pid(5,0,10);
-            while(time < 1000)
+            lemlib::PID forward_goal_pid(0.5,0,0);
+            while(time < 1000 && !controller.get_digital(pros::E_CONTROLLER_DIGITAL_A))
             {
                 double forward_error = front.get();
                 double vel = forward_goal_pid.update(forward_error);
@@ -451,99 +458,171 @@ bool alignToGoal(int SIG_NUM, int exposure) {
     return aligned;
 }
 
-bool autoAlignEnabled = false;
-double autoTurn = 0;
 
-void alignment_mode(int SIG_NUM, int exposure) {
-    pros::Task align_task([SIG_NUM, exposure]() {
-        lemlib::PID aligner_pid(0.45, 0, 0);
-        const int CENTER_X = 158;
-        const int MIN_WIDTH = 8;
-
-
-        bool alignmentAchieved = false;
-        int alignedFrames = 0;
-
-        vision_sensor.set_exposure(exposure);
-
-        while (true) {
-            if (!autoAlignEnabled) {
-                autoTurn = 0;
-                alignmentAchieved = false;
-                alignedFrames = 0;
-                vision_sensor.clear_led();
-                pros::delay(50);
-                continue;
-            }
-
-            pros::vision_object_s_t goal = vision_sensor.get_by_sig(0, SIG_NUM);
-
-            if (goal.width > MIN_WIDTH) {
-                int error = goal.x_middle_coord - CENTER_X;
-                autoTurn = aligner_pid.update(error);
-
-                vision_sensor.set_led(pros::c::COLOR_BLUE);
-
-                if (std::abs(error) < 10) { 
-                    alignedFrames++;
-                } else {
-                    alignedFrames = 0;
-                }
-
-                if (alignedFrames > 10 && !alignmentAchieved) {
-                    alignmentAchieved = true;
-
-                    vision_sensor.set_led(pros::c::COLOR_GREEN);
-                    pros::delay(200);
-                    vision_sensor.set_led(pros::c::COLOR_BLUE);
-                    controller.rumble(".-"); 
-                }
-            } else {
-                autoTurn = 0;
-                alignedFrames = 0;
-                alignmentAchieved = false;
-                vision_sensor.set_led(pros::c::COLOR_YELLOW);
-            }
-
-            pros::delay(20);
-        }
-    });
-}
-
-void temp_warning()
-{
+void temp_warning() {
     pros::Task temp_screening([]() {
         while (true) {
             std::vector<double> left_temps = leftMotors.get_temperature_all();
             std::vector<double> right_temps = rightMotors.get_temperature_all();
-            double total_temp = 0;
-            for(int i = 0; i < 3; i++)
-            {
-                if(left_temps[i] > 55.0 || right_temps[i] > 55.0)
-                {
-                    controller.rumble("...");
-                    controller.clear();
-                    controller.print(0,0, "OVERHEAT!");
+
+            bool is_overheating = false; 
+
+            const double TEMP_LIMIT = 55.0; 
+            for (int i = 0; i < left_temps.size(); i++) {
+                if (left_temps[i] > TEMP_LIMIT) { 
+                    controller.rumble(".-.");
+                    controller.clear_line(0);
+                    controller.print(0, 0, "OVERHEAT! L%i", i + 1);
                     controller_screen_avilable = false;
-                    pros::delay(8000);
+                    pros::delay(1000); 
                     controller_screen_avilable = true;
-                    controller.clear();
-                    break;
+                    controller.clear_line(0);
+                    is_overheating = true;
+                    break; 
                 }
             }
-            pros::delay(2000);
+
+            if (is_overheating) {
+                pros::delay(10000); 
+                return; 
+            }
+
+            for (int i = 0; i < right_temps.size(); i++) {
+                if (right_temps[i] > TEMP_LIMIT) { 
+                    controller.rumble(".-.");
+                    controller.clear_line(0);
+                    controller.print(0, 0, "OVERHEAT! R%i", i + 1);
+                    controller_screen_avilable = false;
+                    pros::delay(1000); 
+                    controller_screen_avilable = true;
+                    controller.clear_line(0);
+                    is_overheating = true;
+                    break; 
+                }
+            }
+            pros::delay(100);
+            if(is_overheating) {
+                pros::delay(10000);
+                return;
+            }
         }
     });
 }
 
+void motor_disconnect_warning()
+{
+    pros::Task disconnect_screening([]() {
+        std::vector<pros::Motor> all_motors = pros::Motor::get_all_devices();
+        std::vector<unsigned char> disconnected;
+        std::vector<unsigned char> last_disconnected;
+        bool is_notified = false;
+        uint32_t now = pros::millis();
+
+        constexpr int TASK_DELAY_MILLIS = 1000;
+        constexpr int CONTROLLER_DELAY_MILLIS = 50;
+        while (true) {
+                std::string disc_motors = "MD: ";
+                bool are_motors_disconnected = false;
+
+                for (pros::Motor i : all_motors) {
+                    if (!i.is_installed()) {
+                        unsigned char port = i.get_port();
+                        disconnected.push_back(port);
+                        disc_motors = disc_motors + " " + std::to_string(port);
+                        are_motors_disconnected = true;
+                    }
+                }
+                // Controller screen commands must be delayed by 50ms due to polling limitations
+                if (are_motors_disconnected) {
+                    controller.clear_line(0);
+                    pros::delay(CONTROLLER_DELAY_MILLIS);
+                    controller.set_text(0, 0, disc_motors);
+                    is_notified = true;
+                    pros::delay(CONTROLLER_DELAY_MILLIS);
+                }
+                if (disconnected.size() > last_disconnected.size()) {
+                    controller.rumble(". . .");
+                } else if (disconnected.size() < last_disconnected.size()) {
+                    controller.rumble("-");
+                } else if (!are_motors_disconnected && is_notified) {
+                    controller.clear_line(0);
+                    is_notified = false;
+                }
+                last_disconnected = disconnected;
+                disconnected.clear();
+            pros::delay(100);
+        }
+    });
+
+
+}
+
 void calibrate_vision() {
     pros::Task calibrate_vision([]() {
-        pros::vision_signature_s_t SIG_1 = pros::Vision::signature_from_utility(1, 4263, 4643, 4453, -3003, -2203, -2603, 8.7, 0);
+       
+        pros::vision_signature_s_t SIG_1 = pros::Vision::signature_from_utility(1, 2283, 6317, 4300, -5329, -4553, -4941, 5.3, 0);
+        pros::vision_signature_s_t SIG_2 = pros::Vision::signature_from_utility(2, -4793, -4177, -4485, 1449, 5079, 3264, 5.0, 0);
+        pros::vision_signature_s_t SIG_3 = pros::Vision::signature_from_utility(3, 4349, 11213, 7781, 261, 1081, 671, 1.7, 0);
         vision_sensor.set_signature(1, &SIG_1);
+        vision_sensor.set_signature(2, &SIG_2);
+        vision_sensor.set_signature(3, &SIG_3);
         vision_sensor.set_auto_white_balance(true);
         pros::delay(1500); 
         int wb_value = vision_sensor.get_white_balance();
         vision_sensor.set_auto_white_balance(false);
+        pros::Task::current().remove();
+    });
+}
+
+void detect_line()
+{
+    pros::Task calibrate_vision([]() {
+        bool detected = false;
+        int time = 5000;
+        while(time > 0)
+        {
+            int left_value = line_sensor_left.get_value();
+            int right_value = line_sensor_right.get_value();
+            if(left_value < 2700 && left_value > 2450)
+            {
+                detected = true;
+                break;
+            }
+            else if(right_value < 2700 && right_value > 2450)
+            {
+                detected = true;
+                break;
+            }
+            pros::delay(100);
+            time -= 100;
+        }
+        if(detected)
+        {
+            chassis.setPose(0, chassis.getPose().y, chassis.getPose().theta, true);
+        }
+        pros::Task::current().remove();
+    });
+}
+
+void detect_wall()
+{
+    pros::Task calibrate_vision([]() {
+        bool detected = false;
+        int time = 1000;
+        while(time > 0)
+        {
+            int bumped = bumper_sensor.get_value();
+
+            if(bumped == 1)
+            {
+                detected = true;
+                controller.rumble(".");
+                break;
+            }
+            pros::delay(100);
+            time -= 100;
+        }
+        return detected;
         pros::Task::current().remove();
     });
 }
@@ -800,6 +879,7 @@ void test_w_controller() {
 void initialize() {
     chassis.calibrate();
     calibrate_vision();
+    motor_disconnect_warning();
     pros::lcd::initialize();
     color_sensor.set_led_pwm(100);
     chassis.setPose(0,0,0);
@@ -810,7 +890,7 @@ void initialize() {
             pros::lcd::print(0, "X: %.2f", current_pose.x);
             pros::lcd::print(1, "Y: %.2f", current_pose.y);
             pros::lcd::print(2, "T: %.2f", current_pose.theta);
-            pros::lcd::print(3, "# Objects: %d", vision_sensor.get_object_count());
+            pros::lcd::print(3, "Bumper %i", bumper_sensor.get_value());
             pros::delay(20);
         }
     });
@@ -881,46 +961,52 @@ void disabled() {}
 void competition_initialize() {}
 
 void opcontrol() {
-    alignment_mode(1, 82);
+    bool brake_mode = false;
+    int sig_num = 1;
     temp_warning();
     while (true) {
         double left = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-
+        
         if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
-            if(autoAlignEnabled)
+            bool aligned = alignToGoal(sig_num, 82);
+            if(aligned)
             {
-                autoAlignEnabled = false;
-                vision_sensor.clear_led();
-                controller.rumble(".");
-            }
-            else
-            {
-                autoAlignEnabled = true;
                 controller.rumble(".");
             }
         }
 
-
-        if(autoAlignEnabled)
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
         {
-            left += autoTurn;
-            right -= autoTurn;
+            sig_num++;
+            if(sig_num > 3)
+                sig_num = 1;;
         }
 
-        if(controller_screen_avilable)
-            controller.print(0,0,"AutoAlign: %s", autoAlignEnabled ? "ON " : "OFF");
-
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B))
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         {
-            chassis.tank(0,0);
+            brake_mode = !brake_mode;
+            controller.rumble(".");
+        }
+
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y))
+        {
+            detect_line();
+        }
+
+        if(brake_mode)
+        {
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
+            chassis.tank(0,0);
+            leftMotors.brake();
+            rightMotors.brake();
         }
         else
         {
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
             chassis.tank(left, right, false);
         }
+        controller.print(0, 0, "Signature#: %i", sig_num);
         pros::delay(20);
     }
 }
