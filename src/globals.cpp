@@ -78,7 +78,7 @@ pros::Distance back(8);
 
 pros::adi::Pneumatics A('A', false);
 pros::adi::Pneumatics B('B', false);
-pros::adi::Pneumatics C('B', false);
+pros::adi::Pneumatics C('C', false);
 
 
 
