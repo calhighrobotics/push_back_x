@@ -52,6 +52,10 @@ void autonomous() {
 void opcontrol() {
     while(true)
     {
+
+    double throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+    double steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+
     // Port 7
     if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
     {
@@ -91,7 +95,9 @@ void opcontrol() {
     {
         C.toggle();
     }
-    
+
+
+    chassis.curvature(throttle, steer, false);
     pros::delay(20);
     }
 }
