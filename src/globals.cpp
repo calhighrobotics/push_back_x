@@ -66,9 +66,8 @@ lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-pros::Motor intakeMotor(6, pros::v5::MotorGears::blue);
-pros::Motor agitator(16, pros::v5::MotorGears::green);
-pros::Motor midMotor(20);
+pros::Motor intakeMotor(7, pros::v5::MotorGears::blue);
+pros::Motor topMotor(18, pros::v5::MotorGears::green);
 
 /*
 pros::Distance right(4);
@@ -77,10 +76,10 @@ pros::Distance front(7);
 pros::Distance back(8);
 */
 
-pros::adi::Pneumatics topRoller('B', false);
-pros::adi::Pneumatics midRollerHeight('A', true);
-pros::adi::Pneumatics matchload_mech('D', false);
-pros::adi::Pneumatics aligner('C', true);
+pros::adi::Pneumatics A('A', false);
+pros::adi::Pneumatics B('B', false);
+pros::adi::Pneumatics C('B', false);
+
 
 
 

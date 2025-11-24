@@ -7,6 +7,7 @@
 
 void right_auton()
 {
+    /*
     double start_time = pros::millis();
     chassis.setPose(0,0,25.796);
 
@@ -91,7 +92,7 @@ void left_auton() {
     chassis.moveToPoint(15, -4, 1000, {.minSpeed = 100});
     intake();
     pros::delay(2000);
-    */
+    
     
 
     
@@ -99,13 +100,15 @@ void left_auton() {
     chassis.moveToPoint(0,3,1000);
     chassis.waitUntilDone();
     
-
+    */
 }
 
 void carry_auton() {
     chassis.setPose(0,0,0);
     chassis.moveToPoint(0,12,2000);
 }
+
+void left_auton() {}
 
 void elim_auton() {}
 

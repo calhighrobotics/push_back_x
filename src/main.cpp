@@ -52,86 +52,47 @@ void autonomous() {
 void opcontrol() {
     while(true)
     {
-        double y = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        double x = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
-        chassis.curvature(y, x, false);
+    // Port 7
+    if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
+    {
+        intakeMotor.move_voltage(12000);
+    }
+    else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
+    {
+        intakeMotor.move_voltage(-12000);
+    }
+    else {
+        intakeMotor.move_voltage(0);
+    }
+    
+    // Port 18
+    if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
+    {
+        topMotor.move_voltage(12000);
+    }
+    else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
+    {
+        topMotor.move_voltage(-12000);
+    }
+    else
+    {
+        topMotor.move_voltage(0);
+    }
 
-        /*
-        double right = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-        double left = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        chassis.tank(left, right, false);
-        */
-
-        //R1 - outake long goal
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
-        {
-            if(!midRollerHeight.is_extended())
-            {
-                midRollerHeight.extend();
-            }
-            midMotor.move_voltage(-12000);
-            agitator.move_voltage(-6500);
-            intakeMotor.move_voltage(12000);
- 
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
-        {
-            //R2 - Bottom goal
-            midMotor.move_voltage(12000);
-            agitator.move_voltage(-6500);
-            intakeMotor.move_voltage(-12000);
-
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
-        {
-            //Intake
-            if(midRollerHeight.is_extended())
-            {
-                midRollerHeight.retract();
-            }
-            agitator.move_voltage(6500);
-            intakeMotor.move_voltage(12000);
-            topRoller.retract();
-            midMotor.move_voltage(-12000);
-
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
-        {
-            agitator.move_voltage(-6500);
-            intakeMotor.move_voltage(12000);
-            midMotor.move_voltage(12000);
-        }
-        else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
-        {   if(!aligner.is_extended())
-            {
-                longgoal_prep();
-            }
-            else
-            {
-                aligner.retract();
-            }
-        }
-        else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
-        {   
-            if(!matchload_mech.is_extended())
-            {
-                matchload_prep();
-            }
-            else
-            {
-                matchload_mech.retract();
-            }
-        }
-        else {
-            intakeMotor.brake();
-            agitator.brake();
-            midMotor.brake();
-            if(!midRollerHeight.is_extended())
-            {
-                midRollerHeight.extend();
-            }
-        }
-        pros::delay(20);
+    if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
+    {
+        A.toggle();
+    }
+    else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
+    {
+        B.toggle();
+    }
+    else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
+    {
+        C.toggle();
+    }
+    
+    pros::delay(20);
     }
 }
 
