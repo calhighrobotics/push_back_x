@@ -220,12 +220,53 @@ VelocityControllerConfig test_config{
     0.664537661342,
     0.472796490892,
     0.236548087393,
-    25.2621164319 * 0.05,
-    524.703492373 * 0.05,
+    25.2621164319,
+    524.703492373,
 };
 
+/** RAMSETE Implementation
+*
+*/
+struct State {
+    double x, y, heading, linear_vel, angular_vel;
+};
 
+std::vector<State> prepare_trajectory() {
+    std::vector<State> states;
+    states.resize(X.size());
 
+    for (int i = 0; i < X.size(); i++) {
+        states[i].x = X.at(i).first;
+        states[i].y = X.at(i).second;
+        states[i].linear_vel = L.at(i).second;
+        states[i].angular_vel = A.at(i).second;
+    }
+
+    for (int i = 0; i < states.size() - 1; i++) {
+        states[i].heading = atan2(states[i + 1].y - states[i].y, states[i + 1].x - states[i].x);
+    }
+
+    if (!states.empty()) {
+        states.back().heading = states[states.size() - 2].heading;
+    }
+
+    return states;
+}
+
+// Wrap angle difference into range [-pi, pi)
+double angleError(double robotAngle, double targetAngle) {
+    constexpr double TWO_PI = 2.0 * M_PI;
+
+    double diff = std::fmod(targetAngle - robotAngle, TWO_PI);
+
+    if (diff < -M_PI) {
+        diff += TWO_PI;
+    } else if (diff >= M_PI) {
+        diff -= TWO_PI;
+    }
+
+    return diff;
+}
 
 inline double sinc(double x) {
     const double eps = 1e-9;
@@ -254,10 +295,9 @@ void ramsete_auton(VelocityControllerConfig &config) {
         10.0 * INCH_TO_METER
     );
 
-    const double b = 2;     
-    const double zeta = 0.7; 
-    const double track_width = 10.05 * INCH_TO_METER;
-    VelocityProfile vp;
+    const double b = 4;     
+    const double zeta = 0.2; 
+    const double track_width = 10.0 * INCH_TO_METER;
 
     std::vector<State> trajectory = prepare_trajectory();
     if (trajectory.empty())
@@ -336,84 +376,43 @@ void ramsete_auton(VelocityControllerConfig &config) {
     }
 }
 
+/** Other code
+*
+*/
 
-void collect_velocity_vs_voltage_data() {
-    std::vector<float> inputs = {0.0f,  0.25f,  0.5f,  0.75f,  1.0f,  1.25f,  1.5f,  1.75f,  2.0f, 2.25f,
-                                 2.5f,  2.75f,  3.0f,  3.25f,  3.5f,  3.75f,  4.0f,  4.25f,  4.5f, 4.75f,
-                                 5.0f,  5.25f,  5.5f,  5.75f,  6.0f,  6.25f,  6.5f,  6.75f,  7.0f, 7.25f,
-                                 7.5f,  7.75f,  8.0f,  8.25f,  8.5f,  8.75f,  9.0f,  9.25f,  9.5f, 9.75f,
-                                 10.0f, 10.25f, 10.5f, 10.75f, 11.0f, 11.25f, 11.5f, 11.75f, 12.0f};
-   
 
-    std::vector<float> outputs = {0.f};
-    outputs.reserve(inputs.size());
 
-    float direction = 1;
-    for (auto &input : inputs) {
-        if (input == 0)
-            continue;
-
-        leftMotors.move_voltage(direction * input * 1000);
-        rightMotors.move_voltage(direction * input * 1000);
-
-        pros::delay(1000);
-        float v_sum = 0;
-        int n;
-        for (n = 0; n < 500; ++n) {
-            v_sum += (std::fabs(leftMotors.get_actual_velocity()*rpm_to_mps_factor) + std::fabs(rightMotors.get_actual_velocity()*rpm_to_mps_factor)) / 2;
-        }
-        outputs.emplace_back( (v_sum / (float)n));
-        auto v = input * direction * 1000;
-        while (fabsf(v) > 0.5) {
-            v *= 0.9;
-
-            leftMotors.move_voltage(v);
-            rightMotors.move_voltage(v);
-            pros::delay(10);
-        }
-        direction = -direction;
-    }
-
-    leftMotors.brake();
-    rightMotors.brake();
-
-    for (int i = 0; i < inputs.size(); ++i) {
-        std::cout << Vector2(inputs[i], outputs[i]).latex() << ",";
-    }
-    std::cout << "\b" << std::endl;
-}
-
-void collect_voltage_step_data(float step_input, unsigned int duration) {
-    std::vector<float> outputs = {};
-    duration *= 100;
-    outputs.reserve(duration);
-
-    leftMotors.move_voltage(step_input * 1000);
-    rightMotors.move_voltage(step_input * 1000);
-
-    for (int i = 0; i < duration; ++i) {
-        auto speed = (std::fabs(leftMotors.get_actual_velocity()*rpm_to_mps_factor) + std::fabs(rightMotors.get_actual_velocity()*rpm_to_mps_factor)) / 2;
-        std::cout << Vector2((float)i / 100, speed).latex() << "," << std::flush;
-        pros::delay(10);
-    }
-
-    leftMotors.brake();
-    rightMotors.brake();
-    std::cout << "\b" << std::endl;
-}
 
 void initialize() {
     chassis.calibrate();
     pros::lcd::initialize();
-    color_sensor.set_led_pwm(100);
     chassis.setPose(0,0,0);
-
-    pros::Task screen_odom([]() {
+    pros::Task screen_task([&]() {
         while (true) {
-            lemlib::Pose current_pose = chassis.getPose();
-            pros::lcd::print(0, "X: %.2f", current_pose.x);
-            pros::lcd::print(1, "Y: %.2f", current_pose.y);
-            pros::lcd::print(2, "T: %.2f", current_pose.theta);
+            pros::lcd::print(0, "X: %f", chassis.getPose().x);
+            pros::lcd::print(1, "Y: %f", chassis.getPose().y);
+            pros::lcd::print(2, "Theta: %f", chassis.getPose(true).theta);
+            /*
+            Eigen::Matrix3d rotation_matrix;
+            Eigen::Vector3d global_error;
+            Eigen::Vector3d local_error;
+
+            lemlib::Pose current_pose = chassis.getPose(true);
+            current_pose.x *= INCH_TO_METER;
+            current_pose.y *= INCH_TO_METER;
+            current_pose.theta = M_PI_2 - current_pose.theta;
+            double AngleError = angleError(current_pose.theta, -M_PI_2); 
+
+            rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0, -std::sin(current_pose.theta),
+                std::cos(current_pose.theta), 0, 0, 0, 1;
+
+            global_error << 1 - current_pose.x, 0 - current_pose.y, AngleError;
+            
+            local_error = rotation_matrix * global_error;
+            pros::lcd::print(0, "X Error: %f", local_error(0));
+            pros::lcd::print(1, "Y Error: %f", local_error(1));
+            pros::lcd::print(2, "T Error: %f", local_error(2));
+            */
             pros::delay(20);
         }
     });
