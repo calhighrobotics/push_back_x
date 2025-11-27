@@ -56,31 +56,25 @@ void opcontrol() {
     double throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
     double steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-    // Port 7
     if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
     {
-        intakeMotor.move_voltage(12000);
+        intake();
     }
     else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
     {
-        intakeMotor.move_voltage(-12000);
+        outtake();
     }
-    else {
-        intakeMotor.move_voltage(0);
-    }
-    
-    // Port 18
-    if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
+    else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
     {
-        topMotor.move_voltage(12000);
+        score_longgoal();
     }
     else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
     {
-        topMotor.move_voltage(-12000);
+        score_midgoal();
     }
     else
     {
-        topMotor.move_voltage(0);
+        intake_stop();
     }
 
     if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
@@ -95,6 +89,8 @@ void opcontrol() {
     {
         C.toggle();
     }
+
+
 
 
     chassis.curvature(throttle, steer, false);
