@@ -31,8 +31,8 @@ void score_midgoal()
 {
     intake();
     topMotor.move_voltage(12000);
-    if(!C.is_extended())
-        C.extend();
+    if(!A.is_extended())
+        A.extend();
 }
 
 void intake_stop()
