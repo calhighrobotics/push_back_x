@@ -676,3 +676,67 @@
 //     rightMotors.brake();
 //     std::cout << "\b" << std::endl;
 // }
+
+/*
+void find_tracking_center(float turnVoltage, uint32_t time_ms) {
+    chassis.setPose(0, 0, 0);
+
+    std::vector<std::string> logs;
+    std::vector<std::string> logs2;
+
+    uint32_t start = pros::millis();
+    while (pros::millis() - start < time_ms)
+    {
+        leftMotors.move_voltage(turnVoltage * 1000);
+        rightMotors.move_voltage(-turnVoltage * 1000);
+
+        auto pose = chassis.getPose(false);  // don't estimate
+        logs.push_back(std::to_string(pose.x) + "," + std::to_string(pose.y) + ",");
+        logs2.push_back(std::to_string(pose.theta) + ",");
+
+        pros::delay(20);
+    }
+    leftMotors.brake();
+    rightMotors.brake();
+
+    for (auto &s : logs) std::cout << s, pros::delay(50);
+    for (auto &s : logs2) std::cout << s, pros::delay(50);
+}
+
+void auto_tune_pid(float target_velocity, float time_ms, const VelocityControllerConfig &config) {
+    double start_time = pros::millis();
+    std::vector<std::string> logs;
+
+     VoltageController controller(
+        config.kV,
+        config.KA_straight,
+        config.KA_turn,
+        config.KS_straight,
+        config.KS_turn,
+        config.KP_straight,
+        config.KI_straight,
+        99999.0,
+        10.0 * INCH_TO_METER
+    );
+    double time_counter = 0;
+    while (time_counter < time_ms) {
+        
+        
+        DrivetrainVoltages output_voltages = controller.update(target_velocity, 0, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
+       
+        rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
+        leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
+
+        std::ostringstream ss;
+        std::cout << Vector2(time_counter/1000, chassis.getPose().y * INCH_TO_METER).latex() << "," << std::flush;
+        time_counter += 10;
+        pros::delay(10);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+
+    for (auto &s : logs) std::cout << s, pros::delay(50);
+
+}
+*/
