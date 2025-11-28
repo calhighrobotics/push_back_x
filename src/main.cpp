@@ -444,11 +444,19 @@ inline float clamp(float val, float min_val, float max_val) {
     return std::max(min_val, std::min(max_val, val));
 }
 
+enum Direction {
+    FLEXIBLE,
+    REVERSE,
+    RIGID
+};
 
-void pid_ramsete(float x_desired, float y_desired, VelocityControllerConfig &config, float time_ms)
-{
-    const float POS_TOLERANCE = 0.10f;   
-    const float HEADING_TOLERANCE = 0.05f;  
+struct DrivetoPointConfig {
+    Direction direction;
+    
+};
+
+void driveToPoint(double target_x_in, double target_y_in,
+                  const VelocityControllerConfig& config, const DrivetoPointConfig& dtp_config) {
 
     VoltageController controller(
         config.kV,
@@ -463,63 +471,10 @@ void pid_ramsete(float x_desired, float y_desired, VelocityControllerConfig &con
     );
 
 
-    lemlib::PID pid_v(10, 0.0, 3);     
-    lemlib::PID pid_w(4, 0.01, 20);      
-    float k_lat = 0.5f;                
 
-    double current_time = 0.0;
-    const double dt = 10.0; 
-
-    while (current_time < time_ms)
-    {
-        u_int32_t start_time_ms = pros::millis();
-        lemlib::Pose current_pose = chassis.getPose(true);
-        current_pose.theta = M_PI_2 - current_pose.theta;
-
-        double cur_x = current_pose.x * INCH_TO_METER;
-        double cur_y = current_pose.y * INCH_TO_METER;
-
-        Eigen::Vector2d global_error(
-            x_desired * INCH_TO_METER - cur_x,
-            y_desired * INCH_TO_METER - cur_y
-        );
-
-        Eigen::Matrix2d R;
-        R << cos(current_pose.theta),  sin(current_pose.theta),
-            -sin(current_pose.theta),  cos(current_pose.theta);
-
-        Eigen::Vector2d local_error = R * global_error;
-        float e_x = local_error(0);
-        float e_y = local_error(1);
-
-
-        float e_t = atan2(e_y, e_x);  
-        float vd = pid_v.update(local_error.norm() * sign(cos(e_t)));
-        float w = pid_w.update(e_t) + k_lat * vd * e_y * sinc(e_t);
-
-        float v = fabs(cos(e_t)) * vd;
-
-        DrivetrainVoltages out = controller.update(
-            v, w,
-            leftMotors.get_actual_velocity() * rpm_to_mps_factor,
-            rightMotors.get_actual_velocity() * rpm_to_mps_factor
-        );
-
-        // ---- SAFE VOLTAGE OUTPUT ----
-        leftMotors.move_voltage(clamp(out.leftVoltage  * 1000.0f, -12000.0f, 12000.0f));
-        rightMotors.move_voltage(clamp(out.rightVoltage * 1000.0f, -12000.0f, 12000.0f));
-
-        // ---- Stop condition ----
-        if (local_error.norm() < POS_TOLERANCE && fabs(e_t) < HEADING_TOLERANCE)
-            break;
-
-        current_time += dt;
-        pros::Task::delay_until(&start_time_ms, dt);
-    }
-
-    leftMotors.brake();
-    rightMotors.brake();
 }
+
+
 
 
 
