@@ -1,127 +1,212 @@
-#include "main.h"
 #include "globals.h"
-#include "lemlib/api.hpp"
-#include <cmath>
-#include <vector>
-#include <utility>
-/*
-const double FIELD_WIDTH_MM = 3657.6;
-const double FIELD_HEIGHT_MM = 3657.6;
+#include "lemlib/util.hpp"
+#include <numeric>
 
-const double OFFSET_TO_LEFT_SENSOR = 150.0;
-const double OFFSET_TO_RIGHT_SENSOR = 155.0;
-const double OFFSET_TO_BACK_SENSOR = 170.0;
-const double OFFSET_TO_FRONT_SENSOR = 165.0;
+const double MM_TO_IN = 0.0393701;
+const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
+const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
+const double HALF_WIDTH = FIELD_WIDTH / 2.0;
+const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
+const double MAX_SENSOR_RANGE = 1800 * MM_TO_IN;
+const double MIN_SENSOR_RANGE = 50 * MM_TO_IN;
 
-const double MAX_SENSOR_RANGE = 3000.0;
+bool controller_screen_avilable;
 
-std::pair<double, double> calculateGlobalPosition(
-    double dist_left, double dist_right,
-    double dist_back, double dist_front,
-    double heading_deg, lemlib::Pose current_pose)
+struct SensorConfig {
+    double forward_offset;
+    double strafe_offset;
+    double mounting_angle;
+};
+
+const SensorConfig front_sensor_cfg = {9, 0.25, 0};   
+const SensorConfig left_sensor_cfg  = {-1.25, -5.5, 90};   
+const SensorConfig right_sensor_cfg = {-1.25, 5.5, -90};  
+const SensorConfig back_sensor_cfg  = {-7.75, -0.25, 180}; 
+
+struct SensorReadings {
+    double dist_mm;
+    int object_size;
+    int confidence;
+};
+
+struct distancePose {
+    double x;
+    double y;
+    bool using_odom_x;
+    bool using_odom_y;
+};
+
+distancePose calculateGlobalPosition(
+    const SensorReadings& front_data,
+    const SensorReadings& left_data,
+    const SensorReadings& right_data,
+    const SensorReadings& back_data,
+    double heading_deg)
 {
-    double heading_rad = lemlib::degToRad(heading_deg);
-    double cos_h = std::cos(heading_rad);
-    double sin_h = std::sin(heading_rad);
+    lemlib::Pose current_pose = chassis.getPose();
+    double est_x = current_pose.x;
+    double est_y = current_pose.y;
 
-    struct Sensor {
-        double sx, sy, angle_deg, dist;
-    } sensors[] = {
-        {-OFFSET_TO_LEFT_SENSOR, 0, -90, dist_left},
-        {OFFSET_TO_RIGHT_SENSOR, 0, 90, dist_right},
-        {0, -OFFSET_TO_BACK_SENSOR, 180, dist_back},
-        {0, OFFSET_TO_FRONT_SENSOR, 0, dist_front}
+    bool using_odom_x = true;
+    bool using_odom_y = true;
+
+    struct SensorData { SensorConfig cfg; double dist_in; int confidence;};
+    const SensorData sensors[] = {
+        {front_sensor_cfg, front_data.dist_mm * MM_TO_IN, front.get_confidence()},
+        {left_sensor_cfg,  left_data.dist_mm * MM_TO_IN, left.get_confidence()},
+        {right_sensor_cfg, right_data.dist_mm * MM_TO_IN, right.get_confidence()},
+        {back_sensor_cfg,  back_data.dist_mm * MM_TO_IN, back.get_confidence()}
+    };
+    auto is_valid = [&](int i) {
+        return (sensors[i].dist_in < MAX_SENSOR_RANGE && 
+                sensors[i].dist_in >= MIN_SENSOR_RANGE &&
+                sensors[i].confidence > 20);
     };
 
-    std::vector<std::pair<char, double>> constraints;
-
-    for (const auto& s : sensors) {
-        if (s.dist > MAX_SENSOR_RANGE) continue;
-
-        double sensor_angle = heading_rad + lemlib::degToRad(s.angle_deg);
-        double dir_x = std::cos(sensor_angle);
-        double dir_y = std::sin(sensor_angle);
-
-        double offset_x = s.sx * cos_h - s.sy * sin_h;
-        double offset_y = s.sx * sin_h + s.sy * cos_h;
-
-        bool x_constraint_plausible = false;
-        bool y_constraint_plausible = false;
-
-        double wall_x;
-        if (dir_x < 0) {
-            wall_x = 0.0;
-        } else {
-            wall_x = FIELD_WIDTH_MM;
-        }
-        double robot_x_from_x_wall = wall_x - s.dist * dir_x - offset_x;
-        double sensor_y_at_x_wall = (current_pose.y + offset_y) + (wall_x - (current_pose.x + offset_x)) * (dir_y / dir_x);
-        if (sensor_y_at_x_wall >= 0 && sensor_y_at_x_wall <= FIELD_HEIGHT_MM) {
-            x_constraint_plausible = true;
-        }
-
-        double wall_y;
-        if (dir_y < 0) {
-            wall_y = 0.0;
-        } else {
-            wall_y = FIELD_HEIGHT_MM;
-        }
-        double robot_y_from_y_wall = wall_y - s.dist * dir_y - offset_y;
-        double sensor_x_at_y_wall = (current_pose.x + offset_x) + (wall_y - (current_pose.y + offset_y)) * (dir_x / dir_y);
-        if (sensor_x_at_y_wall >= 0 && sensor_x_at_y_wall <= FIELD_WIDTH_MM) {
-            y_constraint_plausible = true;
-        }
-
-        if (x_constraint_plausible && !y_constraint_plausible) {
-            constraints.push_back({'x', robot_x_from_x_wall});
-        } else if (!x_constraint_plausible && y_constraint_plausible) {
-            constraints.push_back({'y', robot_y_from_y_wall});
-        } else {
-            if (std::fabs(dir_x) > std::fabs(dir_y)) {
-                constraints.push_back({'x', robot_x_from_x_wall});
-            } else {
-                constraints.push_back({'y', robot_y_from_y_wall});
-            }
-        }
-    }
-
-    double sum_x = 0, sum_y = 0;
-    int count_x = 0, count_y = 0;
-    for (const auto& c : constraints) {
-        if (c.first == 'x') { sum_x += c.second; count_x++; }
-        else { sum_y += c.second; count_y++; }
-    }
+    double norm_heading = std::fmod(heading_deg, 360.0);
+    if (norm_heading < 0) norm_heading += 360.0;
+    const double TOLERANCE = 40.0; 
     
-    double est_x;
-    if (count_x > 0) {
-        est_x = sum_x / count_x;
-    } else {
-        est_x = current_pose.x;
+    std::vector<double> x_cands;
+    std::vector<double> y_cands;
+
+    auto get_global_offsets = [&](const SensorConfig& cfg, double heading_rad) {
+        double cos_h = std::cos(heading_rad);
+        double sin_h = std::sin(heading_rad);
+        double global_offset_x = (cfg.forward_offset * sin_h) + (cfg.strafe_offset * cos_h);
+        double global_offset_y = (cfg.forward_offset * cos_h) - (cfg.strafe_offset * sin_h);
+        
+        return std::make_pair(global_offset_x, global_offset_y);
+    };
+
+    if (norm_heading <= TOLERANCE || norm_heading >= 360.0 - TOLERANCE) {
+        double angle_off_rad = (norm_heading <= TOLERANCE) ? 
+            lemlib::degToRad(norm_heading) : lemlib::degToRad(norm_heading - 360.0);
+        double heading_rad = angle_off_rad;
+
+        double perp_dist_0 = sensors[0].dist_in * std::cos(angle_off_rad);
+        double perp_dist_3 = sensors[3].dist_in * std::cos(angle_off_rad);
+        double perp_dist_1 = sensors[1].dist_in * std::cos(angle_off_rad);
+        double perp_dist_2 = sensors[2].dist_in * std::cos(angle_off_rad);
+
+        auto offset_0 = get_global_offsets(sensors[0].cfg, heading_rad);
+        auto offset_1 = get_global_offsets(sensors[1].cfg, heading_rad);
+        auto offset_2 = get_global_offsets(sensors[2].cfg, heading_rad);
+        auto offset_3 = get_global_offsets(sensors[3].cfg, heading_rad);
+
+        if (is_valid(0)) { y_cands.push_back(HALF_HEIGHT - perp_dist_0 - offset_0.second); }
+        if (is_valid(3)) { y_cands.push_back(-HALF_HEIGHT + perp_dist_3 - offset_3.second); }
+        if (is_valid(1)) { x_cands.push_back(-HALF_WIDTH + perp_dist_1 - offset_1.first); }
+        if (is_valid(2)) { x_cands.push_back(HALF_WIDTH - perp_dist_2 - offset_2.first); }
+    }
+    else if (std::fabs(norm_heading - 180.0) <= TOLERANCE) {
+        double angle_off_rad = lemlib::degToRad(norm_heading - 180.0);
+        double heading_rad = lemlib::degToRad(norm_heading);
+
+        double perp_dist_0 = sensors[0].dist_in * std::cos(angle_off_rad);
+        double perp_dist_3 = sensors[3].dist_in * std::cos(angle_off_rad);
+        double perp_dist_1 = sensors[1].dist_in * std::cos(angle_off_rad);
+        double perp_dist_2 = sensors[2].dist_in * std::cos(angle_off_rad);
+
+        auto offset_0 = get_global_offsets(sensors[0].cfg, heading_rad);
+        auto offset_1 = get_global_offsets(sensors[1].cfg, heading_rad);
+        auto offset_2 = get_global_offsets(sensors[2].cfg, heading_rad);
+        auto offset_3 = get_global_offsets(sensors[3].cfg, heading_rad);
+
+        if (is_valid(0)) { y_cands.push_back(-HALF_HEIGHT + perp_dist_0 - offset_0.second); }
+        if (is_valid(3)) { y_cands.push_back(HALF_HEIGHT - perp_dist_3 - offset_3.second); }
+        if (is_valid(1)) { x_cands.push_back(HALF_WIDTH - perp_dist_1 - offset_1.first); }
+        if (is_valid(2)) { x_cands.push_back(-HALF_WIDTH + perp_dist_2 - offset_2.first); }
+    }
+    else if (std::fabs(norm_heading - 90.0) <= TOLERANCE) {
+        double angle_off_rad = lemlib::degToRad(norm_heading - 90.0);
+        double heading_rad = lemlib::degToRad(norm_heading);
+        
+        double perp_dist_0 = sensors[0].dist_in * std::cos(angle_off_rad);
+        double perp_dist_3 = sensors[3].dist_in * std::cos(angle_off_rad);
+        double perp_dist_1 = sensors[1].dist_in * std::cos(angle_off_rad);
+        double perp_dist_2 = sensors[2].dist_in * std::cos(angle_off_rad);
+
+        auto offset_0 = get_global_offsets(sensors[0].cfg, heading_rad);
+        auto offset_1 = get_global_offsets(sensors[1].cfg, heading_rad);
+        auto offset_2 = get_global_offsets(sensors[2].cfg, heading_rad);
+        auto offset_3 = get_global_offsets(sensors[3].cfg, heading_rad);
+
+        if (is_valid(0)) { x_cands.push_back(HALF_WIDTH - perp_dist_0 - offset_0.first); }
+        if (is_valid(3)) { x_cands.push_back(-HALF_WIDTH + perp_dist_3 - offset_3.first); }
+        if (is_valid(1)) { y_cands.push_back(HALF_HEIGHT - perp_dist_1 - offset_1.second); }
+        if (is_valid(2)) { y_cands.push_back(-HALF_HEIGHT + perp_dist_2 - offset_2.second); }
+    }
+    else if (std::fabs(norm_heading - 270.0) <= TOLERANCE) {
+        double angle_off_rad = lemlib::degToRad(norm_heading - 270.0);
+        double heading_rad = lemlib::degToRad(norm_heading);
+
+        double perp_dist_0 = sensors[0].dist_in * std::cos(angle_off_rad);
+        double perp_dist_3 = sensors[3].dist_in * std::cos(angle_off_rad);
+        double perp_dist_1 = sensors[1].dist_in * std::cos(angle_off_rad);
+        double perp_dist_2 = sensors[2].dist_in * std::cos(angle_off_rad);
+        
+        auto offset_0 = get_global_offsets(sensors[0].cfg, heading_rad);
+        auto offset_1 = get_global_offsets(sensors[1].cfg, heading_rad);
+        auto offset_2 = get_global_offsets(sensors[2].cfg, heading_rad);
+        auto offset_3 = get_global_offsets(sensors[3].cfg, heading_rad);
+        
+        if (is_valid(0)) { x_cands.push_back(-HALF_WIDTH + perp_dist_0 - offset_0.first); }
+        if (is_valid(3)) { x_cands.push_back(HALF_WIDTH - perp_dist_3 - offset_3.first); }
+        if (is_valid(1)) { y_cands.push_back(-HALF_HEIGHT + perp_dist_1 - offset_1.second); }
+        if (is_valid(2)) { y_cands.push_back(HALF_HEIGHT - perp_dist_2 - offset_2.second); }
     }
 
-    double est_y;
-    if (count_y > 0) {
-        est_y = sum_y / count_y;
-    } else {
-        est_y = current_pose.y;
+    if (!x_cands.empty()) {
+        est_x = std::accumulate(x_cands.begin(), x_cands.end(), 0.0) / x_cands.size();
+        using_odom_x = false;
     }
 
-    return {est_x, est_y};
+    if (!y_cands.empty()) {
+        est_y = std::accumulate(y_cands.begin(), y_cands.end(), 0.0) / y_cands.size();
+        using_odom_y = false;
+    }
+
+    distancePose pose;
+    pose.x = est_x;
+    pose.y = est_y;
+    pose.using_odom_x = using_odom_x;
+    pose.using_odom_y = using_odom_y;
+    return pose;
 }
 
-void distanceReset() {
-    lemlib::Pose current_pose = chassis.getPose();
-    double heading_deg = lemlib::radToDeg(current_pose.theta);
+distancePose distanceReset() {
+    double heading_deg = chassis.getPose().theta;
 
-    double dist_left = left.get_distance();
-    double dist_right = right.get_distance();
-    double dist_front = front.get_distance();
-    double dist_back = back.get_distance();
+    SensorReadings front_data = {(double)front.get_distance(), front.get_object_size(), front.get_confidence()};
+    SensorReadings left_data  = {(double)left.get_distance(),  left.get_object_size(),  left.get_confidence()};
+    SensorReadings right_data = {(double)right.get_distance(), right.get_object_size(), right.get_confidence()};
+    SensorReadings back_data  = {(double)back.get_distance(),  back.get_object_size(),  back.get_confidence()};
 
-    std::pair<double, double> estimated_position = calculateGlobalPosition(
-        dist_left, dist_right, dist_back, dist_front, heading_deg, current_pose
-    );
-
-    chassis.setPose(estimated_position.first, estimated_position.second, current_pose.theta);
+    return calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
 }
-*/
+
+distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
+    double heading_deg = chassis.getPose().theta; 
+
+    const int invalid_dist_mm = 10000; 
+    const int invalid_confidence = 0; 
+
+    SensorReadings front_data = front_use
+        ? SensorReadings{(double)front.get_distance(), front.get_object_size(), front.get_confidence()}
+        : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
+    
+    SensorReadings left_data = left_use
+        ? SensorReadings{(double)left.get_distance(), left.get_object_size(), left.get_confidence()}
+        : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
+
+    SensorReadings right_data = right_use
+        ? SensorReadings{(double)right.get_distance(), right.get_object_size(), right.get_confidence()}
+        : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
+
+    SensorReadings back_data = back_use
+        ? SensorReadings{(double)back.get_distance() ,back.get_object_size(), back.get_confidence()}
+        : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
+
+    return calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
+}

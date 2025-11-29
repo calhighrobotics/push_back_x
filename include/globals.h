@@ -7,6 +7,22 @@
 #include "pros/adi.hpp"
 #include "pros/motors.h"
 
+extern constexpr float INCH_TO_METER = 0.0254;
+
+struct State {
+    float x, y, heading, linear_vel, angular_vel;
+} ;
+
+class Vector2 {
+    public:
+        Vector2(float x, float y);
+
+        std::string latex() const;
+
+        float x;
+        float y;
+};
+
 extern pros::Controller controller;
 
 extern pros::MotorGroup rightMotors;
@@ -34,12 +50,11 @@ extern pros::Motor intakeMotor;
 extern pros::Motor topMotor;
 
 
-/*
+
 extern pros::Distance right;
 extern pros::Distance left;
 extern pros::Distance front;
 extern pros::Distance back;
-*/
 
 
 extern pros::adi::Pneumatics A;

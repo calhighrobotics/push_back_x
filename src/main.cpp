@@ -1,10 +1,21 @@
 #include "main.h"
 #include "globals.h" 
 #include "pros/misc.h"
-#include "autonRoutines.h"
-#include "lemlib/api.hpp"
-#include "lemlib/util.hpp"
-#include "autonFunctions.h"
+#include "auton/autonRoutines.h"
+#include "auton/autonFunctions.h"
+#include "pathFollowing/velocityController.h"
+#include "pathFollowing/ramsete.cpp"
+#include "pathFollowing/paths.cpp"
+
+VelocityControllerConfig config{
+    12.4370890785,
+    0.803031225567,
+    0.664537661342,
+    0.472796490892,
+    0.236548087393,
+    25.2621164319,
+    524.703492373,
+};
 
 
 rd::Selector selector({
@@ -21,6 +32,7 @@ rd::Console console;
 // Global Objects
 void initialize() {
     chassis.calibrate();
+    
     pros::Task screen_task([&]() {
         while (true) {
             console.clear();
@@ -42,7 +54,8 @@ void competition_initialize() {
 }
 
 void autonomous() {
-
+    RamsetePathFollower ramsete(config, 4.0, 0.2);
+    ramsete.followPath(test_path);
     selector.run_auton();
     //chassis.setPose(0,0,0);
     //chassis.turnToHeading(90, 1000);

@@ -5,6 +5,24 @@
 #include "pros/adi.hpp"
 #include "pros/motors.h"
 
+constexpr float INCH_TO_METER = 0.0254f;
+
+struct State {
+    float x, y, heading, linear_vel, angular_vel;
+};
+
+class Vector2 {
+public:
+    Vector2(float x, float y) : x(x), y(y) {}
+    std::string latex() const {
+        std::ostringstream oss;
+        oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
+        return oss.str();
+    }
+
+    float x;
+    float y;
+};
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
@@ -69,12 +87,11 @@ lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, senso
 pros::Motor intakeMotor(7, pros::v5::MotorGears::blue);
 pros::Motor topMotor(18, pros::v5::MotorGears::green);
 
-/*
+
 pros::Distance right(4);
 pros::Distance left(5);
 pros::Distance front(7);
 pros::Distance back(8);
-*/
 
 pros::adi::Pneumatics A('A', false);
 pros::adi::Pneumatics B('B', false);
