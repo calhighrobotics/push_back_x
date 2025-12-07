@@ -817,3 +817,208 @@ void pid_ramsete(float x_desired, float y_desired, VelocityControllerConfig &con
     leftMotors.brake();
     rightMotors.brake();
 }*/
+
+/*
+Eigen::MatrixXd matrixExp(const Eigen::MatrixXd& A) {
+    const int n = A.rows();
+
+    double normA = A.cwiseAbs().maxCoeff();
+    int s = 0;
+    if (normA > 0.5) {
+        s = std::max(0, (int)std::ceil(std::log2(normA / 0.5)));
+    }
+
+    Eigen::MatrixXd X = A / std::pow(2.0, s);
+
+    Eigen::MatrixXd term = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd result = term;
+
+    for (int k = 1; k < 30; ++k) {
+        term = (term * X) / double(k);
+        result += term;
+        if (term.cwiseAbs().maxCoeff() < 1e-12) break;
+    }
+
+    for (int i = 0; i < s; i++) {
+        result = result * result;
+    }
+
+    return result;
+}
+
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd> discretizeAB(
+    const Eigen::MatrixXd& contA,
+    const Eigen::MatrixXd& contB,
+    double dtSeconds)
+{
+    int states = contA.rows();
+    int inputs = contB.cols();
+
+    Eigen::MatrixXd M(states + inputs, states + inputs);
+    M.setZero();
+
+    M.topLeftCorner(states, states) = contA;
+    M.topRightCorner(states, inputs) = contB;
+
+    Eigen::MatrixXd Md = M * dtSeconds;
+    Eigen::MatrixXd phi = matrixExp(Md);
+
+    Eigen::MatrixXd discA = phi.topLeftCorner(states, states);
+    Eigen::MatrixXd discB = phi.topRightCorner(states, inputs);
+
+    return {discA, discB};
+}
+
+Eigen::MatrixXd dareSolver(const Eigen::MatrixXd &A, const Eigen::MatrixXd &B,
+                                const Eigen::MatrixXd &Q, const Eigen::MatrixXd &R,
+                                double epsilon = 1e-10, int maxIter = 50)
+{
+    int n = A.rows();
+    if (n == 0) {
+        return Eigen::MatrixXd(0, 0); // Handle empty input
+    }
+
+    Eigen::MatrixXd Ak = A;
+    Eigen::MatrixXd Gk = B * R.inverse() * B.transpose();
+    Eigen::MatrixXd Hk = Q;
+    
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd H_prev;
+
+    for (int i = 0; i < maxIter; ++i) {
+        H_prev = Hk;
+
+        Eigen::MatrixXd temp = I + Gk * Hk;
+        Eigen::MatrixXd common_inv = temp.inverse();
+
+        Eigen::MatrixXd Ak_next = Ak * common_inv * Ak;
+        Eigen::MatrixXd Gk_next = Gk + Ak * common_inv * Gk * Ak.transpose();
+        
+        Hk = Hk + Ak.transpose() * Hk * common_inv * Ak;
+
+        Ak = Ak_next;
+        Gk = Gk_next;
+        double relative_error = (Hk - H_prev).norm() / Hk.norm();
+
+        if (relative_error < epsilon) {
+            return Hk; 
+        }
+    }
+
+    return Hk;
+}
+
+
+
+void ltvUnicycleController(VelocityControllerConfig &config, std::string path_name)
+{
+        VoltageController controller(
+        config.kV,
+        config.KA_straight,
+        config.KA_turn,
+        config.KS_straight,
+        config.KS_turn,
+        config.KP_straight,
+        config.KI_straight,
+        99999.0,
+        10.0 * INCH_TO_METER
+    );
+    std::vector<Eigen::MatrixXd> gainSchedule;
+    std::vector<State> trajectory;
+    trajectory.reserve(2000);
+    trajectory = prepare_trajectory(path_name);
+    if (trajectory.empty())
+        return;
+
+    int trajectory_size = trajectory.size();
+    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
+    std::vector<std::string> logs;
+    
+    double time = 0.01;
+    int counter = 0;
+
+    Eigen::MatrixXd X = Eigen::Matrix3d::Identity() * 10.0;
+    Eigen::MatrixXd K;
+    Eigen::Matrix3d Q; 
+    Eigen::Matrix2d R; 
+    Eigen::Vector3d currentPose;
+    Eigen::Vector3d targetPose;
+    Eigen::Vector2d errorXY;
+    Eigen::Vector3d error;
+    Eigen::Vector2d u; 
+
+    Eigen::MatrixXd A(3, 3);
+    Eigen::Matrix<double, 3, 2> B; 
+    
+    Eigen::Matrix3d rotation_matrix; 
+    for (const auto &target_state : trajectory) {
+        uint32_t start_time_ms = pros::millis();
+
+        lemlib::Pose current_pose = chassis.getPose(true);
+    
+        current_pose.x *= INCH_TO_METER;
+        current_pose.y *= INCH_TO_METER;
+        current_pose.theta = M_PI_2 - current_pose.theta;
+        double AngleError = angleError(current_pose.theta, target_state.heading); 
+    
+
+        Q = Eigen::Matrix3d::Identity() * 10.0f;
+        R = Eigen::Matrix2d::Identity() * 0.1f;
+
+        currentPose << current_pose.x, current_pose.y, current_pose.theta;
+        targetPose << target_state.x, target_state.y, target_state.heading;
+
+        errorXY << targetPose(0) - currentPose(0), targetPose(1) - currentPose(1);
+
+        error << errorXY(0), errorXY(1), AngleError;
+
+        A <<
+            0.0, 0.0, 0.0,
+            0.0, 0.0,  target_state.linear_vel,
+            0.0, 0.0, 0.0;
+
+        B <<
+            1.0, 0.0,
+            0.0, 0.0,
+            0.0, 1.0;
+
+        const auto discAB = discretizeAB(A, B, 0.01f);
+        X = dareSolver(discAB.first, discAB.second, Q, R, 1e-10, 100);
+
+        Eigen::MatrixXd R_plus_BTXB = R + discAB.second.transpose() * X * discAB.second;
+
+        K = R_plus_BTXB.inverse() * discAB.second.transpose() * X * discAB.first;
+
+        rotation_matrix <<
+            std::cos(current_pose.theta), std::sin(current_pose.theta), 0,
+            -std::sin(current_pose.theta), std::cos(current_pose.theta), 0,
+            0, 0, 1;
+        u = K * rotation_matrix * error;
+        double v_desired_ltv = target_state.linear_vel + u(0);
+        double w_desired_ltv = target_state.angular_vel + u(1);
+
+        DrivetrainVoltages output_voltages = controller.update(v_desired_ltv, w_desired_ltv, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
+       
+        rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
+        leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
+
+
+        std::ostringstream ss;
+        ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
+        logs.push_back(ss.str());
+
+        counter++;
+        time += 0.01;
+        pros::Task::delay_until(&start_time_ms, 10);
+    }
+    chassis.moveToPose(trajectory[trajectory_size - 1].x / INCH_TO_METER,trajectory[trajectory_size - 1].y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory[trajectory.size()-1].heading),1000);
+    chassis.waitUntilDone();
+
+    rightMotors.brake();
+    leftMotors.brake();
+
+    for (const auto& line : logs) {
+        std::cout << line;
+        pros::delay(50);
+    }
+}*/

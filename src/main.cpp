@@ -19,6 +19,10 @@
 #include <sstream>
 #include <sys/types.h>
 #include "paths.cpp"
+#include "Eigen/Dense"
+
+
+
 
 const double INCH_TO_METER = 0.0254;
 
@@ -331,7 +335,7 @@ void ramsete_auton(VelocityControllerConfig &config, std::string path_name) {
     const double track_width = 10.0 * INCH_TO_METER;
 
     std::vector<State> trajectory;
-    trajectory.reserve(2000);
+    trajectory.reserve(1000);
     trajectory = prepare_trajectory(path_name);
     if (trajectory.empty())
         return;
@@ -385,7 +389,7 @@ void ramsete_auton(VelocityControllerConfig &config, std::string path_name) {
         ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
         logs.push_back(ss.str());
 
-        if(counter + 4 >= trajectory_size) {
+        if(counter + 10 >= trajectory_size) {
             break;
         }
         counter++;
@@ -403,6 +407,7 @@ void ramsete_auton(VelocityControllerConfig &config, std::string path_name) {
         pros::delay(50);
     }
 }
+
 
 
 void initialize() {
@@ -440,23 +445,61 @@ void initialize() {
     });
 }
 
-inline float clamp(float val, float min_val, float max_val) {
-    return std::max(min_val, std::min(max_val, val));
+float wrap_angle(float angle)
+{
+    while (angle > M_PI)
+        angle -= 2.0f * M_PI;
+    while (angle < -M_PI)
+        angle += 2.0f * M_PI;
+
+    return angle;
+}
+enum Direction {
+    REVERSE,
+    FORWARD,
+    FLEXIBLE
+};
+
+struct DriveToPointConfig
+{
+    Direction direction;
+    bool rigid;
+    float settle_error;
+    float min_velocity;
+};
+
+float reduce_angle_pi_rad(float angle)
+{
+    angle = fmodf(angle + M_PI, 2.0f * M_PI);
+    if (angle < 0) angle += 2.0f * M_PI;
+    return angle - M_PI;
 }
 
-enum Direction {
-    FLEXIBLE,
-    REVERSE,
-    RIGID
-};
+float reduce_angle_pi_2(float x) {
+    x = reduce_angle_pi_rad(x);
 
-struct DrivetoPointConfig {
-    Direction direction;
-    
-};
+    const float half_pi = M_PI_2;   
+    const float pi      = M_PI;        
 
-void driveToPoint(double target_x_in, double target_y_in,
-                  const VelocityControllerConfig& config, const DrivetoPointConfig& dtp_config) {
+    if (x > half_pi)
+        x -= pi;
+    else if (x < -half_pi)
+        x += pi;
+
+    return x;
+}
+
+void pid_ramsete(float x_desired, float y_desired, 
+                 const VelocityControllerConfig &config, 
+                 const DriveToPointConfig &d_config,
+                 float time_ms) 
+{
+    const float LONG_TOLERANCE = 0.10f;   
+    const float LAT_TOLERANCE = 4 * LONG_TOLERANCE;
+    const float HEADING_TOLERANCE = 0.1f;  
+
+
+    lemlib::Pose desired_pose(x_desired, y_desired, 0);
 
     VoltageController controller(
         config.kV,
@@ -470,23 +513,172 @@ void driveToPoint(double target_x_in, double target_y_in,
         10.0 * INCH_TO_METER
     );
 
+    lemlib::Pose initial_pose = chassis.getPose(true);
+
+    lemlib::PID pid_v(0.3, 0.0, 1.3);     
+    lemlib::PID pid_w(0.12, 0.0, 0.3);      
+
+    double current_time = 0.0;
+    const double dt = 10.0; 
+
+    Eigen::Vector2d target(x_desired, y_desired);
+    Eigen::Vector2d current(initial_pose.x, initial_pose.y);
+
+    Eigen::Vector2d error_vector = target - current;
+
+    float heading_offset = 0.f;
+    float h_sign = 1.f;
+
+    switch (d_config.direction)
+    {
+        case FLEXIBLE:
+            if (fabsf(atan2(error_vector.y(), error_vector.x())) > M_PI_2) {
+                h_sign = 1;
+                error_vector = error_vector;
+            }
+            break;
+        case REVERSE:
+            heading_offset = M_PI;
+            h_sign = -1;
+            error_vector = -error_vector;
+            break;
+        default:
+            break;
+    }
+    if (d_config.rigid) {
+        chassis.turnToPoint(x_desired, y_desired, 1000);
+        initial_pose = chassis.getPose(true);
+        current << initial_pose.x, initial_pose.y;
+        error_vector = target - current;
+    }
+    bool early = false;
+    const float k_lat = 0.5;   
+    const float one_width = 1 / (10 * 0.0254f);  // approximate track width
+    const float oscillation_error = std::min(12.0f, d_config.settle_error * d_config.settle_error * 16.0f);
+
+    bool passed = false;
+    bool facing_point = false;
+
+    std::vector<std::string> logs;
+
+    while (current_time < time_ms) {
+        u_int32_t start_time_ms = pros::millis();
+
+        lemlib::Pose current_pose = chassis.getPose(true);
+        Eigen::Vector2d global_error(
+            x_desired - current_pose.x,
+            y_desired - current_pose.y
+        );
+
+        current_pose.theta = M_PI_2 - current_pose.theta;
+        
+        Eigen::Matrix2d R;
+        R << cos(current_pose.theta), sin(current_pose.theta),
+            -sin(current_pose.theta), cos(current_pose.theta);
+
+        Eigen::Vector2d local_error = R * global_error;
+
+        float e_x = local_error.x();
+        float e_y = local_error.y();
+
+        float heading_error = atan2(e_y, e_x);  
+
+        if(chassis.getPose().distance(desired_pose) < LONG_TOLERANCE &&
+           fabsf(reduce_angle_pi_rad(current_pose.theta - heading_offset)) < HEADING_TOLERANCE) {
+            early = true;
+            break;
+        }
+        float cosine_scale = cosf(heading_error);
+        facing_point |= cosine_scale > 0.707f;
+
+        passed |= (h_sign * e_x <= 0) && (fabsf(e_y) < 5 * d_config.settle_error);
+
+        if(local_error.norm() *  local_error.norm() < oscillation_error || passed) {
+            heading_error = reduce_angle_pi_2(heading_error);
+        }
+
+        float drive_error = h_sign * local_error.norm() * sign(cosine_scale);
+
+        float drive_output = pid_v.update(drive_error);
+        float turn_output = pid_w.update(heading_error);
+
+        if (fabsf(drive_error) > d_config.settle_error) {
+            turn_output += drive_output * k_lat * e_y * sinc(heading_error) * one_width;
+        } else {
+            turn_output = 0;
+        }
+
+        float current_velocity_l = (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) * 0.5f * rpm_to_mps_factor;
+        float current_velocity_w = (rightMotors.get_actual_velocity() - leftMotors.get_actual_velocity()) * rpm_to_mps_factor;
+
+        
+
+        DrivetrainVoltages out = controller.update(
+            fabsf(cosine_scale) * drive_output,
+            turn_output,
+            leftMotors.get_actual_velocity() * rpm_to_mps_factor,
+            rightMotors.get_actual_velocity() * rpm_to_mps_factor
+        );
+
+        leftMotors.move_voltage(out.leftVoltage * 1000.0);
+        rightMotors.move_voltage(out.rightVoltage * 1000.0);
 
 
+
+        if(std::fabs(e_x) < d_config.settle_error && std::fabs(e_y) < d_config.settle_error * 4 && heading_error < HEADING_TOLERANCE) {
+            early = true;
+            leftMotors.brake();
+            rightMotors.brake();
+            break;
+        }
+        /*
+        std::ostringstream ss;
+        ss << Vector2(current_time / 1000, current_velocity_l).latex() << ",";
+        logs.push_back(ss.str());
+        ss.str(""); ss.clear();
+        ss << Vector2(current_time / 1000, current_velocity_w).latex() << ",";
+        logs.push_back(ss.str());
+        ss.str(""); ss.clear();
+        */
+        std::ostringstream ss;
+        ss << Vector2(current_time / 1000, e_y).latex() << ",";
+        logs.push_back(ss.str());
+
+        current_time += dt;
+        pros::Task::delay_until(&start_time_ms, dt);
+
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+    std::cout << "PID Ramsete " << (early ? "Early Exit" : "Time Up") << "\n";
+
+    for (const auto &line : logs) {
+        std::cout << line;
+        pros::delay(50);
+    }
 }
 
 
-
+const DriveToPointConfig d_config {
+    FLEXIBLE,
+    false,
+    0.5,
+    0.02
+};
 
 
 
 void autonomous() {
     
-    ramsete_auton(test_config, test_path);
+    //ramsete_auton(test_config, test_path);
+    //ltvUnicycleController(test_config, test_path);
     //auto_tune_pid(1, 2000, test_config);
     //find_tracking_center(6, 5000);
-    //chassis.setPose(0,0,0);
+    chassis.setPose(0,0,0);
     //chassis.turnToPoint(24,24,10000);
-    //pid_ramsete(24,24, test_config, 1000);
+    pid_ramsete(-24,32, test_config, d_config, 2000);
+    //chassis.moveToPoint(-24, 24, 1000);
 }
 
 void disabled() {}
