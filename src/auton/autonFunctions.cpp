@@ -1,4 +1,3 @@
-#include "autonFunctions.h"
 #include "main.h"
 #include "globals.h" 
 #include "pros/misc.h"

@@ -3,7 +3,7 @@
 #include "pros/misc.h"
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
-#include "autonFunctions.h"
+#include "auton/autonFunctions.h"
 
 void right_auton()
 {

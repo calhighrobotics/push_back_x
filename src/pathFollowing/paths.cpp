@@ -1,5 +1,3 @@
-#pragma once
-
 #include <string>
 
 const std::string test_path = R"(

@@ -3,9 +3,10 @@
 #include "pros/misc.h"
 #include "auton/autonRoutines.h"
 #include "auton/autonFunctions.h"
-#include "pathFollowing/velocityController.h"
+#include "velocityController.h"
 #include "pathFollowing/ramsete.cpp"
 #include "pathFollowing/paths.cpp"
+#include "robodash/views/selector.hpp"
 
 VelocityControllerConfig config{
     12.4370890785,
@@ -27,9 +28,9 @@ rd::Selector selector({
 });
 
 
+
 rd::Console console;
 
-// Global Objects
 void initialize() {
     chassis.calibrate();
     
@@ -54,12 +55,9 @@ void competition_initialize() {
 }
 
 void autonomous() {
-    RamsetePathFollower ramsete(config, 4.0, 0.2);
+    RamsetePathFollower ramsete(config, 2, 0.7);
     ramsete.followPath(test_path);
     selector.run_auton();
-    //chassis.setPose(0,0,0);
-    //chassis.turnToHeading(90, 1000);
-    //chassis.moveToPoint(0,48,10000);
 }
 
 void opcontrol() {

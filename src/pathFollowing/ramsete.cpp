@@ -1,15 +1,13 @@
 #include "Eigen/Dense"
 #include "globals.h"
 #include "lemlib/util.hpp"
-#include "paths.cpp"
-#include "pathFollowing/velocityController.h"
+#include "velocityController.h"
 #include <cmath>
-
 
 class RamsetePathFollower {
 
     public:
-        RamsetePathFollower(const VelocityControllerConfig& config, double b_, double zeta_)
+        RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_)
             : controller(
                   config.kV,
                   config.KA_straight,
@@ -22,10 +20,10 @@ class RamsetePathFollower {
                   10.0 * INCH_TO_METER
               ), b(b_), zeta(zeta_) {}
 
-        void followPath(const std::string path_name) {
+        void followPath(const std::string path_name, bool log = false) {
 
             std::vector<State> trajectory;
-            trajectory.reserve(2000);
+            trajectory.reserve(1000);
             trajectory = prepare_trajectory(path_name);
             if (trajectory.empty())
                 return;
@@ -37,7 +35,6 @@ class RamsetePathFollower {
             double time = 0.01;
             int counter = 0;
             for (const auto &target_state : trajectory) {
-                // Record the start time of this specific loop iteration
                 uint32_t start_time_ms = pros::millis();
 
                 lemlib::Pose current_pose = chassis.getPose(true);
@@ -69,15 +66,17 @@ class RamsetePathFollower {
                 double v_desired_ramsete = vd * std::cos(e_t) + k * e_x;
                 double w_desired_ramsete = wd + k * e_t + (b * vd * sinc(e_t) * e_y);
 
-                DrivetrainVoltages output_voltages = controller.update(v_desired_ramsete, w_desired_ramsete, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
+                DrivetrainVoltages output_voltages = controller.update(v_desired_ramsete, w_desired_ramsete, (leftMotors.get_actual_velocity() * rpm_to_mps_factor), (rightMotors.get_actual_velocity() * rpm_to_mps_factor));
             
                 rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
                 leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
 
-
-                std::ostringstream ss;
-                ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
-                logs.push_back(ss.str());
+                if(log)
+                {
+                    std::ostringstream ss;
+                    ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
+                    logs.push_back(ss.str());
+                }
 
                 if(counter + 4 >= trajectory_size) {
                     break;
@@ -91,22 +90,25 @@ class RamsetePathFollower {
 
             rightMotors.brake();
             leftMotors.brake();
-
-            for (const auto& line : logs) {
-                std::cout << line;
-                pros::delay(50);
+            if(log)
+            {
+                for (const auto& line : logs) {
+                    std::cout << line;
+                    pros::delay(50);
+                }
             }
         }
 
 
     private:
-        const double wheel_circumference = 4 * M_PI * INCH_TO_METER; // meters
-        const double gear_ratio = 1.25;
-        const double rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60;
+        const float wheel_circumference = 4 * M_PI * INCH_TO_METER; // meters
+        const float gear_ratio = 1.25;
+        const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60;
         VoltageController controller;
-        const double b;
-        const double zeta;
-        const double track_width = 10;
+        const float b;
+        const float zeta;
+        const float track_width = 10;
+        const float INCH_TO_METER = 0.0254f;
 
         int sign(double x) {
             return (x > 0) - (x < 0); // returns 1, 0, or -1
@@ -191,4 +193,16 @@ class RamsetePathFollower {
             return std::sin(x) / x;
         }
 
+        class Vector2 {
+            public:
+                Vector2(float x, float y) : x(x), y(y) {}
+                std::string latex() const {
+                    std::ostringstream oss;
+                    oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
+                    return oss.str();
+                }
+
+                float x;
+                float y;
+         };
 };

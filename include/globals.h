@@ -7,7 +7,7 @@
 #include "pros/adi.hpp"
 #include "pros/motors.h"
 
-extern constexpr float INCH_TO_METER = 0.0254;
+extern const float INCH_TO_METER;
 
 struct State {
     float x, y, heading, linear_vel, angular_vel;

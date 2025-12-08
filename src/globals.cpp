@@ -1,3 +1,5 @@
+#include <sstream>
+#include <string>
 #include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
@@ -5,7 +7,7 @@
 #include "pros/adi.hpp"
 #include "pros/motors.h"
 
-constexpr float INCH_TO_METER = 0.0254f;
+const float INCH_TO_METER = 0.0254f;
 
 struct State {
     float x, y, heading, linear_vel, angular_vel;

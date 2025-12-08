@@ -1,101 +1,89 @@
+#include "velocityController.h"
 #include <algorithm>
-struct DrivetrainVoltages {
-    double leftVoltage;
-    double rightVoltage;
-};
 
-class VoltageController {
-private:
-    // Gains
-    double kV;         // velocity feedforward
-    double kaStraight; // acceleration feedforward
-    double kaTurn;
-    double ksStraight; // static friction compensation
-    double ksTurn;
-    double kP; // proportional gain
-    double kI; // integral gain
+// Constructor
+VoltageController::VoltageController(
+    double kv,
+    double kaStraight,
+    double kaTurn,
+    double ksStraight,
+    double ksTurn,
+    double kp,
+    double ki,
+    double integralThreshold,
+    double trackWidth
+)
+    : kV(kv),
+      kaStraight(kaStraight),
+      kaTurn(kaTurn),
+      ksStraight(ksStraight),
+      ksTurn(ksTurn),
+      kP(kp),
+      kI(ki),
+      integralThreshold(integralThreshold),
+      trackWidth(trackWidth),
+      prevLinearVelocity(0.0),
+      prevAngularVelocity(0.0),
+      prevLeftError(0.0),
+      prevRightError(0.0),
+      leftIntegral(0.0),
+      rightIntegral(0.0),
+      lastTargetVelocity(0.0)
+{}
 
-    double trackWidth;
-    double prevLinearVelocity{0.0};
-    double prevAngularVelocity{0.0};
-    double prevLeftError{0.0};
-    double prevRightError{0.0};
-    double leftIntegral{0.0};
-    double rightIntegral{0.0};
-    double integralThreshold{99999.0};
-    double lastTargetVelocity{0.0};
+// sign helper
+int VoltageController::sign(double x) {
+    return (x > 0) - (x < 0);
+}
 
-    int sign(double x) {
-        return (x > 0) - (x < 0); // returns 1, 0, or -1
-    }
+DrivetrainVoltages VoltageController::update(
+    double targetLinearVelocity,
+    double targetAngularVelocity,
+    double measuredLeftVelocity,
+    double measuredRightVelocity
+) {
+    double deltaW = (targetAngularVelocity - prevAngularVelocity) / 0.01;
+    double deltaV = (targetLinearVelocity - prevLinearVelocity) / 0.01;
 
-public:
-    VoltageController(double kv, double kaStraight, double kaTurn, double ksStraight, double ksTurn, double kp,
-                      double ki, double integralThreshold, double trackWidth)
-        : kV(kv), kaStraight(kaStraight), kaTurn(kaTurn), ksStraight(ksStraight), ksTurn(ksTurn), kP(kp), kI(ki),
-          integralThreshold(integralThreshold), trackWidth(trackWidth) {}
+    prevAngularVelocity = targetAngularVelocity;
+    prevLinearVelocity = targetLinearVelocity;
 
-    DrivetrainVoltages update(double targetLinearVelocity, double targetAngularVelocity, double measuredLeftVelocity,
-                              double measuredRightVelocity) {
+    // Kinematics
+    double leftVelocity  = targetLinearVelocity - targetAngularVelocity * (trackWidth / 2.0);
+    double rightVelocity = targetLinearVelocity + targetAngularVelocity * (trackWidth / 2.0);
 
-        // Change in target angular velocity (angular acceleration)
-        double deltaW = (targetAngularVelocity - prevAngularVelocity) / 0.01;
-        // Change in target linear velocity (linear acceleration)
-        double deltaV = (targetLinearVelocity - prevLinearVelocity) / 0.01;
+    // Errors
+    double leftError  = leftVelocity  - measuredLeftVelocity;
+    double rightError = rightVelocity - measuredRightVelocity;
 
-        prevAngularVelocity = targetAngularVelocity;
-        prevLinearVelocity = targetLinearVelocity;
+    // Integral reset on sign flip
+    if ((leftError < 0) != (prevLeftError < 0))
+        leftIntegral = 0;
 
-        // Differential drive kinematics
-        double leftVelocity = targetLinearVelocity - targetAngularVelocity * (trackWidth / 2.0);
-        double rightVelocity = targetLinearVelocity + targetAngularVelocity * (trackWidth / 2.0);
+    if (std::abs(leftError) < integralThreshold)
+        leftIntegral += leftError * 0.01;
 
-        // Velocity errors
-        double leftError = leftVelocity - measuredLeftVelocity;
-        double rightError = rightVelocity - measuredRightVelocity;
+    if ((rightError < 0) != (prevRightError < 0))
+        rightIntegral = 0;
 
-        // Integrals
-        if ((leftError < 0) != (prevLeftError < 0)) {
-            leftIntegral = 0;
-        }
-        if (std::abs(leftError) < integralThreshold) {
-            leftIntegral += leftError * 0.01;
-        }
-        if ((rightError < 0) != (prevRightError < 0)) {
-            rightIntegral = 0;
-        }
-        if (std::abs(rightError) < integralThreshold) {
-            rightIntegral += rightError * 0.01;
-        }
+    if (std::abs(rightError) < integralThreshold)
+        rightIntegral += rightError * 0.01;
 
-        // Feedforward Terms
-        // Acceleration term when going straight (a = F/m); kaTurn from moment of inertia (α = τ/I).
-        double kaLeft = (kaStraight * deltaV) - (kaTurn * deltaW);
-        double kaRight = (kaStraight * deltaV) + (kaTurn * deltaW);
+    prevLeftError  = leftError;
+    prevRightError = rightError;
 
-        // Static friction component
-        double ksLeft = (ksStraight * sign(leftVelocity)) - (ksTurn * sign(targetAngularVelocity));
-        double ksRight = (ksStraight * sign(rightVelocity)) + (ksTurn * sign(targetAngularVelocity));
+    // Feedforward
+    double kaLeft  = (kaStraight * deltaV) - (kaTurn * deltaW);
+    double kaRight = (kaStraight * deltaV) + (kaTurn * deltaW);
 
-        double leftVoltage =
-            std::clamp((kV * leftVelocity) + (kaLeft) + (ksLeft) + (kP * leftError) + (kI * leftIntegral), -12.0, 12.0);
-        double rightVoltage =
-            std::clamp((kV * rightVelocity) + (kaRight) + (ksRight) + (kP * rightError) + (kI * rightIntegral), -12.0, 12.0);
+    double ksLeft  = (ksStraight * sign(leftVelocity))  - (ksTurn * sign(targetAngularVelocity));
+    double ksRight = (ksStraight * sign(rightVelocity)) + (ksTurn * sign(targetAngularVelocity));
 
-        return {leftVoltage, rightVoltage};
-    }
-};
+    double leftVoltage =
+        std::clamp(kV * leftVelocity  + kaLeft  + ksLeft  + kP * leftError  + kI * leftIntegral, -12.0, 12.0);
 
-struct VelocityControllerConfig {
-    
-    // --- Feedforward ---
-    float kV {12.4370890785};
-    float KA_turn {0.803031225567};
-    float KA_straight {0.664537661342};
-    float KS_turn {0.472796490892};
-    float KS_straight {0.236548087393};
+    double rightVoltage =
+        std::clamp(kV * rightVelocity + kaRight + ksRight + kP * rightError + kI * rightIntegral, -12.0, 12.0);
 
-    // --- Feedback Gains ---
-    float KP_straight {25.2621164319};
-    float KI_straight {524.703492373};
-};
+    return {leftVoltage, rightVoltage};
+}
