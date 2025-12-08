@@ -6,6 +6,8 @@
 #include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/motors.h"
+#include "pros/optical.hpp"
+#include "pros/vision.hpp"
 
 extern const float INCH_TO_METER;
 
@@ -61,4 +63,7 @@ extern pros::adi::Pneumatics A;
 extern pros::adi::Pneumatics B;
 extern pros::adi::Pneumatics C;
 
+extern pros::Optical color_sensor;
+
+extern pros::Vision vision_sensor;
 

@@ -186,6 +186,7 @@ distancePose distanceReset() {
     return calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
 }
 
+// Overloaded function
 distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use) {
     double heading_deg = chassis.getPose().theta; 
 

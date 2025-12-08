@@ -1,11 +1,14 @@
 #include <sstream>
 #include <string>
+#include "pros/colors.hpp"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
 #include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/motors.h"
+#include "pros/optical.hpp"
+#include "pros/vision.hpp"
 
 const float INCH_TO_METER = 0.0254f;
 
@@ -98,6 +101,12 @@ pros::Distance back(8);
 pros::adi::Pneumatics A('A', false);
 pros::adi::Pneumatics B('B', false);
 pros::adi::Pneumatics C('C', false);
+
+pros::Optical color_sensor(14);
+
+pros::Vision vision_sensor(16);
+
+
 
 
 

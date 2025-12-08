@@ -7,8 +7,11 @@
 #include "pathFollowing/ramsete.cpp"
 #include "pathFollowing/paths.cpp"
 #include "robodash/views/selector.hpp"
+#include "distanceReset.h"
+#include "colorSort.h"
+#include "warnings.h"
 
-VelocityControllerConfig config{
+const VelocityControllerConfig config{
     12.4370890785,
     0.803031225567,
     0.664537661342,
@@ -18,7 +21,6 @@ VelocityControllerConfig config{
     524.703492373,
 };
 
-
 rd::Selector selector({
     {"Right", right_auton},
     {"Left", left_auton},
@@ -26,21 +28,22 @@ rd::Selector selector({
     {"Elim", elim_auton},
     {"AWP", awp_auton}
 });
-
-
-
 rd::Console console;
 
 void initialize() {
     chassis.calibrate();
     
     pros::Task screen_task([&]() {
+        lemlib::Pose pose{0,0,0};
+        temp_warning();
+        motor_disconnect_warning();
+        distance_sensor_disconnect_warning();
         while (true) {
             console.clear();
-            lemlib::Pose pose = chassis.getPose();
-            console.printf("X: %f\n", pose.x);
-            console.printf("Y: %f\n", pose.y);
-            console.printf("Theta: %f\n", pose.theta);
+            pose = chassis.getPose();
+            console.printf("X: %f", pose.x);
+            console.printf("Y: %f", pose.y);
+            console.printf("Theta: %f", pose.theta);
             pros::delay(20);
         }
     });
@@ -51,7 +54,6 @@ void disabled() {
 }
 
 void competition_initialize() {
-
 }
 
 void autonomous() {
@@ -63,60 +65,46 @@ void autonomous() {
 void opcontrol() {
     while(true)
     {
+        double throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        double steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-    double throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-    double steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
+        {
+            intake();
+        }
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
+        {
+            outtake();
+        }
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
+        {
+            score_longgoal();
+        }
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
+        {
+            score_midgoal();
+        }
+        else
+        {
+            intake_stop();
+        }
 
-    if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
-    {
-        intake();
-    }
-    else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
-    {
-        outtake();
-    }
-    else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
-    {
-        score_longgoal();
-    }
-    else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
-    {
-        score_midgoal();
-    }
-    else
-    {
-        intake_stop();
-    }
-
-    if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
-    {
-        A.toggle();
-    }
-    else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
-    {
-        B.toggle();
-    }
-    else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
-    {
-        C.toggle();
-    }
-
-
-
-
-    chassis.curvature(throttle, steer, false);
-    pros::delay(20);
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
+        {
+            A.toggle();
+        }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
+        {
+            B.toggle();
+        }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
+        {
+            C.toggle();
+        }
+        chassis.curvature(throttle, steer, false);
+        pros::delay(20);
     }
 }
 
-//Deactivated: Long goal
-//Extended: Score top goal
-//Deactivate top roller for storage
-//Activate storage to extend
-
-//R1 - outake long goal
-//R2 - Bottom goal
-//L1 - Intake into hopper
-//l2 - outtake onto mid goal
 
 
