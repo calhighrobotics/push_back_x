@@ -3,8 +3,28 @@
 #include "lemlib/util.hpp"
 #include "velocityController.h"
 #include <cmath>
+#include <vector>
+#include <string>
+#include <sstream>
 
 class RamsetePathFollower {
+
+    private:
+
+        static constexpr float INCH_TO_METER = 0.0254f;
+        static constexpr float TRACK_WIDTH = 10.0f; 
+        
+        const float wheel_circumference = 4 * M_PI * INCH_TO_METER;
+        const float gear_ratio = 1.25;
+        const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60;
+
+
+        VoltageController controller;
+        
+        const float b;
+        const float zeta;
+
+        inline static std::vector<std::vector<State>> precomputed_paths;
 
     public:
         RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_)
@@ -17,18 +37,32 @@ class RamsetePathFollower {
                   config.KP_straight,
                   config.KI_straight,
                   99999.0,
-                  10.0 * INCH_TO_METER
+                  TRACK_WIDTH * INCH_TO_METER
               ), b(b_), zeta(zeta_) {}
 
-        void followPath(const std::string path_name, bool log = false) {
+        struct ramseteConfig
+        {
+            bool backwards = false;
+            bool log = false;
+            int path_index  = -1;
+            float b = this->b;
+            float zeta = this->zeta;
+            int exit_points = 10;
+        };
 
+        void followPath(const std::string path_name, const ramseteConfig r_config) {
             std::vector<State> trajectory;
-            trajectory.reserve(1000);
-            trajectory = prepare_trajectory(path_name);
-            if (trajectory.empty())
-                return;
 
-            int trajectory_size = trajectory.size();
+            if(r_config.path_index - 1 >= 0 && r_config.path_index < precomputed_paths.size() && !precomputed_paths.at(r_config.path_index).empty()) {
+                trajectory = precomputed_paths.at(r_config.path_index);
+            }
+            else {
+                trajectory = prepare_trajectory(path_name);
+            }
+
+            if (trajectory.empty()) return;
+            
+            const int trajectory_size = trajectory.size();
             chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
             std::vector<std::string> logs;
             
@@ -45,24 +79,24 @@ class RamsetePathFollower {
                 current_pose.x *= INCH_TO_METER;
                 current_pose.y *= INCH_TO_METER;
                 current_pose.theta = M_PI_2 - current_pose.theta;
-                double AngleError = angleError(current_pose.theta, target_state.heading); 
+
+                double AngleError = angleError(current_pose.theta, target_state.heading + (r_config.backwards ? M_PI : 0)); 
 
                 rotation_matrix << std::cos(current_pose.theta), std::sin(current_pose.theta), 0, 
                 -std::sin(current_pose.theta), std::cos(current_pose.theta), 0, 
                 0, 0, 1;
 
-                global_error << target_state.x - current_pose.x, target_state.y - current_pose.y,
-                    AngleError;
+                global_error << target_state.x - current_pose.x, target_state.y - current_pose.y, AngleError;
 
                 local_error = rotation_matrix * global_error;
 
-                double vd = target_state.linear_vel;
+                double vd = target_state.linear_vel * (r_config.backwards ? -1.0 : 1.0);
                 double wd = target_state.angular_vel;
                 double e_x = local_error(0);
                 double e_y = local_error(1);
                 double e_t = local_error(2);
 
-                double k = 2.0 * zeta * std::sqrt(wd * wd + b * vd * vd);
+                double k = 2.0 * r_config.zeta * std::sqrt(wd * wd + r_config.b * vd * vd);
                 double v_desired_ramsete = vd * std::cos(e_t) + k * e_x;
                 double w_desired_ramsete = wd + k * e_t + (b * vd * sinc(e_t) * e_y);
 
@@ -71,27 +105,25 @@ class RamsetePathFollower {
                 rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
                 leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
 
-                if(log)
-                {
+                if(log) {
                     std::ostringstream ss;
                     ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
                     logs.push_back(ss.str());
                 }
 
-                if(counter + 4 >= trajectory_size) {
-                    break;
-                }
+                if(counter + r_config.exit_points >= trajectory_size) break;
+                
                 counter++;
                 time += 0.01;
                 pros::Task::delay_until(&start_time_ms, 10);
             }
-            chassis.moveToPose(trajectory[trajectory_size - 1].x / INCH_TO_METER,trajectory[trajectory_size - 1].y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory[trajectory.size()-1].heading),1000);
+            
+            chassis.moveToPose(trajectory.back().x / INCH_TO_METER, trajectory.back().y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 1000);
             chassis.waitUntilDone();
-
             rightMotors.brake();
             leftMotors.brake();
-            if(log)
-            {
+
+            if(log) {
                 for (const auto& line : logs) {
                     std::cout << line;
                     pros::delay(50);
@@ -99,22 +131,25 @@ class RamsetePathFollower {
             }
         }
 
-
-    private:
-        const float wheel_circumference = 4 * M_PI * INCH_TO_METER; // meters
-        const float gear_ratio = 1.25;
-        const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60;
-        VoltageController controller;
-        const float b;
-        const float zeta;
-        const float track_width = 10;
-        const float INCH_TO_METER = 0.0254f;
-
-        int sign(double x) {
-            return (x > 0) - (x < 0); // returns 1, 0, or -1
+        void precompute_paths(const std::vector<std::string>& path_names) {
+            auto* stored = new std::vector<std::string>(path_names);
+            pros::Task t(precompute_paths_task, stored);
         }
 
-        std::vector<std::pair<double,double>> parse_pairs(const std::string& line) {
+    private:
+        static void precompute_paths_task(void* param) {
+            auto* path_names = static_cast<std::vector<std::string>*>(param);
+
+            precomputed_paths.clear();
+            precomputed_paths.reserve(path_names->size());
+
+            for (const auto& name : *path_names) {
+                precomputed_paths.push_back(prepare_trajectory(name));
+                pros::delay(10); 
+            }
+        }
+
+        static std::vector<std::pair<double,double>> parse_pairs(const std::string& line) {
             std::vector<std::pair<double,double>> result;
             std::string temp;
             bool inside_parens = false;
@@ -135,20 +170,16 @@ class RamsetePathFollower {
             }
             return result;
         }
-        std::vector<State> prepare_trajectory(const std::string& data) {
-            std::istringstream ss(data);
 
+        static std::vector<State> prepare_trajectory(const std::string& data) {
+            std::istringstream ss(data);
             std::vector<std::pair<double,double>> X, L, A;
             std::string line;
             
             while (std::getline(ss, line)) {
-                if (line.find("X =") != std::string::npos) {
-                    X = parse_pairs(line.substr(line.find('[')));
-                } else if (line.find("L =") != std::string::npos) {
-                    L = parse_pairs(line.substr(line.find('[')));
-                } else if (line.find("A =") != std::string::npos) {
-                    A = parse_pairs(line.substr(line.find('[')));
-                }
+                if (line.find("X =") != std::string::npos) X = parse_pairs(line.substr(line.find('[')));
+                else if (line.find("L =") != std::string::npos) L = parse_pairs(line.substr(line.find('[')));
+                else if (line.find("A =") != std::string::npos) A = parse_pairs(line.substr(line.find('[')));
             }
 
             size_t n = X.size();
@@ -165,31 +196,22 @@ class RamsetePathFollower {
                 states[i].heading = atan2(states[i + 1].y - states[i].y, states[i + 1].x - states[i].x);
             }
 
-            if (!states.empty()) {
-                states.back().heading = states[n - 2].heading;
-            }
+            if (!states.empty()) states.back().heading = states[n - 2].heading;
 
             return states;
         }
+
         double angleError(double robotAngle, double targetAngle) {
             constexpr double TWO_PI = 2.0 * M_PI;
-
             double diff = std::fmod(targetAngle - robotAngle, TWO_PI);
-
-            if (diff < -M_PI) {
-                diff += TWO_PI;
-            } else if (diff >= M_PI) {
-                diff -= TWO_PI;
-            }
-
+            if (diff < -M_PI) diff += TWO_PI;
+            else if (diff >= M_PI) diff -= TWO_PI;
             return diff;
         }
+
         inline double sinc(double x) {
             const double eps = 1e-9;
-            if (std::abs(x) < eps) {
-                // 1 - x^2/6 + O(x^4)
-                return 1.0 - (x * x) / 6.0;
-            }
+            if (std::abs(x) < eps) return 1.0 - (x * x) / 6.0;
             return std::sin(x) / x;
         }
 
@@ -201,8 +223,6 @@ class RamsetePathFollower {
                     oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
                     return oss.str();
                 }
-
-                float x;
-                float y;
+                float x, y;
          };
 };

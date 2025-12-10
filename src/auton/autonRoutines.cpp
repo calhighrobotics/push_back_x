@@ -113,3 +113,5 @@ void left_auton() {}
 void elim_auton() {}
 
 void awp_auton() {}
+
+void skills_auton() {}

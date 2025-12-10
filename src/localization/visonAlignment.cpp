@@ -3,7 +3,6 @@
 
 void calibrate_vision() {
     pros::Task calibrate_vision([]() {
-       
         pros::vision_signature_s_t SIG_1 = pros::Vision::signature_from_utility(1, 2283, 6317, 4300, -5329, -4553, -4941, 5.3, 0);
         pros::vision_signature_s_t SIG_2 = pros::Vision::signature_from_utility(2, -4793, -4177, -4485, 1449, 5079, 3264, 5.0, 0);
         pros::vision_signature_s_t SIG_3 = pros::Vision::signature_from_utility(3, 4349, 11213, 7781, 261, 1081, 671, 1.7, 0);
@@ -22,27 +21,27 @@ void calibrate_vision() {
 bool alignToGoal(int SIG_NUM, int exposure) {
     lemlib::PID aligner_pid(0.2, 0, 0);
     const int CENTER_X = 158;
-  
+    
+    const int requiredFrames = 10;
     int alignedFrames = 0;
     bool aligned = false;
     double time = 0;
 
     vision_sensor.clear_led();
-  
-    while (time < 5000 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+    while (time < 1000 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
         pros::vision_object_s_t goal = vision_sensor.get_by_sig(0, SIG_NUM);
 
         if (goal.width > 10) { 
             int error = -CENTER_X + goal.x_middle_coord;
-            float output = aligner_pid.update(error);
+            float output = aligner_pid.update((float)error);
 
-            if (std::abs(error) < 10) {
+            if (std::abs(error) < requiredFrames) {
                 alignedFrames++;
                 leftMotors.move_velocity(0);
                 rightMotors.move_velocity(0);
                 vision_sensor.set_led(pros::c::COLOR_GREEN);
 
-                if (alignedFrames > 10) {
+                if (alignedFrames > requiredFrames) {
                     aligned = true;
                     break;
                 }
@@ -54,9 +53,8 @@ bool alignToGoal(int SIG_NUM, int exposure) {
             }
         } else {
             alignedFrames = 0;
-            leftMotors.move_velocity(20);
-            rightMotors.move_velocity(-20);
-            vision_sensor.set_led(pros::c::COLOR_YELLOW);
+            vision_sensor.set_led(pros::c::COLOR_RED);
+            break;
         }
         time += 20;
         pros::delay(20);
@@ -65,4 +63,5 @@ bool alignToGoal(int SIG_NUM, int exposure) {
     aligner_pid.reset();
     leftMotors.brake();
     rightMotors.brake();
+    return aligned;
 }

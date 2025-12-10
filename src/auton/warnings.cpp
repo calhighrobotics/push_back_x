@@ -95,7 +95,7 @@ void motor_disconnect_warning()
 void distance_sensor_disconnect_warning()
 {
     pros::Task disconnect_screening([]() {
-        std::vector<pros::Distance> all_distance_sensors = {front, back, left, right};
+        std::vector<pros::Distance> all_distance_sensors = {frontDistance, backDistance, leftDistance, rightDistance};
         std::vector<unsigned char> disconnected;
         std::vector<unsigned char> last_disconnected;
         bool is_notified = false;

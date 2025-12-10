@@ -18,7 +18,7 @@ int get_color() {
     return color;
 }
 
-void colorSort(const Color color)
+void colorSort(const Color allianceColor)
 {
     
 }

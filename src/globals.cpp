@@ -10,8 +10,6 @@
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
 
-const float INCH_TO_METER = 0.0254f;
-
 struct State {
     float x, y, heading, linear_vel, angular_vel;
 };
@@ -90,13 +88,13 @@ lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(7, pros::v5::MotorGears::blue);
-pros::Motor topMotor(18, pros::v5::MotorGears::green);
+pros::Motor topMotor(18, pros::v5::MotorGears::blue);
 
 
-pros::Distance right(4);
-pros::Distance left(5);
-pros::Distance front(7);
-pros::Distance back(8);
+pros::Distance rightDistance(4);
+pros::Distance leftDistance(5);
+pros::Distance frontDistance(7);
+pros::Distance backDistance(8);
 
 pros::adi::Pneumatics A('A', false);
 pros::adi::Pneumatics B('B', false);

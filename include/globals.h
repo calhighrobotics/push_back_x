@@ -9,7 +9,6 @@
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
 
-extern const float INCH_TO_METER;
 
 struct State {
     float x, y, heading, linear_vel, angular_vel;
@@ -53,10 +52,10 @@ extern pros::Motor topMotor;
 
 
 
-extern pros::Distance right;
-extern pros::Distance left;
-extern pros::Distance front;
-extern pros::Distance back;
+extern pros::Distance rightDistance;
+extern pros::Distance leftDistance;
+extern pros::Distance frontDistance;
+extern pros::Distance backDistance;
 
 
 extern pros::adi::Pneumatics A;

@@ -52,10 +52,10 @@ distancePose calculateGlobalPosition(
 
     struct SensorData { SensorConfig cfg; double dist_in; int confidence;};
     const SensorData sensors[] = {
-        {front_sensor_cfg, front_data.dist_mm * MM_TO_IN, front.get_confidence()},
-        {left_sensor_cfg,  left_data.dist_mm * MM_TO_IN, left.get_confidence()},
-        {right_sensor_cfg, right_data.dist_mm * MM_TO_IN, right.get_confidence()},
-        {back_sensor_cfg,  back_data.dist_mm * MM_TO_IN, back.get_confidence()}
+        {front_sensor_cfg, front_data.dist_mm * MM_TO_IN, frontDistance.get_confidence()},
+        {left_sensor_cfg,  left_data.dist_mm * MM_TO_IN, leftDistance.get_confidence()},
+        {right_sensor_cfg, right_data.dist_mm * MM_TO_IN, rightDistance.get_confidence()},
+        {back_sensor_cfg,  back_data.dist_mm * MM_TO_IN, backDistance.get_confidence()}
     };
     auto is_valid = [&](int i) {
         return (sensors[i].dist_in < MAX_SENSOR_RANGE && 
@@ -178,10 +178,10 @@ distancePose calculateGlobalPosition(
 distancePose distanceReset() {
     double heading_deg = chassis.getPose().theta;
 
-    SensorReadings front_data = {(double)front.get_distance(), front.get_object_size(), front.get_confidence()};
-    SensorReadings left_data  = {(double)left.get_distance(),  left.get_object_size(),  left.get_confidence()};
-    SensorReadings right_data = {(double)right.get_distance(), right.get_object_size(), right.get_confidence()};
-    SensorReadings back_data  = {(double)back.get_distance(),  back.get_object_size(),  back.get_confidence()};
+    const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
+    const SensorReadings left_data  = {(double)leftDistance.get_distance(),  leftDistance.get_object_size(),  leftDistance.get_confidence()};
+    const SensorReadings right_data = {(double)rightDistance.get_distance(), rightDistance.get_object_size(), rightDistance.get_confidence()};
+    const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
     return calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
 }
@@ -194,19 +194,19 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
     const int invalid_confidence = 0; 
 
     SensorReadings front_data = front_use
-        ? SensorReadings{(double)front.get_distance(), front.get_object_size(), front.get_confidence()}
+        ? SensorReadings{(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
     
     SensorReadings left_data = left_use
-        ? SensorReadings{(double)left.get_distance(), left.get_object_size(), left.get_confidence()}
+        ? SensorReadings{(double)leftDistance.get_distance(), leftDistance.get_object_size(), leftDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings right_data = right_use
-        ? SensorReadings{(double)right.get_distance(), right.get_object_size(), right.get_confidence()}
+        ? SensorReadings{(double)rightDistance.get_distance(), rightDistance.get_object_size(), rightDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings back_data = back_use
-        ? SensorReadings{(double)back.get_distance() ,back.get_object_size(), back.get_confidence()}
+        ? SensorReadings{(double)backDistance.get_distance() ,backDistance.get_object_size(), backDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     return calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
