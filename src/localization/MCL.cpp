@@ -6,21 +6,16 @@
 using namespace std;
 
 namespace MCL {
-  // Position Variables
   double X = 0, Y = 0, theta = 0;
 
-  // Random Number Generator
   mt19937 Random(random_device {} ());
 
-  /* Prediction */
   double Velo = 0;
 
-  /* Update */
     double Deviation;
     double weights_sum;
     double start_theta;
 
-  /* Vectors */
     vector<Particle> Particles;
     
     vector<MCLDistanceSensor> Sensors = {
@@ -31,22 +26,17 @@ namespace MCL {
     };
 
     Field field_;
-
-  /* Vectors */    
+  
     vector<MCLDistanceSensor> activeSensors;
 
-  /* Helper Functions */
     double getAvgVelocity(void) noexcept;
 
-  /* Start Function */
     void StartMCL(double x_, double y_, double theta_);
 
-  /* Main Loop */
   void MonteCarlo(void);
 
-  // Time constants
   const double LOOP_DELAY_MS = 10.0;
-  const double LOOP_DT_SEC = LOOP_DELAY_MS / 1000.0; // 0.01 seconds
+  const double LOOP_DT_SEC = LOOP_DELAY_MS / 1000.0; 
 
 void StartMCL(double x_, double y_, double theta_) {
   Particles.clear();
@@ -74,19 +64,12 @@ double AngleWrap(double LeAngle) {
   return LeAngle;
 }
 
-// Main Loop
-Point MonteCarlo(void) {
+void MonteCarlo(void) {
   while (true) {
     u_int32_t start_time = pros::millis();
-    
-  /* Prediction */
-    // FIX 1: Removed VeloScale. Velo is now in Inches Per Second.
     Velo = getAvgVelocity();
 
-    // FIX 2: Calculate Distance Traveled (Distance = Speed * Time)
     double distance_step = Velo * LOOP_DT_SEC;
-
-    // Noise is proportional to distance traveled (e.g., 20% error)
     normal_distribution<double> dist_pos(0, std::abs(distance_step * 0.2));
 
     const double theta_ = chassis.getPose(true).theta;
@@ -99,7 +82,7 @@ Point MonteCarlo(void) {
       p.theta = theta_;
       p.step = Point(cos_theta, sin_theta);
 
-      // FIX 2: Apply distance_step instead of raw velocity
+      //Changed by Gemini used to be +velocity
       p.x += (distance_step * cos_theta) + dist_pos(Random);
       p.y += (distance_step * sin_theta) + dist_pos(Random);
 
@@ -172,7 +155,7 @@ Point MonteCarlo(void) {
 
     Particles.swap(Resampled);
     
-  /* Update Pose */
+  /* Update Steps */
     double new_x = 0.0, new_y = 0.0, new_theta = 0.0, total_weight = 0.0;
 
     for (int i = 0; i < num_particles; ++i) {
@@ -197,7 +180,14 @@ Point MonteCarlo(void) {
     X = new_x, Y = new_y, theta = new_theta;
 
     std::cout << "X: " << X << "Y: " << Y << endl;
-
+    lemlib::Pose current_pose = chassis.getPose();
+    if(std::fabs(current_pose.x - X) < 3 && std::fabs(current_pose.y - Y) < 3)
+    {
+       chassis.setPose(current_pose.x * 0.6 + X * 0.4, current_pose.y * 0.6 + Y * 0.4, current_pose.theta);
+    }
+    else {
+       chassis.setPose(current_pose.x, current_pose.y, current_pose.theta);
+    }
     pros::Task::delay_until(&start_time, LOOP_DELAY_MS);
   }
 }

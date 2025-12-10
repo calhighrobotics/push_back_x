@@ -36,55 +36,40 @@ enum SensorDirection: int {
   RIGHT = 3,
 };
 
-
-
-
-
 class MCLDistanceSensor {
   public:
     MCLDistanceSensor(pros::Distance sensor_,Point Offset_, SensorDirection dir_) : Sensor(sensor_), Offset(Offset_), Dir(dir_) {
       this->measurement = -1;
     }
-
-    // Sensor Measurement
     void Measure(void) {
       this->measurement = -1;
 
-      // Check if it can see the wall
-      // cout << Sensor.objectRawSize() << endl;
       bool CanSeeWall = this->Sensor.get_object_size() >= MinSize;
-      // CanSeeWall = true;
       
-      // Get the value of the sensor
       double measurement = this->Sensor.get_distance() * 0.0393701;
 
-      // Set the Measurement if Conditions are met
       if (CanSeeWall && measurement < Range && measurement > 0) {
         this->measurement = measurement;
       }
     }
     
-    /* Variables */
-    // Distance
     pros::Distance Sensor;
 
-    // Sensor Value
+
     double measurement;
 
-    // Offset from the Center Point of the Robot
     Point Offset;
 
-    // Direction of the sensor
     SensorDirection Dir;
     
-    constexpr static const uint32_t Range = 100.f; // sensor will read around 393 when it's out of range.
-    constexpr static const uint32_t MinSize = 70.f; // 70
+    constexpr static const uint32_t Range = 100.f; 
+    constexpr static const uint32_t MinSize = 70.f; 
 };
 
 
 class Field {
 public:
-  struct Goal { // Mogo
+  struct Goal { 
     Point Position;
     double RadiusSquared;
 
@@ -94,56 +79,37 @@ public:
     }
   };
 
-  // Contructor
   Field (void) {
-    // Setting the Half Size
-
-    // Vector of Mobile Goals (Representing the Poles of the Ladder)
     Goals = std::vector<Goal>({
-      Goal(Point(24, 0), 2),
-      Goal(Point(-24, 0), 2),
-      Goal(Point(0, 24), 2),
-      Goal(Point(0, -24), 2),
+      //Long Goals
+      Goal(Point(-24, -48), 4),
+      Goal(Point(24, -48), 4),
+      Goal(Point(-24, 48), 4),
+      Goal(Point(24, -48), 4),
+      //MatchLoaders
+      Goal(Point(-67.631,-47.047), 2),
+      Goal(Point(-67.631,47.047), 2),
+      Goal(Point(67.631,-47.047), 2),
+      Goal(Point(67.631,47.047), 2)
     }); 
-    // this->Goals.reserve(4);
   }
 
 
-  // Get the Length of the field
   double GetSize(void) {
     return this->HalfSize * 2.0;
   }
 
-  // Adding a Goal
   void AddGoal(Point P, float R) {
-    // Add New Goal Object
     this->Goals.push_back(Goal(P, R));
   }
 
   float get_sensor_distance(Particle& p, const MCLDistanceSensor& Sensor) {
     Point sensor_position = Point(p.x, p.y) + Sensor.Offset.rotate(p.step.x, p.step.y);
 
-    // Vector
     Point step_vector = p.step.rotate(this->direction_to_cosine[Sensor.Dir], this->direction_to_sine[Sensor.Dir]);
-    // Point step_vector = p.step.rotate(this->direction_to_cosine[Sensor.Dir], 1);
-    // int monke = this->direction_to_sine[Sensor.Dir];
-    /*  
-    * Let d be the distance to the wall. Let θ be the sensor heading.
-    * Take advantage of the square shape of the field to determine the distance to the wall.
-    * 
-    * For a vertical wall:
-    * x + d cos(θ) = wall_x
-    * => d = (wall_x - x) / cos(θ)
-    * Intersection occurs if |y + d sin(θ)| < max_y.
-    * 
-    * Horizontal walls are similar.
-    */
     
-    // attempt the mogos first
     float min_distance = 1e10;
     bool Intersection = false;
-
-    // constexpr float radia[] = {1, 9, 4, 9};
 
     for (Goal &G : this->Goals) {
       Point v = G.Position - sensor_position;
@@ -164,7 +130,6 @@ public:
     if (Intersection) {
       return min_distance;
     }
-    // given the heading of the sensor, there are only two walls that can be hit
     float wall_distance;
     
     // vertical walls
@@ -175,32 +140,24 @@ public:
         return wall_distance;
       }
     }
-    
-    // horizontal walls (it will definitely hit the horizontal walls if it didn't hit the vertical walls)
     const auto wall_y = step_vector.y > 0 ? this->HalfSize : -this->HalfSize;
     wall_distance = (wall_y - sensor_position.y) / step_vector.y;
     return wall_distance;
   }
 
-  // Distance from Middle to Wall
   constexpr static double HalfSize = 140.875 / 2.0;
 
-  // rotate step vector
   static constexpr float direction_to_sine[] = {0, 1, 0, -1};
   static constexpr float direction_to_cosine[] = {1, 0, -1, 0};
   
-  // Vector of Goals
   std::vector<Goal> Goals;
 };
 
 namespace MCL {
-  // Position Variables
   extern double X, Y, theta;
 
-  // Total Number of Particles
   static constexpr int num_particles = 750;
 
-  // Random Number Generator
   extern mt19937 Random;
 
   /* Prediction */

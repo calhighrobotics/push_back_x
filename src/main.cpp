@@ -70,7 +70,7 @@ void initialize() {
         motor_disconnect_warning();
         distance_sensor_disconnect_warning();
         create_button();
-        MCL::StartMCL();
+        MCL::StartMCL(0, 0, 0);
         pros::Task mclTask(MCL::MonteCarlo);
         std::vector<std::string> paths = {test_path, right_1};
         ramsete.precompute_paths(paths);
@@ -86,24 +86,25 @@ void initialize() {
 }
 
 void disabled() {
-    selector.focus();
+    //selector.focus();
 }
 
 void competition_initialize() {
 }
 
 void autonomous() {
-    colorSort(current_color);
-    ramsete.followPath(right_1, {.path_index = 1});
-    distanceReset();
-    selector.run_auton();
+    chassis.setPose(0,0,0);
+    chassis.moveToPoint(0, 24, 1500);
+    //ramsete.followPath(right_1, {.path_index = 1});
+    //distanceReset();
+    //selector.run_auton();
 }
 
 void opcontrol() {
     while(true)
     {
-        float throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        float steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+        int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
         {
