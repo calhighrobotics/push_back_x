@@ -28,7 +28,7 @@ bool alignToGoal(int SIG_NUM, int exposure) {
     double time = 0;
 
     vision_sensor.clear_led();
-    while (time < 1000 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+    while (time < 500 && !controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
         pros::vision_object_s_t goal = vision_sensor.get_by_sig(0, SIG_NUM);
 
         if (goal.width > 10) { 

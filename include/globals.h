@@ -14,15 +14,7 @@ struct State {
     float x, y, heading, linear_vel, angular_vel;
 } ;
 
-class Vector2 {
-    public:
-        Vector2(float x, float y);
 
-        std::string latex() const;
-
-        float x;
-        float y;
-};
 
 extern pros::Controller controller;
 

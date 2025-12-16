@@ -12,11 +12,12 @@ class RamsetePathFollower {
     private:
 
         static constexpr float INCH_TO_METER = 0.0254f;
-        static constexpr float TRACK_WIDTH = 10.0f; 
-        
-        const float wheel_circumference = 4 * M_PI * INCH_TO_METER;
-        const float gear_ratio = 1.25;
-        const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60;
+        static constexpr float TRACK_WIDTH = 11.5f;
+
+        const float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
+        const float gear_ratio = 4.0f / 3.0f;
+
+        const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
 
 
         VoltageController controller;
@@ -48,13 +49,14 @@ class RamsetePathFollower {
             float b = this->b;
             float zeta = this->zeta;
             int exit_points = 10;
+            bool test = false;
         };
 
         void followPath(const std::string path_name, const ramseteConfig r_config) {
             std::vector<State> trajectory;
 
-            if(r_config.path_index - 1 >= 0 && r_config.path_index < precomputed_paths.size() && !precomputed_paths.at(r_config.path_index).empty()) {
-                trajectory = precomputed_paths.at(r_config.path_index);
+            if(r_config.path_index - 1 >= 0 && r_config.path_index < precomputed_paths.size() && !precomputed_paths.at(r_config.path_index-1).empty()) {
+                trajectory = precomputed_paths.at(r_config.path_index-1);
             }
             else {
                 trajectory = prepare_trajectory(path_name);
@@ -63,7 +65,8 @@ class RamsetePathFollower {
             if (trajectory.empty()) return;
             
             const int trajectory_size = trajectory.size();
-            chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
+            if(r_config.test)
+                chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
             std::vector<std::string> logs;
             
             double time = 0.01;
@@ -98,14 +101,14 @@ class RamsetePathFollower {
 
                 double k = 2.0 * r_config.zeta * std::sqrt(wd * wd + r_config.b * vd * vd);
                 double v_desired_ramsete = vd * std::cos(e_t) + k * e_x;
-                double w_desired_ramsete = wd + k * e_t + (b * vd * sinc(e_t) * e_y);
+                double w_desired_ramsete = wd + k * e_t + (r_config.b * vd * sinc(e_t) * e_y);
 
                 DrivetrainVoltages output_voltages = controller.update(v_desired_ramsete, w_desired_ramsete, (leftMotors.get_actual_velocity() * rpm_to_mps_factor), (rightMotors.get_actual_velocity() * rpm_to_mps_factor));
             
                 rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
                 leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
 
-                if(log) {
+                if(r_config.log) {
                     std::ostringstream ss;
                     ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
                     logs.push_back(ss.str());
@@ -123,7 +126,7 @@ class RamsetePathFollower {
             rightMotors.brake();
             leftMotors.brake();
 
-            if(log) {
+            if(r_config.log) {
                 for (const auto& line : logs) {
                     std::cout << line;
                     pros::delay(50);
@@ -147,6 +150,7 @@ class RamsetePathFollower {
                 precomputed_paths.push_back(prepare_trajectory(name));
                 pros::delay(10); 
             }
+            delete path_names;
         }
 
         static std::vector<std::pair<double,double>> parse_pairs(const std::string& line) {

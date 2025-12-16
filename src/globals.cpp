@@ -1,5 +1,6 @@
 #include <sstream>
 #include <string>
+#include "lemlib/chassis/trackingWheel.hpp"
 #include "pros/colors.hpp"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
@@ -14,39 +15,26 @@ struct State {
     float x, y, heading, linear_vel, angular_vel;
 };
 
-class Vector2 {
-public:
-    Vector2(float x, float y) : x(x), y(y) {}
-    std::string latex() const {
-        std::ostringstream oss;
-        oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
-        return oss.str();
-    }
-
-    float x;
-    float y;
-};
-
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({11,-12,13}, pros::MotorGears::blue);
+pros::MotorGroup rightMotors({8,-9,10}, pros::MotorGears::blue);
 pros::MotorGroup leftMotors({-1,2,-3}, pros::MotorGears::blue);
 
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
     11.5, 
-    2.75, 
+    lemlib::Omniwheel::NEW_325, 
     450, 
-    2);
+    5);
 
-pros::IMU imu(8);
+pros::IMU imu(19);
 
-pros::Rotation horizontal_tracking_sensor(9);
-pros::Rotation vertical_tracking_sensor(-10);
+pros::Rotation horizontal_tracking_sensor(17);
+pros::Rotation vertical_tracking_sensor(20);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, 6.5, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, 0, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, 0,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
@@ -87,14 +75,14 @@ lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-pros::Motor intakeMotor(7, pros::v5::MotorGears::blue);
-pros::Motor topMotor(18, pros::v5::MotorGears::blue);
+pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
+pros::Motor topMotor(7, pros::v5::MotorGears::blue);
 
 
 pros::Distance rightDistance(4);
 pros::Distance leftDistance(5);
-pros::Distance frontDistance(7);
-pros::Distance backDistance(8);
+pros::Distance frontDistance(11);
+pros::Distance backDistance(12);
 
 pros::adi::Pneumatics A('A', false);
 pros::adi::Pneumatics B('B', false);

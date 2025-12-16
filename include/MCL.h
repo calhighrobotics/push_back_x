@@ -1,3 +1,5 @@
+#pragma once
+
 #include "globals.h"
 #include <cmath>
 #include <random>
@@ -85,12 +87,14 @@ public:
       Goal(Point(-24, -48), 4),
       Goal(Point(24, -48), 4),
       Goal(Point(-24, 48), 4),
-      Goal(Point(24, -48), 4),
+      Goal(Point(24, 48), 4),
       //MatchLoaders
       Goal(Point(-67.631,-47.047), 2),
       Goal(Point(-67.631,47.047), 2),
       Goal(Point(67.631,-47.047), 2),
-      Goal(Point(67.631,47.047), 2)
+      Goal(Point(67.631,47.047), 2),
+      // Midgoal
+      Goal(Point(0,0), 4),
     }); 
   }
 
@@ -156,7 +160,7 @@ public:
 namespace MCL {
   extern double X, Y, theta;
 
-  static constexpr int num_particles = 750;
+  static constexpr int num_particles = 200;
 
   extern mt19937 Random;
 

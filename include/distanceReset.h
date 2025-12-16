@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef DISTANCE_SENSORS_HPP
 #define DISTANCE_SENSORS_HPP
 
