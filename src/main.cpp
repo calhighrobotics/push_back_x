@@ -670,15 +670,11 @@ const DriveToPointConfig d_config {
 
 
 void autonomous() {
+    chassis.setPose(-46, -13, 110);
+    chassis.turnToPoint(-26, -20.5, 1000);
+    chassis.moveToPoint(-26, -20.5, 2000);
+    ramsete_auton(test_config, test_path);
     
-    //ramsete_auton(test_config, test_path);
-    //ltvUnicycleController(test_config, test_path);
-    //auto_tune_pid(1, 2000, test_config);
-    //find_tracking_center(6, 5000);
-    chassis.setPose(0,0,0);
-    //chassis.turnToPoint(24,24,10000);
-    pid_ramsete(-24,32, test_config, d_config, 2000);
-    //chassis.moveToPoint(-24, 24, 1000);
 }
 
 void disabled() {}
