@@ -214,6 +214,11 @@ void opcontrol() {
         {
             score_midgoal();
         }
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
+        {
+            intake();
+            topMotor.move_voltage(-6000);
+        }
         else
         {
             intake_stop();
@@ -231,6 +236,9 @@ void opcontrol() {
         {
             C.toggle();
         }
+
+
+
         chassis.curvature(throttle, steer, false);
         pros::delay(20);
     }
