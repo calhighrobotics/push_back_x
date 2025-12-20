@@ -5,31 +5,31 @@
 #include "lemlib/util.hpp"
 
 
-void intake()
+void intake(int power = 12000)
 {
-    intakeMotor.move_voltage(12000);
+    intakeMotor.move_voltage(power);
 }
 
-void outtake()
+void outtake(int power = 12000)
 {
-    intakeMotor.move_voltage(-12000);
+    intakeMotor.move_voltage(-power);
 }
 
-void score_bottomgoal()
+void score_bottomgoal(int power = 12000)
 {
-    intakeMotor.move_voltage(-12000);
+    intakeMotor.move_voltage(-power);
 }
 
-void score_longgoal()
+void score_longgoal(int power = 12000)
 {
-    intake();
-    topMotor.move_voltage(12000);
+    intake(power);
+    topMotor.move_voltage(power);
 }
 
-void score_midgoal()
+void score_midgoal(int power = 12000)
 {
-    intake();
-    topMotor.move_voltage(12000);
+    intake(power);
+    topMotor.move_voltage(power);
     if(!A.is_extended()) A.extend();
 }
 

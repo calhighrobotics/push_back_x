@@ -14,10 +14,10 @@ class RamsetePathFollower {
         static constexpr float INCH_TO_METER = 0.0254f;
         static constexpr float TRACK_WIDTH = 11.5f;
 
-        const float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
-        const float gear_ratio = 4.0f / 3.0f;
+        static constexpr float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
+        static constexpr float gear_ratio = 4.0f / 3.0f;
 
-        const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
+        static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
 
 
         VoltageController controller;
@@ -93,15 +93,15 @@ class RamsetePathFollower {
 
                 local_error = rotation_matrix * global_error;
 
-                double vd = target_state.linear_vel * (r_config.backwards ? -1.0 : 1.0);
-                double wd = target_state.angular_vel;
-                double e_x = local_error(0);
-                double e_y = local_error(1);
-                double e_t = local_error(2);
+                float vd = target_state.linear_vel * (r_config.backwards ? -1.0 : 1.0);
+                float wd = target_state.angular_vel;
+                float e_x = local_error(0);
+                float e_y = local_error(1);
+                float e_t = local_error(2);
 
-                double k = 2.0 * r_config.zeta * std::sqrt(wd * wd + r_config.b * vd * vd);
-                double v_desired_ramsete = vd * std::cos(e_t) + k * e_x;
-                double w_desired_ramsete = wd + k * e_t + (r_config.b * vd * sinc(e_t) * e_y);
+                float k = 2.0 * r_config.zeta * std::sqrt(wd * wd + r_config.b * vd * vd);
+                float v_desired_ramsete = vd * std::cos(e_t) + k * e_x;
+                float w_desired_ramsete = wd + k * e_t + (r_config.b * vd * sinc(e_t) * e_y);
 
                 DrivetrainVoltages output_voltages = controller.update(v_desired_ramsete, w_desired_ramsete, (leftMotors.get_actual_velocity() * rpm_to_mps_factor), (rightMotors.get_actual_velocity() * rpm_to_mps_factor));
             

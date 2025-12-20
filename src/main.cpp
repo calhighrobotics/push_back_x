@@ -72,7 +72,7 @@ void competition_initialize() {
 const float INCH_TO_METER = 0.0254f;
 const float TRACK_WIDTH = 11.5f;
 
-const float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
+const float wheel_circumference = lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
 const float gear_ratio = 4.0f / 3.0f;
 
 const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;

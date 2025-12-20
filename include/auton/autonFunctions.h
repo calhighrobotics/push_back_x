@@ -6,15 +6,15 @@
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
 
-void intake();
+void intake(int power = 12000);
 
-void outtake();
+void outtake(int power = 12000);
 
-void score_bottomgoal();
+void score_bottomgoal(int power = 12000);
 
-void score_longgoal();
+void score_longgoal(int power = 12000);
 
-void score_midgoal();
+void score_midgoal(int power = 12000);
 
 void intake_stop();
 

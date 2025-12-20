@@ -1,5 +1,6 @@
 #include "globals.h"
 #include <cmath>          // FIXED: <cmath> instead of "cmath"
+#include "lemlib/chassis/trackingWheel.hpp"
 #include "lemlib/util.hpp"
 #include "MCL.h"
 
@@ -36,7 +37,7 @@ namespace MCL {
   void StartMCL(double x_, double y_, double theta_);
   void MonteCarlo(void);
 
-  const double LOOP_DELAY_MS = 20.0; // Increased to 20ms to reduce CPU load
+  const double LOOP_DELAY_MS = 30.0; // Increased to 20ms to reduce CPU load
   const double LOOP_DT_SEC = LOOP_DELAY_MS / 1000.0; 
 
   void StartMCL(double x_, double y_, double theta_) {
@@ -165,6 +166,37 @@ namespace MCL {
       }
       Particles = Resampled; // Copy back
 
+  //Could be more efficient for sampling
+
+  /*// Note: Ensure CDF is pre-allocated to size(num_particles)
+  CDF[0] = Particles[0].weight;
+  for (int i = 1; i < num_particles; ++i) {
+      CDF[i] = CDF[i - 1] + Particles[i].weight;
+  }
+
+  // 2. Systematic Resampling (Low Variance)
+  // We generate ONE random number to start the "comb"
+  uniform_real_distribution<double> dist(0.0, inv_num_particles);
+  double threshold = dist(Random); // Random start
+
+int index = 0;
+
+  for (int i = 0; i < num_particles; ++i) {
+    // Walk the index forward until the CDF exceeds the threshold
+    // This removes the need for expensive binary search (lower_bound)
+    while (threshold > CDF[index] && index < num_particles - 1) {
+        index++;
+    }
+    
+    Resampled[i] = Particles[index];
+    Resampled[i].weight = inv_num_particles; // Reset weight after resampling
+    
+    // Move the "comb" forward by exactly one step size
+    threshold += inv_num_particles;
+  }
+
+Particles = Resampled;
+*/
       // 5. Estimate Position (Weighted Average)
       double new_x = 0.0, new_y = 0.0, total_weight = 0.0;
       for (const auto& p : Particles) {
@@ -185,29 +217,17 @@ namespace MCL {
       // UNLOCK MUTEX
       particle_mutex.give();
 
-      // 6. Correction Logic (The most critical part for Pushback)
-      // We calculate the error between Odometry and MCL
       double dist_error = std::hypot(odomPose.x - X, odomPose.y - Y);
 
-      // TRUST LOGIC:
-      // If error is > 2 inches (we moved) AND < 24 inches (we aren't teleporting due to sensor glitch)
-      // Then we trust MCL significantly.
-      if(dist_error > 2.0 && dist_error < 24.0) {
-          // Weighted update: 40% MCL, 60% Odometry (smooth correction)
-          chassis.setPose(
-              odomPose.x * 0.6 + X * 0.4, 
-              odomPose.y * 0.6 + Y * 0.4, 
-              odomPose.theta // Keep IMU theta
-          );
-      }
+      cout << " MCL Pos: (" << X << ", " << Y << ") ";
       
       pros::Task::delay_until(&start_time, LOOP_DELAY_MS);
     }
   }
 
-  const float wheel_circumference = 4 * M_PI;
-  const float gear_ratio = 1.25;
-  const float rpm_to_ips_factor = (wheel_circumference / gear_ratio) / 60;
+  const float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI;
+  const float gear_ratio = 4.0f / 3.0f;
+  const float rpm_to_ips_factor = (wheel_circumference / gear_ratio) / 60.0f;
 
   double getAvgVelocity(void) noexcept {
     // Ensure you have access to leftMotors/rightMotors here
