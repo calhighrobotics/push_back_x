@@ -186,10 +186,19 @@ public:
         double ksLeft = (ksStraight * sign(leftVelocity)) - (ksTurn * sign(targetAngularVelocity));
         double ksRight = (ksStraight * sign(rightVelocity)) + (ksTurn * sign(targetAngularVelocity));
 
+        //double leftVoltage =
+        //    std::clamp((kV * leftVelocity) + (kaLeft) + (ksLeft) + (kP * leftError) + (kI * leftIntegral), -12.0, 12.0);
+        //double rightVoltage =
+        //    std::clamp((kV * rightVelocity) + (kaRight) + (ksRight) + (kP * rightError) + (kI * rightIntegral), -12.0, 12.0);
         double leftVoltage =
-            std::clamp((kV * leftVelocity) + (kaLeft) + (ksLeft) + (kP * leftError) + (kI * leftIntegral), -12.0, 12.0);
+            (kV * leftVelocity) + (kaLeft) + (ksLeft) + (kP * leftError) + (kI * leftIntegral);
         double rightVoltage =
-            std::clamp((kV * rightVelocity) + (kaRight) + (ksRight) + (kP * rightError) + (kI * rightIntegral), -12.0, 12.0);
+            (kV * rightVelocity) + (kaRight) + (ksRight) + (kP * rightError) + (kI * rightIntegral);
+        double ratio = std::max(fabs(leftVoltage), fabs(rightVoltage)) / 12000.0;
+        if (ratio > 1) {
+            leftVoltage /= ratio;
+            rightVoltage /= ratio;
+        }
 
         return {leftVoltage, rightVoltage};
     }
@@ -327,7 +336,7 @@ void ramsete_auton(VelocityControllerConfig &config, std::string path_name) {
         config.KP_straight,
         config.KI_straight,
         99999.0,
-        10.0 * INCH_TO_METER
+        10.5 * INCH_TO_METER
     );
     //4 and 0.2 current best
     const double b = 4;     
@@ -341,7 +350,7 @@ void ramsete_auton(VelocityControllerConfig &config, std::string path_name) {
         return;
 
     int trajectory_size = trajectory.size();
-    chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
+    //chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
     std::vector<std::string> logs;
     
     double time = 0.01;
@@ -401,11 +410,12 @@ void ramsete_auton(VelocityControllerConfig &config, std::string path_name) {
 
     rightMotors.brake();
     leftMotors.brake();
-
+    /*
     for (const auto& line : logs) {
         std::cout << line;
         pros::delay(50);
     }
+    */
 }
 
 
@@ -670,11 +680,27 @@ const DriveToPointConfig d_config {
 
 
 void autonomous() {
-    chassis.setPose(-46, -13, 110);
+    /*
+    chassis.setPose(-57.778, -15.551, 90);
     chassis.turnToPoint(-26, -20.5, 1000);
-    chassis.moveToPoint(-26, -20.5, 2000);
+    chassis.waitUntilDone();
+    chassis.moveToPoint(-23.698, -22.658, 2000);
+    chassis.waitUntilDone();
+    chassis.turnToPoint(-47.279, -47.047, 1000);
+    chassis.waitUntilDone();
+    chassis.moveToPoint(-47.279, -47.047, 2000);
+    chassis.waitUntilDone();
+    */
+    chassis.setPose(-56.163, -15.712, 90);
     ramsete_auton(test_config, test_path);
-    
+    chassis.turnToHeading(330, 2000);
+    chassis.waitUntilDone();
+    ramsete_auton(test_config, path_2);
+    chassis.turnToPoint(-72, -48, 1000);
+    chassis.waitUntilDone();
+    chassis.moveToPoint(-72 + 10, -48, 1000);
+    chassis.waitUntilDone();
+    chassis.moveToPoint(-24, -48, 2000, {.forwards = false});
 }
 
 void disabled() {}
