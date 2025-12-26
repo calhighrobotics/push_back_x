@@ -39,9 +39,19 @@ void intake_stop()
     topMotor.move_voltage(0);
 }
 
-void matchload_prep()
+void matchload_state(bool state)
 {
-    C.toggle();
+    if(state && !C.is_extended())
+    {
+        C.extend();
+    }
+    else if(C.is_extended())
+    {
+        C.retract();
+    }
+    else {
+        std::cout << "Matchload state unchanged\n" << std::endl;
+    }
 }
 
 void longgoal_prep()
@@ -52,6 +62,17 @@ void longgoal_prep()
 void reset_odometry()
 {
 
+}
+
+void match_load_wiggle(int time = 1000)
+{
+    u_int32_t  start_time = pros::millis();
+    while (pros::millis() - start_time < time) {
+        chassis.curvature(50, 0.5, false);
+        pros::delay(100);
+        chassis.curvature(50, -0.5, false);
+        pros::delay(100);
+    }
 }
 
 

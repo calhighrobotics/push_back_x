@@ -1,19 +1,12 @@
 #pragma once
 
 #include "main.h"
-#include "lemlib/api.hpp"
-#include "pros/misc.h"
-#include "lemlib/api.hpp"
-#include "lemlib/util.hpp"
 
+// Function declarations
+void precompute_auton_paths();
 void right_auton();
-
 void left_auton();
-
 void carry_auton();
-
 void elim_auton(); 
-
 void awp_auton();
-
 void skills_auton();

@@ -5,24 +5,15 @@
 #include "auton/autonRoutines.h"
 #include "auton/autonFunctions.h"
 #include "velocityController.h"
-#include "pathFollowing/ramsete.cpp"
-#include "pathFollowing/paths.cpp"
 #include "robodash/views/selector.hpp"
 #include "distanceReset.h"
 #include "colorSort.h"
 #include "warnings.h"
 #include <string>
 #include "MCL.h"
+#include "ramsete.h"
+#include "paths.h"
 
-const VelocityControllerConfig config{
-    12.4370890785,
-    0.803031225567,
-    0.664537661342,
-    0.472796490892,
-    0.236548087393,
-    25.2621164319,
-    524.703492373,
-};
 
 rd::Selector selector({
     {"Right", right_auton},
@@ -36,7 +27,6 @@ rd::Selector selector({
 rd::Console console;
 
 
-RamsetePathFollower ramsete(config, 2, 0.7);
 void initialize() {
 
     chassis.calibrate();
@@ -45,8 +35,7 @@ void initialize() {
     //distance_sensor_disconnect_warning();
     //MCL::StartMCL(0, 0, 0);
     //pros::Task mclTask(MCL::MonteCarlo);
-    std::vector<std::string> paths = {test_path, right_1};
-    ramsete.precompute_paths(paths);
+    precompute_auton_paths();
 
     pros::Task screen_task([&]() {
         chassis.calibrate();
