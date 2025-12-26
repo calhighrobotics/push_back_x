@@ -680,27 +680,34 @@ const DriveToPointConfig d_config {
 
 
 void autonomous() {
-    /*
-    chassis.setPose(-57.778, -15.551, 90);
-    chassis.turnToPoint(-26, -20.5, 1000);
+    const int triball_delay = 500;
+    const int dual_ball_delay = 500;
+    const int match_load_delay = 500;
+
+    chassis.setPose(-48.147, -10.576, 115);
+    //intake(12000);
+    chassis.turnToPoint(-23.378, -21.986, 1000);
+    chassis.moveToPoint(-23.378, -21.986, 1000);
+    pros::delay(triball_delay);
+    //Ramsete path to dual_ball
+    ramsete_auton(test_config, right_1);
+
+    pros::delay(dual_ball_delay);
+    //Ramsete backward path to -47, -47
+    ramsete_auton(test_config, right_2);
+
+    //intake_stop();
+    chassis.turnToPoint(-58, -47, 1000);
+    //matchload_state(true);
+    chassis.moveToPoint(-58, -47, 1000);
+    //intake();
+    //match_load_wiggle(match_load_delay);
+    pros::delay(match_load_delay);
+    //matchload_state(false);
+    chassis.moveToPoint(-31, -47, 1000, {.forwards = false});
     chassis.waitUntilDone();
-    chassis.moveToPoint(-23.698, -22.658, 2000);
-    chassis.waitUntilDone();
-    chassis.turnToPoint(-47.279, -47.047, 1000);
-    chassis.waitUntilDone();
-    chassis.moveToPoint(-47.279, -47.047, 2000);
-    chassis.waitUntilDone();
-    */
-    chassis.setPose(-56.163, -15.712, 90);
-    ramsete_auton(test_config, test_path);
-    chassis.turnToHeading(330, 2000);
-    chassis.waitUntilDone();
-    ramsete_auton(test_config, path_2);
-    chassis.turnToPoint(-72, -48, 1000);
-    chassis.waitUntilDone();
-    chassis.moveToPoint(-72 + 10, -48, 1000);
-    chassis.waitUntilDone();
-    chassis.moveToPoint(-24, -48, 2000, {.forwards = false});
+    //intake_stop();
+    //score_longgoal();
 }
 
 void disabled() {}
