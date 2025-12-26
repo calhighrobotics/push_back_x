@@ -10,17 +10,17 @@
 #include "ramsete.h"
 
 
-    const VelocityControllerConfig config{
-    12.4370890785,
-    0.803031225567,
-    0.664537661342,
-    0.472796490892,
-    0.236548087393,
-    25.2621164319,
-    524.703492373,
+const VelocityControllerConfig config{
+12.4370890785,
+0.803031225567,
+0.664537661342,
+0.472796490892,
+0.236548087393,
+25.2621164319,
+524.703492373,
 };
     
-    RamsetePathFollower ramsete(config, 2, 0.7);
+RamsetePathFollower ramsete(config, 2, 0.7);
     
 
 
@@ -88,9 +88,9 @@ void left_auton() {
     chassis.moveToPoint(-11.689, 11.689, 1000, {.forwards = false});
     chassis.waitUntilDone();
     intake_stop();
-    score_midgoal(6000);
+    score_midgoal(12000);
 
-    pros::delay(midgoal_delay);
+    pros::delay(midgoal_delay); 
 
     chassis.turnToPoint(-40.354, 47.034, 500);
     chassis.moveToPoint(-40.354, 47.034, 1000);
@@ -141,7 +141,7 @@ void awp_auton() {
     score_longgoal();
     pros::delay(longgoal_delay);
 
-    chassis.swingToPoint(-22.821, -23.099, 1000);
+    chassis.swingToPoint(-22.821, -23.099, lemlib::DriveSide::RIGHT, 750);
     intake();
     chassis.moveToPoint(-22.821, -23.099, 1000);
     chassis.turnToPoint(-22.264, 21.986, 1000);

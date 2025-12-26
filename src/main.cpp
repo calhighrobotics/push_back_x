@@ -46,6 +46,8 @@ void initialize() {
             console.printf("X: %f", pose.x);
             console.printf("Y: %f", pose.y);
             console.printf("Theta: %f", pose.theta);
+            //console.printf("X MCL: %f", MCL::X);
+            //console.printf("Y MCL: %f", MCL::Y);
             pros::delay(20);
         }
     });
