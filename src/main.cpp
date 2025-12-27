@@ -67,7 +67,7 @@ lemlib::ControllerSettings lateral_controller(10, // kP
 // Angular controller error ranges are in degrees, so they don't need conversion
 lemlib::ControllerSettings angular_controller(4,    // kP
                                               0.01, // kI
-                                              20,   // kD
+                                              23,   // kD
                                               3,    // windup
                                               1,    // small error range in degrees
                                               100,
@@ -680,34 +680,40 @@ const DriveToPointConfig d_config {
 
 
 void autonomous() {
-    const int triball_delay = 500;
-    const int dual_ball_delay = 500;
-    const int match_load_delay = 500;
+    const int longgoal_delay = 1000;
+    const int midgoal_delay = 1000;
+    const int matchload_delay = 1000;
 
-    chassis.setPose(-48.147, -10.576, 115);
-    //intake(12000);
-    chassis.turnToPoint(-23.378, -21.986, 1000);
-    chassis.moveToPoint(-23.378, -21.986, 1000);
-    pros::delay(triball_delay);
-    //Ramsete path to dual_ball
-    ramsete_auton(test_config, right_1);
-
-    pros::delay(dual_ball_delay);
-    //Ramsete backward path to -47, -47
-    ramsete_auton(test_config, right_2);
-
-    //intake_stop();
-    chassis.turnToPoint(-58, -47, 1000);
-    //matchload_state(true);
-    chassis.moveToPoint(-58, -47, 1000);
-    //intake();
-    //match_load_wiggle(match_load_delay);
-    pros::delay(match_load_delay);
-    //matchload_state(false);
-    chassis.moveToPoint(-31, -47, 1000, {.forwards = false});
+    chassis.setPose(-51.208, -15.307, 180);
+    chassis.moveToPoint(-51.487, -47.034, 1000);
     chassis.waitUntilDone();
-    //intake_stop();
-    //score_longgoal();
+
+    chassis.turnToPoint(-58.723, -47.034, 750);
+    chassis.waitUntilDone();
+    chassis.moveToPoint(-58.723 + 5, -47.034, 1000);
+    pros::delay(matchload_delay);
+    
+    chassis.moveToPoint(-24, -48, 1000, {.forwards = false});
+    chassis.waitUntilDone();
+    pros::delay(longgoal_delay);
+
+    chassis.swingToPoint(-24, -24, lemlib::DriveSide::RIGHT, 750);
+    chassis.moveToPoint(-24, -24, 1000);
+    chassis.turnToPoint(-24, 24, 1000);
+    chassis.moveToPoint(-24, 24, 2000);
+    chassis.turnToPoint(-48, 48, 1000);
+    chassis.moveToPoint(-11, 11, 1500, {.forwards = false});
+    chassis.waitUntilDone();
+    pros::delay(midgoal_delay);
+
+    chassis.moveToPoint(-48, 48, 1500);
+    chassis.turnToPoint(-58.723, 48, 1000);
+    chassis.moveToPoint(-58.723, 48, 1500);
+    chassis.waitUntilDone();
+    pros::delay(matchload_delay);
+
+    chassis.moveToPoint(-27, 40, 2000, {.forwards = false});
+    chassis.waitUntilDone();
 }
 
 void disabled() {}
