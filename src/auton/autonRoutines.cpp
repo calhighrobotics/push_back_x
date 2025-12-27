@@ -21,8 +21,6 @@ const VelocityControllerConfig config{
 };
     
 RamsetePathFollower ramsete(config, 2, 0.7);
-    
-
 
 void precompute_auton_paths() {
     std::vector<std::string> paths = {right_1, right_2, left_1, skills_1};
