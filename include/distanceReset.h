@@ -50,9 +50,9 @@ distancePose calculateGlobalPosition(
 );
 
 // Resets distance-based global pose using all sensors
-distancePose distanceReset();
+distancePose distanceReset(bool setPose = true);
 
 // Resets distance-based global pose using selected sensors
-distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use);
+distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use, bool setPose);
 
 #endif // DISTANCE_SENSORS_HPP

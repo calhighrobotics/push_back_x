@@ -30,32 +30,32 @@ lemlib::Drivetrain drivebase(
 
 pros::IMU imu(19);
 
-pros::Rotation horizontal_tracking_sensor(17);
-pros::Rotation vertical_tracking_sensor(20);
+pros::Rotation horizontal_tracking_sensor(20);
+pros::Rotation vertical_tracking_sensor(-16);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, 0, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, 0,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -6.37728606611, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.110912828986,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(12, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              82, // derivative gain (kD)
+                                              30, // derivative gain (kD)
                                               3, // anti windup
-                                              0.25, // small error range, in inches
+                                              0.2, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
-                                              3, // large error range, in inches
-                                              500, // large error range timeout, in milliseconds
-                                              0 // maximum acceleration (slew)
+                                              0, // large error range, in inches
+                                              0, // large error range timeout, in milliseconds
+                                              20 // maximum acceleration (slew)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
-                                              0, // integral gain (kI)
-                                              37, // derivative gain (kD)
+lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
+                                              0.0015, // integral gain (kI)
+                                              24, // derivative gain (kD)
                                                3, // anti windup
-                                              0.5, // small error range, in inches
+                                              1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
                                               500, // large error range timeout, in milliseconds
@@ -79,14 +79,14 @@ pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
 pros::Motor topMotor(7, pros::v5::MotorGears::blue);
 
 
-pros::Distance rightDistance(4);
-pros::Distance leftDistance(5);
-pros::Distance frontDistance(11);
-pros::Distance backDistance(12);
+pros::Distance rightDistance(6);
+pros::Distance leftDistance(12);
+pros::Distance frontDistance(13);
+pros::Distance backDistance(11);
 
-pros::adi::Pneumatics A('A', false);
-pros::adi::Pneumatics B('B', false);
-pros::adi::Pneumatics C('C', false);
+pros::adi::Pneumatics trapDoor('A', false);
+pros::adi::Pneumatics matchload('B', false);
+pros::adi::Pneumatics basket('C', false);
 
 pros::Optical color_sensor(14);
 

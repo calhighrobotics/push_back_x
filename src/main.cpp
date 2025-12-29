@@ -28,32 +28,40 @@ rd::Console console;
 
 
 void initialize() {
-
     chassis.calibrate();
     //temp_warning();
     //motor_disconnect_warning();
     //distance_sensor_disconnect_warning();
-    //MCL::StartMCL(0, 0, 0);
-    //pros::Task mclTask(MCL::MonteCarlo);
-    precompute_auton_paths();
 
+    console.focus();
+    //precompute_auton_paths();
     pros::Task screen_task([&]() {
-        chassis.calibrate();
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
-            console.printf("X: %f", pose.x);
-            console.printf("Y: %f", pose.y);
-            console.printf("Theta: %f", pose.theta);
-            //console.printf("X MCL: %f", MCL::X);
-            //console.printf("Y MCL: %f", MCL::Y);
-            pros::delay(20);
+            distancePose dpose = distanceReset();
+            console.printf("X: %f\n", pose.x);
+            console.printf("Y: %f\n", pose.y);
+            console.printf("Theta: %f\n", pose.theta);
+
+            /*
+            DISTANCE SENSOR TESTING
+            console.printf("D X: %f\n", dpose.x);
+            console.printf("D Y: %f\n", dpose.y);
+            console.printf("Using X: %d\n", dpose.using_odom_x);
+            console.printf("Using Y: %d\n", dpose.using_odom_y);
+            */
+
+            console.printf("X MCL: %f", MCL::X);
+            console.printf("Y MCL: %f", MCL::Y);
+            pros::delay(100);
         }
     });
 }
 
 void disabled() {
+    console.focus();
     //selector.focus();
 }
 
@@ -152,7 +160,7 @@ void collect_voltage_step_data(float step_input, unsigned int duration) {
 }
 
 void find_tracking_center(float turnVoltage, uint32_t time_ms) {
-    chassis.setPose(0, 0, 0);
+    chassis.setPose(0, 0, 180);
 
     std::vector<std::string> logs;
     std::vector<std::string> logs2;
@@ -164,7 +172,7 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
         rightMotors.move_voltage(-turnVoltage * 1000);
 
         auto pose = chassis.getPose(false);  // don't estimate
-        logs.push_back(std::to_string(pose.x) + "," + std::to_string(pose.y) + ",");
+        logs.push_back("(" + std::to_string(pose.x) + "," + std::to_string(pose.y) + "),");
         logs2.push_back(std::to_string(pose.theta) + ",");
 
         pros::delay(20);
@@ -173,14 +181,19 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
     rightMotors.brake();
 
     for (auto &s : logs) std::cout << s, pros::delay(50);
+    cout << "/n";
     for (auto &s : logs2) std::cout << s, pros::delay(50);
 }
 
 
 void autonomous() {
-   chassis.setPose(0,0,0);
-   find_tracking_center(6, 4000);
+   awp_auton();
+   //find_tracking_center(6, 4000);
+   //selector.run_auton();
+   //awp_auton();
+   //chassis.turnToHeading(90, 2000);
    //collect_velocity_vs_voltage_data();
+   //chassis.moveToPoint(0, 24, 10000);
 }
 
 void opcontrol() {
@@ -213,19 +226,20 @@ void opcontrol() {
         else
         {
             intake_stop();
+            trapDoor.retract();
         }
 
         if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
         {
-            A.toggle();
+            trapDoor.toggle();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         {
-            B.toggle();
+            matchload.toggle();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
         {
-            C.toggle();
+            //basket.toggle();
         }
 
 

@@ -20,5 +20,19 @@ int get_color() {
 
 void colorSort(const Color allianceColor)
 {
-    
+    while(true)
+    {
+        Color detectedColor = static_cast<Color>(get_color());
+        if (detectedColor == RED || detectedColor == BLUE) {
+            if (detectedColor == allianceColor) {
+                // Accept the object
+                topMotor.move_velocity(200); // Move motor to accept position
+            } else {
+                // Reject the object
+                topMotor.move_velocity(-200); // Move motor to reject position
+            }
+            pros::delay(200); // Wait for sorting action to complete
+        }
+        pros::delay(100); // Small delay to prevent excessive polling
+    }
 }

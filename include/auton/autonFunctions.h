@@ -26,5 +26,11 @@ void longgoal_prep();
 
 void reset_odometry();
 
-void match_load_wiggle(int time = 1000);
+void matchload_wiggle(int time = 1000);
+
+void MCL_reset(bool x = true, bool y = true);
+
+void fusion_loop_fn(void* ignore);
+
+void enable_fused_odometry(bool state);
 

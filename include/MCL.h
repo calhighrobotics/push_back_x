@@ -84,17 +84,16 @@ public:
   Field (void) {
     Goals = std::vector<Goal>({
       //Long Goals
-      Goal(Point(-24, -48), 4),
-      Goal(Point(24, -48), 4),
-      Goal(Point(-24, 48), 4),
-      Goal(Point(24, 48), 4),
+      Goal(Point(-24, -48 + 2.5), 2.5),
+      Goal(Point(24, -48 + 2.5), 2.5),
+      Goal(Point(-24, 48 - 2.5), 2.5),
+      Goal(Point(24, 48 - 2.5), 2.5),
       //MatchLoaders
-      Goal(Point(-67.631,-47.047), 2),
-      Goal(Point(-67.631,47.047), 2),
-      Goal(Point(67.631,-47.047), 2),
-      Goal(Point(67.631,47.047), 2),
+      Goal(Point(-72 + 2.5,-48), 2.3),
+      Goal(Point(-72 + 2.5,48), 2.3),
+      Goal(Point(72 - 2.5,-48), 2.3),
+      Goal(Point(72 - 2.5,48), 2.3),
       // Midgoal
-      Goal(Point(0,0), 4),
     }); 
   }
 
@@ -136,7 +135,6 @@ public:
     }
     float wall_distance;
     
-    // vertical walls
     if (std::abs(step_vector.x) > 1e-4f) {
       const float wall_x = step_vector.x > 0 ? this->HalfSize : -this->HalfSize;
       wall_distance = (wall_x - sensor_position.x) / step_vector.x;
@@ -160,13 +158,13 @@ public:
 namespace MCL {
   extern double X, Y, theta;
 
-  static constexpr int num_particles = 200;
+  static constexpr int num_particles = 250;
 
   extern mt19937 Random;
 
   /* Prediction */
   extern double Velo;
-
+  extern pros::Mutex particle_mutex;
   /* Update */
 
     // Double
