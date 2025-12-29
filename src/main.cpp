@@ -26,19 +26,17 @@ rd::Selector selector({
 
 rd::Console console;
 
-
 void initialize() {
     chassis.calibrate();
     //temp_warning();
     //motor_disconnect_warning();
     //distance_sensor_disconnect_warning();
 
-    console.focus();
     //precompute_auton_paths();
+    console.focus();
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
-            console.clear();
             pose = chassis.getPose();
             distancePose dpose = distanceReset();
             console.printf("X: %f\n", pose.x);
@@ -52,9 +50,9 @@ void initialize() {
             console.printf("Using X: %d\n", dpose.using_odom_x);
             console.printf("Using Y: %d\n", dpose.using_odom_y);
             */
+            console.printf("X MCL: %f\n", MCL::X);
+            console.printf("Y MCL: %f\n", MCL::Y);
 
-            console.printf("X MCL: %f", MCL::X);
-            console.printf("Y MCL: %f", MCL::Y);
             pros::delay(100);
         }
     });
