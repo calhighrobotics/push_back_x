@@ -4,15 +4,12 @@
 #include "pros/misc.h"
 #include "auton/autonRoutines.h"
 #include "auton/autonFunctions.h"
-#include "velocityController.h"
 #include "robodash/views/selector.hpp"
 #include "distanceReset.h"
 #include "colorSort.h"
 #include "warnings.h"
 #include <string>
 #include "MCL.h"
-#include "ramsete.h"
-#include "paths.h"
 
 
 rd::Selector selector({
@@ -33,10 +30,16 @@ void initialize() {
     //distance_sensor_disconnect_warning();
 
     //precompute_auton_paths();
+
+
+   MCL::StartMCL(-63.5, -18.5, 180);
+   pros::Task mclTask(MCL::MonteCarlo);
+   chassis.setPose(-63.5, -18.5, 180);
     console.focus();
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
+            console.clear();
             pose = chassis.getPose();
             distancePose dpose = distanceReset();
             console.printf("X: %f\n", pose.x);
@@ -218,26 +221,29 @@ void opcontrol() {
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
         {
-            intake();
-            topMotor.move_voltage(-6000);
+            intake_to_basket();
         }
         else
         {
-            intake_stop();
-            trapDoor.retract();
+            resting_state();
         }
 
-        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         {
-            trapDoor.toggle();
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
-        {
-            matchload.toggle();
+            throttle = 0;
+            steer = 0;
+            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+            leftMotors.brake();
+            rightMotors.brake();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
         {
             //basket.toggle();
+        }
+        else {
+            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
         }
 
 

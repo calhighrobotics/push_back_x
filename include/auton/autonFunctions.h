@@ -18,7 +18,11 @@ void score_longgoal(int power = 12000);
 
 void score_midgoal(int power = 12000);
 
+void intake_to_basket();
+
 void intake_stop();
+
+void resting_state();
 
 void matchload_state(bool state);
 

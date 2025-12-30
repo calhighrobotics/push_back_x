@@ -34,10 +34,22 @@ void score_midgoal(int power = 12000)
     if(!trapDoor.is_extended()) trapDoor.extend();
 }
 
+void intake_to_basket()
+{
+    intake();
+    topMotor.move_voltage(-6000);
+}
+
 void intake_stop()
 {
     intakeMotor.move_voltage(0);
     topMotor.move_voltage(0);
+}
+
+void resting_state()
+{
+    intake_stop();
+    trapDoor.retract();
 }
 
 void matchload_state(bool state)
@@ -49,6 +61,7 @@ void matchload_state(bool state)
     else if(matchload.is_extended())
     {
         matchload.retract();
+        pros::delay(100);
     }
     else {
         std::cout << "Matchload state unchanged\n" << std::endl;
