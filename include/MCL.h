@@ -99,6 +99,7 @@ public:
       Goal(Point(3.41,-3.41), 2.75),
       Goal(Point(0,0), 2.75),
       */
+      Goal(Point(0,0), 4),
     }); 
   }
 
@@ -163,7 +164,7 @@ public:
 namespace MCL {
   extern double X, Y, theta;
 
-  static constexpr int num_particles = 1800;
+  static constexpr int num_particles = 2000;
 
   extern mt19937 Random;
 

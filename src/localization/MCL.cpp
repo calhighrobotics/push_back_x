@@ -16,8 +16,6 @@ namespace MCL {
   double weights_sum;
   double start_theta;
 
-  // Reduced particle count for performance (prevent loop lag)
-  // 200 is plenty for VEX field sizes
   vector<Particle> Particles(num_particles); 
 
   vector<MCLDistanceSensor> Sensors = {
@@ -38,7 +36,7 @@ namespace MCL {
   void StartMCL(double x_, double y_, double theta_);
   void MonteCarlo(void);
 
-  const double LOOP_DELAY_MS = 10.0; // Increased to 20ms to reduce CPU load
+  const double LOOP_DELAY_MS = 20.0; // Increased to 20ms to reduce CPU load
   const double LOOP_DT_SEC = LOOP_DELAY_MS / 1000.0; 
 
   void StartMCL(double x_, double y_, double theta_) {
