@@ -14,6 +14,8 @@ struct State {
     float x, y, heading, linear_vel, angular_vel;
 } ;
 
+enum Alliance { RED_ALLIANCE, BLUE_ALLIANCE };
+extern Alliance currentAlliance;
 
 
 extern pros::Controller controller;

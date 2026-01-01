@@ -1,218 +1,109 @@
 #pragma once
 
-#include "globals.h"
+#include "main.h"
+#include "lemlib/api.hpp" 
 #include <cmath>
 #include <random>
-#include "Point.h"
 #include <vector>
-#include <map>
+#include <algorithm> 
+#include "Point.h"
 
+// --- Tuning Constants for Adaptive MCL ---
+namespace MCLConfig {
+    // Balances position vs angle differences (Paper suggests 0.8)
+    static constexpr double ADAPTIVE_XI = 0.8; 
+    
+    // Scaling factor for density radius
+    static constexpr double ADAPTIVE_ALPHA = 1.0; 
 
-template <typename T>
-T clamp(const T& val, const T& lowerBound, const T& upperBound) {
-  if (val < lowerBound) {
-    return lowerBound;
-  } else if (val > upperBound) {
-    return upperBound;
-  } else {
-    return val;
-  }
+    // Minimum Noise (Inches) - Strict when converged (e.g., 2.0")
+    static constexpr double SIGMA_MIN = 2.0; 
+
+    // Maximum Noise (Inches) - Loose when lost (e.g., 20.0")
+    static constexpr double SIGMA_MAX = 20.0;
+
+    // Resampling Threshold (ESS). If ESS < N/2, we resample.
+    static constexpr double ESS_RATIO = 0.5;
 }
 
-struct Particle {
-  double x;          // X position
-  double y;          // Y position
-  double theta;      // Orientation
-
-  // Probability Weight
-  double weight;
-
-  // Change in Position (ΔX, ΔY)
-  Point step;
-};
-
-enum SensorDirection: int {
-  FRONT = 0,
-  LEFT = 1,
-  BACK = 2,
-  RIGHT = 3,
-};
+enum SensorDirection: int { FRONT = 0, LEFT = 1, BACK = 2, RIGHT = 3 };
 
 class MCLDistanceSensor {
   public:
-    MCLDistanceSensor(pros::Distance sensor_,Point Offset_, SensorDirection dir_) : Sensor(sensor_), Offset(Offset_), Dir(dir_) {
+    MCLDistanceSensor(pros::Distance sensor_, Point Offset_, SensorDirection dir_) 
+      : Sensor(sensor_), Offset(Offset_), Dir(dir_) {
       this->measurement = -1;
     }
+
     void Measure(void) {
       this->measurement = -1;
+      // Filter out small objects/noise
+      if(this->Sensor.get_object_size() < MinSize) return;
 
-      bool CanSeeWall = this->Sensor.get_object_size() >= MinSize;
-      
-      double measurement = this->Sensor.get_distance() * 0.0393701;
-
-      if (CanSeeWall && measurement < Range && measurement > 0) {
-        this->measurement = measurement;
+      double dist = this->Sensor.get_distance() * 0.0393701; // mm to inches
+      if (dist < Range && dist > 0) {
+        this->measurement = dist;
       }
     }
     
     pros::Distance Sensor;
-
-
     double measurement;
-
     Point Offset;
-
     SensorDirection Dir;
     
-    constexpr static const uint32_t Range = 100.f; 
-    constexpr static const uint32_t MinSize = 70.f; 
+    static constexpr uint32_t Range = 70.866; 
+    static constexpr uint32_t MinSize = 70; 
 };
 
+struct Particle {
+  double x;          
+  double y;          
+  double theta;      
+  double weight;     
+  Point step;        
+  double sigma;      
+};
 
 class Field {
 public:
   struct Goal { 
     Point Position;
     double RadiusSquared;
-
-    Goal (Point pos, double r) {
-      Position = pos;
-      this->RadiusSquared = r * r;
-    }
+    Goal (Point pos, double r) : Position(pos), RadiusSquared(r*r) {}
   };
 
-  Field (void) {
-    Goals = std::vector<Goal>({
-      //Long Goals
-      Goal(Point(-24, -48 + 2.5), 2.5),
-      Goal(Point(24, -48 + 2.5), 2.5),
-      Goal(Point(-24, 48 - 2.5), 2.5),
-      Goal(Point(24, 48 - 2.5), 2.5),
-      //MatchLoaders
-      Goal(Point(-72 + 2.5,-48), 2.3),
-      Goal(Point(-72 + 2.5,48), 2.3),
-      Goal(Point(72 - 2.5,-48), 2.3),
-      Goal(Point(72 - 2.5,48), 2.3),
-      // Midgoal
-      /*
-      Goal(Point(-3.41,3.41), 2.75),
-      Goal(Point(3.41,-3.41), 2.75),
-      Goal(Point(0,0), 2.75),
-      */
-      Goal(Point(0,0), 4),
-    }); 
-  }
+  Field(); 
 
+  float get_sensor_distance(const Particle& p, const MCLDistanceSensor& Sensor) const;
 
-  double GetSize(void) {
-    return this->HalfSize * 2.0;
-  }
-
-  void AddGoal(Point P, float R) {
-    this->Goals.push_back(Goal(P, R));
-  }
-
-  float get_sensor_distance(Particle& p, const MCLDistanceSensor& Sensor) {
-    Point sensor_position = Point(p.x, p.y) + Sensor.Offset.rotate(p.step.x, p.step.y);
-
-    Point step_vector = p.step.rotate(this->direction_to_cosine[Sensor.Dir], this->direction_to_sine[Sensor.Dir]);
-    
-    float min_distance = 1e10;
-    bool Intersection = false;
-
-    for (Goal &G : this->Goals) {
-      Point v = G.Position - sensor_position;
-      if (((step_vector.x < 0) == (v.x < 0) && (step_vector.y < 0) == (v.y < 0)) || v.norm_squared() <= G.RadiusSquared) {
-        double proj = v.dot(step_vector);
-        double perp_squared = v.norm_squared() - proj * proj;
-
-        if (perp_squared <= G.RadiusSquared) {
-          auto t = proj - std::sqrt(G.RadiusSquared - perp_squared);
-          if (t <= min_distance) {
-            Intersection = true;
-            min_distance = t;
-          }   
-        }
-      }
-    }
-
-    if (Intersection) {
-      return min_distance;
-    }
-    float wall_distance;
-    
-    if (std::abs(step_vector.x) > 1e-4f) {
-      const float wall_x = step_vector.x > 0 ? this->HalfSize : -this->HalfSize;
-      wall_distance = (wall_x - sensor_position.x) / step_vector.x;
-      if (std::abs(wall_distance * step_vector.y + sensor_position.y) <= this->HalfSize) {
-        return wall_distance;
-      }
-    }
-    const auto wall_y = step_vector.y > 0 ? this->HalfSize : -this->HalfSize;
-    wall_distance = (wall_y - sensor_position.y) / step_vector.y;
-    return wall_distance;
-  }
-
-  constexpr static double HalfSize = 140.875 / 2.0;
-
+  static constexpr double HalfSize = 140.875 / 2.0;
+  std::vector<Goal> Goals;
+  
   static constexpr float direction_to_sine[] = {0, 1, 0, -1};
   static constexpr float direction_to_cosine[] = {1, 0, -1, 0};
-  
-  std::vector<Goal> Goals;
 };
 
 namespace MCL {
   extern double X, Y, theta;
-
   static constexpr int num_particles = 2000;
-
-  extern mt19937 Random;
-
-  /* Prediction */
-  extern double Velo;
+  
+  extern std::mt19937 Random;
   extern pros::Mutex particle_mutex;
-  /* Update */
+  
+  extern std::vector<Particle> Particles;
+  extern std::vector<MCLDistanceSensor> Sensors;
+  extern Field field_;
 
-    // Double
-    extern double Deviation;
-    extern double weights_sum;
-    extern double start_theta;
+  // --- Helper: Angular Distance ---
+  inline double diffAngle(double a, double b) {
+      double diff = a - b;
+      while (diff > M_PI) diff -= 2 * M_PI;
+      while (diff < -M_PI) diff += 2 * M_PI;
+      return diff;
+  }
 
-    // Static Constants
-    static constexpr double inv_num_particles = 1.0 / num_particles;
-    static constexpr double MAXSTEP = .67;
-    static constexpr double toRad = M_PI / 180.0;
-    static constexpr double sqrt_2_pi = 2.506628275;
-    static constexpr double VeloScale = .1275 * .004;
-    static constexpr double std_sensor = 2.0; // Standard deviation of Distance Sensor (Inches)
-    static constexpr double MIN_WEIGHT = 1e-30;
-    static constexpr double inv_varience = -.5 / (std_sensor * std_sensor);
-    static constexpr double inv_base = 1 / (std_sensor * sqrt_2_pi);
-
-  /* Arrays */
-    // Standard Deviations
-    static constexpr double std_pos [] = {.5, .5, 0};
-    // Starting
-    static constexpr double start_std_pos [] = {6, 6, M_PI / 360};
-  /* Vectors */
-    // Vectors of Particles
-    extern vector<Particle> Particles;
-
-    // Vector of Distance Sensors
-    extern vector<MCLDistanceSensor> Sensors;
-
-    // The Field
-    extern Field field_;
-
-  /* Vectors */
-    extern vector<MCLDistanceSensor> activeSensors;
-
-  /* Helper Functions */
-    extern double getAvgVelocity(void) noexcept;
-
-  /* Start Function */
-    extern void StartMCL(double x_ = 0, double y_ = 0, double theta_ = 0);
-
-  /* Main Loop */
+  // Function Prototypes
+  extern void StartMCL(double x_ = 0, double y_ = 0, double theta_ = 0);
   extern void MonteCarlo(void);
+  extern double getAvgVelocity(void);
 }

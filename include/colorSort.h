@@ -9,4 +9,6 @@ enum Color {
 
 int get_color();
 
-void colorSort(Color color);
+void colorSortFn(const Color allianceColor);
+
+void colorSort(const Color allianceColor);

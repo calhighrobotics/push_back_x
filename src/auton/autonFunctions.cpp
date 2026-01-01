@@ -5,6 +5,7 @@
 #include "lemlib/util.hpp"
 #include "MCL.h"
 #include "pros/rtos.hpp"
+#include <cmath>
 
 void intake(int power = 12000)
 {
@@ -61,7 +62,6 @@ void matchload_state(bool state)
     else if(matchload.is_extended())
     {
         matchload.retract();
-        pros::delay(100);
     }
     else {
         std::cout << "Matchload state unchanged\n" << std::endl;
@@ -78,16 +78,19 @@ void reset_odometry()
 
 }
 
-void matchload_wiggle(int time = 1000)
+void matchload_wiggle(int time = 1000, int speed = 100)
 {
     u_int32_t start_time = pros::millis();
     int sign = 1;
-   while(pros::millis() - start_time < 1000)
+   while(pros::millis() - start_time < time)
    {
         leftMotors.move_voltage(3000 * sign);
         rightMotors.move_voltage(3000 * sign);
         sign *= -1;
+        pros::delay(speed);
    }
+   leftMotors.brake();
+   rightMotors.brake();
 }
 
 void MCL_reset(bool x = true, bool y = true)
@@ -137,6 +140,35 @@ void enable_fused_odometry(bool enable) {
     }
 }
 
+void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true)
+{
+    lemlib::Pose targetPose(
+        expected_x + distance * std::sin(lemlib::degToRad(expected_theta)),
+        expected_y + distance * std::cos(lemlib::degToRad(expected_theta)),
+        expected_theta
+    );
+
+    chassis.moveToPoint(targetPose.x, targetPose.y, timeout_ms, {.forwards = forw});
+}
+
+void matchload_counter(int balls, int time_ms)
+{
+    pros::Task counter_task([=]() {
+        int count = 0;
+        uint32_t start_time = pros::millis();
+        while(pros::millis() - start_time < time_ms && count < balls)
+        {
+            start_time = pros::millis();
+            if(frontDistance.get_object_size() <= 70)
+            {
+                count++;
+            }
+            pros::Task::delay_until(&start_time, 10);
+        }
+        intake_stop();
+        pros::Task::current().remove();
+    });
+}
 
 
 

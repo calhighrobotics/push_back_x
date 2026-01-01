@@ -1,4 +1,5 @@
 #include "globals.h"
+#include "pros/rtos.hpp"
 
 enum Color {
     NONE = 0,
@@ -18,21 +19,27 @@ int get_color() {
     return color;
 }
 
-void colorSort(const Color allianceColor)
+void colorSortFn(const Color allianceColor)
 {
     while(true)
     {
         Color detectedColor = static_cast<Color>(get_color());
         if (detectedColor == RED || detectedColor == BLUE) {
             if (detectedColor == allianceColor) {
-                // Accept the object
-                topMotor.move_velocity(200); // Move motor to accept position
+                topMotor.move_velocity(200);
             } else {
-                // Reject the object
-                topMotor.move_velocity(-200); // Move motor to reject position
+                topMotor.move_velocity(-200); 
             }
-            pros::delay(200); // Wait for sorting action to complete
+            pros::delay(200); 
         }
-        pros::delay(100); // Small delay to prevent excessive polling
+        pros::delay(100);
     }
+}
+
+void colorSort(const Color allianceColor)
+{
+    pros::Task colorSortTask([allianceColor]() {
+        colorSortFn(allianceColor);
+    });
+    
 }

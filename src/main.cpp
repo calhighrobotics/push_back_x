@@ -11,6 +11,39 @@
 #include <string>
 #include "MCL.h"
 
+Alliance currentAlliance = RED_ALLIANCE;
+
+static void alliance_btn_event_handler(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * btn = lv_event_get_target(e);
+    lv_obj_t * label = lv_obj_get_child(btn, 0);
+
+    if(code == LV_EVENT_CLICKED) {
+        if(currentAlliance == RED_ALLIANCE) {
+            currentAlliance = BLUE_ALLIANCE;
+            lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_BLUE), 0);
+            lv_label_set_text(label, "BLUE");
+        } else {
+            currentAlliance = RED_ALLIANCE;
+            lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+            lv_label_set_text(label, "RED");
+        }
+        
+        std::cout << "Alliance switched to: " << (currentAlliance == RED_ALLIANCE ? "Red" : "Blue") << std::endl;
+    }
+}
+
+void create_alliance_selector() {
+    lv_obj_t * btn = lv_btn_create(lv_layer_top());
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
+    lv_obj_set_size(btn, 80, 40);
+    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+    lv_obj_t * label = lv_label_create(btn);
+    lv_label_set_text(label, "RED");
+    lv_obj_center(label);
+    lv_obj_add_event_cb(btn, alliance_btn_event_handler, LV_EVENT_ALL, NULL);
+}
+
 
 rd::Selector selector({
     {"Right", right_auton},
@@ -30,18 +63,19 @@ void initialize() {
     //distance_sensor_disconnect_warning();
 
     //precompute_auton_paths();
-
-
+    /*
+   chassis.setPose(-63.5, -18.5, 180);
    MCL::StartMCL(-63.5, -18.5, 180);
    pros::Task mclTask(MCL::MonteCarlo);
-   chassis.setPose(-63.5, -18.5, 180);
+    */
     console.focus();
+    create_alliance_selector();
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
-            distancePose dpose = distanceReset();
+            //distancePose dpose = distanceReset();
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
@@ -93,9 +127,7 @@ void collect_velocity_vs_voltage_data() {
     std::vector<float> inputs = {
         0.0f,  0.25f, 0.5f,  0.75f, 1.0f,  1.25f, 1.5f,  1.75f, 2.0f,  2.25f,
         2.5f,  2.75f, 3.0f,  3.25f, 3.5f,  3.75f, 4.0f,  4.25f, 4.5f,  4.75f,
-        5.0f,  5.25f, 5.5f,  5.75f, 6.0f,  6.25f, 6.5f,  6.75f, 7.0f,  7.25f,
-        7.5f,  7.75f, 8.0f,  8.25f, 8.5f,  8.75f, 9.0f,  9.25f, 9.5f,  9.75f,
-        10.0f, 10.25f, 10.5f, 10.75f, 11.0f, 11.25f, 11.5f, 11.75f, 12.0f
+        5.0f,  5.25f, 5.5f,  5.75f, 6.0f,  6.25f, 6.5f,  6.75f, 7.0f,
     };
 
     std::vector<float> outputs = {0.f};
@@ -107,7 +139,7 @@ void collect_velocity_vs_voltage_data() {
             continue;
 
         leftMotors.move_voltage(direction * input * 1000);
-        rightMotors.move_voltage(direction * input * 1000);
+        rightMotors.move_voltage(-direction * input * 1000);
 
         pros::delay(1000);
 
@@ -146,7 +178,7 @@ void collect_voltage_step_data(float step_input, unsigned int duration) {
     outputs.reserve(duration);
 
     leftMotors.move_voltage(step_input * 1000);
-    rightMotors.move_voltage(step_input * 1000);
+    rightMotors.move_voltage(-step_input * 1000);
 
     for (int i = 0; i < duration; ++i) {
         auto speed = (std::fabs(leftMotors.get_actual_velocity() * rpm_to_mps_factor) +
@@ -182,20 +214,35 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
     rightMotors.brake();
 
     for (auto &s : logs) std::cout << s, pros::delay(50);
-    cout << "/n";
+    std::cout << "/n";
     for (auto &s : logs2) std::cout << s, pros::delay(50);
 }
 
 
 void autonomous() {
-   awp_auton();
-   //find_tracking_center(6, 4000);
-   //selector.run_auton();
-   //awp_auton();
-   //chassis.turnToHeading(90, 2000);
+   chassis.setPose(0,0,0);
    //collect_velocity_vs_voltage_data();
-   //chassis.moveToPoint(0, 24, 10000);
+   collect_voltage_step_data(5.82062493625, 2);
+   
 }
+
+/*
+
+Straight:
+KV = 5.19338427813
+1.26552223944
+0.676257433253
+11.6978629947
+46.9504105993
+
+Turn:
+7.22576300573
+1.36207946996
+1.54163120695
+19.8980417469
+106.56124453
+
+*/
 
 void opcontrol() {
     while(true)
@@ -225,10 +272,11 @@ void opcontrol() {
         }
         else
         {
-            resting_state();
+            intake_stop();
+            //resting_state();
         }
 
-        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_A))
         {
             throttle = 0;
             steer = 0;
@@ -237,9 +285,13 @@ void opcontrol() {
             leftMotors.brake();
             rightMotors.brake();
         }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
+        {
+            matchload.toggle();
+        }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
         {
-            //basket.toggle();
+            trapDoor.toggle();
         }
         else {
             leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
