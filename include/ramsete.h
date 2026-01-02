@@ -1,7 +1,5 @@
 #pragma once
 
-#include "lemlib/chassis/trackingWheel.hpp"
-#include "main.h"
 #include "Eigen/Dense"
 #include "velocityController.h"
 #include <vector>

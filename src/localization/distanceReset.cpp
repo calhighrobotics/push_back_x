@@ -18,9 +18,9 @@ struct SensorConfig {
     double mounting_angle;
 };
 
-const SensorConfig front_sensor_cfg = {0, -5.25, 0};   
-const SensorConfig left_sensor_cfg  = {-2.5, -5.25, 90};   
-const SensorConfig right_sensor_cfg = {-2.25, 5.25, -90};  
+const SensorConfig front_sensor_cfg = {-2, -5, 0};   
+const SensorConfig left_sensor_cfg  = {0, -5.75, 90};   
+const SensorConfig right_sensor_cfg = {0, 5.75, -90};  
 const SensorConfig back_sensor_cfg  = {-7.5, -4.75, 180}; 
 
 struct SensorReadings {
@@ -185,7 +185,7 @@ distancePose calculateGlobalPosition(
     return pose;
 }
 
-void distanceReset(bool setPose = true) {
+distancePose distanceReset(bool setPose = true) {
     double heading_deg = chassis.getPose().theta;
 
     const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
@@ -194,7 +194,7 @@ void distanceReset(bool setPose = true) {
     const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
+    return pose;
 
 }
 

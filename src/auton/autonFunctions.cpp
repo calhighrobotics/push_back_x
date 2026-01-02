@@ -10,6 +10,8 @@
 void intake(int power = 12000)
 {
     intakeMotor.move_voltage(power);
+    topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    topMotor.brake();
 }
 
 void outtake(int power = 12000)
@@ -51,6 +53,7 @@ void resting_state()
 {
     intake_stop();
     trapDoor.retract();
+    topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
 }
 
 void matchload_state(bool state)

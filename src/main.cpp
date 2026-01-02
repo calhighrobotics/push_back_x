@@ -10,7 +10,7 @@
 #include "warnings.h"
 #include <string>
 #include "MCL.h"
-
+#include "ramsete.h"
 Alliance currentAlliance = RED_ALLIANCE;
 
 static void alliance_btn_event_handler(lv_event_t * e) {
@@ -63,33 +63,35 @@ void initialize() {
     //distance_sensor_disconnect_warning();
 
     //precompute_auton_paths();
-    /*
+
    chassis.setPose(-63.5, -18.5, 180);
    MCL::StartMCL(-63.5, -18.5, 180);
    pros::Task mclTask(MCL::MonteCarlo);
-    */
+
     console.focus();
     create_alliance_selector();
+    chassis.setPose(-63.5, -18.5, 180);
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
+
             //distancePose dpose = distanceReset();
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
-
+            
             /*
-            DISTANCE SENSOR TESTING
             console.printf("D X: %f\n", dpose.x);
             console.printf("D Y: %f\n", dpose.y);
             console.printf("Using X: %d\n", dpose.using_odom_x);
             console.printf("Using Y: %d\n", dpose.using_odom_y);
             */
+            
             console.printf("X MCL: %f\n", MCL::X);
             console.printf("Y MCL: %f\n", MCL::Y);
-
+    
             pros::delay(100);
         }
     });
@@ -218,11 +220,56 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
     for (auto &s : logs2) std::cout << s, pros::delay(50);
 }
 
+const VelocityControllerConfig config{
+(7.22576300573 + 5.19338427813)/2,
+1.3620794699,
+1.26552223944,
+1.54163120695,
+11.6978629947,
+11.6978629947,
+46.9504105993,
+};
+
+
+void velocity_test(const VelocityControllerConfig &config, float max_velocity, int duration, int acceleration_time) {
+    duration /= 10;
+    acceleration_time /= 10;
+
+    VoltageController controller(config.kV, config.KA_straight, config.KA_turn, config.KS_straight, config.KS_turn, config.KP_straight, config.KI_straight, 99999, 11.5);
+
+    std::cout << "\\left[";
+
+    int i;
+    for (i = 0; i < duration; ++i) {
+        auto v_d = max_velocity * fminf(fminf(1, (float)i / (float)acceleration_time),
+                                        (float)(duration - i) / (float)acceleration_time);
+        auto speed = (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2;
+        std::cout << Vector2(i * 0.01f, speed).latex() << ",";
+        std::cout.flush();
+        auto voltage = controller.update(v_d, 0, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
+        leftMotors.move_voltage(voltage.leftVoltage * 1000);
+        rightMotors.move_voltage(voltage.rightVoltage * 1000);
+
+        pros::delay(10);
+    }
+    
+    std::cout << Vector2(0.01f * (float)i, (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2)
+                     .latex()
+              << "\\right]" << std::endl;
+
+    leftMotors.brake();
+    rightMotors.brake();
+
+    
+    std::cout << "\b" << std::endl;
+}
 
 void autonomous() {
-   chassis.setPose(0,0,0);
+   awp_auton();
+   //right_auton();
+   //velocity_test(config, 6, 900, 1);
    //collect_velocity_vs_voltage_data();
-   collect_voltage_step_data(5.82062493625, 2);
+   //collect_voltage_step_data(5.82062493625, 2);
    
 }
 

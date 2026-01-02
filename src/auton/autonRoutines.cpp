@@ -47,12 +47,63 @@ const VelocityControllerConfig config{
 1.54163120695,
 11.6978629947,
 11.6978629947,
-106.56124453,
+46.9504105993,
 };
 
     
-RamsetePathFollower ramsete(config, 2, 0.7);
+RamsetePathFollower ramsete(config,30, 0.8);
+/*
+class Vector2 {
+ public:
+     Vector2(float x, float y) : x(x), y(y) {}
+     std::string latex() const {
+         std::ostringstream oss;
+         oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
+         return oss.str();
+     }
 
+     float x;
+     float y;
+};
+
+const float INCH_TO_METER = 0.0254f;
+const float TRACK_WIDTH = 11.5f;
+
+const float wheel_circumference = lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
+const float gear_ratio = 4.0f / 3.0f;
+
+const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
+
+void velocity_test(const VelocityControllerConfig &config, float max_velocity, int duration, int acceleration_time) {
+    duration /= 10;
+    acceleration_time /= 10;
+
+    VoltageController controller(config.kV, config.KA_straight, config.KA_turn, config.KS_straight, config.KS_turn, config.KP_straight, config.KI_straight, 99999, 11.5);
+
+    std::cout << "\\left[";
+
+    int i;
+    for (i = 0; i < duration; ++i) {
+        auto v_d = max_velocity * fminf(fminf(1, (float)i / (float)acceleration_time),
+                                        (float)(duration - i) / (float)acceleration_time);
+        auto speed = (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2;
+        std::cout << Vector2(i * 0.01f, speed).latex() << ",";
+        std::cout.flush();
+        auto voltage = controller.update(v_d, 0, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
+        leftMotors.move_voltage(voltage.leftVoltage * 1000);
+        rightMotors.move_voltage(voltage.rightVoltage * 1000);
+
+        pros::delay(10);
+    }
+    std::cout << Vector2(0.01f * (float)i, (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2)
+                     .latex()
+              << "\\right]" << std::endl;
+
+    leftMotors.brake();
+    rightMotors.brake();
+    std::cout << "\b" << std::endl;
+}
+*/
 void precompute_auton_paths() {
     std::vector<std::string> paths = {right_1, right_2, left_1, skills_1};
     ramsete.precompute_paths(paths);
@@ -60,26 +111,33 @@ void precompute_auton_paths() {
 
 void right_auton()
 {
-    chassis.setPose(-48.147, -10.576, 115);
+    chassis.setPose(-48, -10.5, 115);
     intake(12000);
-    chassis.turnToPoint(-24, -24, 1000);
-    chassis.moveToPoint(-24, -24, 1000);
+    chassis.turnToPoint(-22, -22, 1000);
+    chassis.moveToPoint(-22, -22, 1000);
+    chassis.waitUntilDone(); 
+    matchload_state(true);
     pros::delay(triball_delay);
+    matchload_state(false);
     //Ramsete path to dual_ball
-    ramsete.followPath(right_1, {.path_index = 1});
+    chassis.turnToPoint(-6, -44, 1000);
+    chassis.moveToPoint(-6, -44,  1000, {.maxSpeed = 60});
+    chassis.waitUntilDone();
+    matchload_state(true);
 
-    pros::delay(dual_ball_delay);
+    pros::delay(dual_ball_delay + 2000);
+
+    matchload_state(false);
 
     //Ramsete backward path to -47, -47
-    ramsete.followPath(right_2, {.backwards = true, .path_index = 2});
+    ramsete.followPath(right_2, {.backwards = true, .log = true, .path_index = 2});
 
     intake_stop();
     chassis.turnToPoint(-72, -48, 1000);
     matchload_state(true);
     chassis.moveToPoint(-72 + matchload_offset, -48, 1000);
     intake();
-    matchload_state(true);
-    pros::delay(matchload_delay);
+    pros::delay(matchload_delay + 1000);
     chassis.moveToPoint(-31, -48, 1000, {.forwards = false});
     chassis.waitUntilDone();
     matchload_state(false);
@@ -88,8 +146,8 @@ void right_auton()
 }
 
 void carry_auton() {
-    chassis.setPose(0,0,0);
-    chassis.moveToPoint(0,12,2000);
+    //chassis.setPose(-24, 24, 90);
+    ramsete.followPath(right_1, {.log = true, .test = true});
 }
 
 void left_auton() {

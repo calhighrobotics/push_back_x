@@ -1,13 +1,12 @@
-#include "ramsete.h" // Ensure this path points to your header file above
+#include "ramsete.h" 
 #include "lemlib/util.hpp"
 #include <cmath>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <algorithm> // For std::replace
+#include <algorithm> 
 
-// --- Constructor Implementation ---
 RamsetePathFollower::RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_)
     : controller(
           config.kV,
@@ -21,20 +20,15 @@ RamsetePathFollower::RamsetePathFollower(const VelocityControllerConfig& config,
           TRACK_WIDTH * INCH_TO_METER
       ), b(b_), zeta(zeta_) {}
 
-// --- followPath Implementation ---
-// Must use 'const std::string&' and 'const ramseteConfig&' to match header
 void RamsetePathFollower::followPath(const std::string& path_name, const ramseteConfig& r_config) {
     std::vector<State> trajectory;
-
-    // Check precomputed paths
-    // Note: Checking against size() ensures we don't access out of bounds
+    float time = 0;
     if(r_config.path_index - 1 >= 0 && (size_t)(r_config.path_index - 1) < precomputed_paths.size()) {
         if (!precomputed_paths.at(r_config.path_index-1).empty()) {
             trajectory = precomputed_paths.at(r_config.path_index-1);
         }
     }
     
-    // If not found in precomputed, parse it now (slower)
     if (trajectory.empty()) {
         trajectory = prepare_trajectory(path_name);
     }
@@ -95,6 +89,7 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
         if(counter + r_config.exit_points >= trajectory_size) break;
         
         counter++;
+        time += 0.01;
         pros::Task::delay_until(&start_time_ms, 10);
     }
     
@@ -111,7 +106,6 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
     }
 }
 
-// --- precompute_paths Implementation ---
 void RamsetePathFollower::precompute_paths(const std::vector<std::string>& path_names) {
     auto* stored = new std::vector<std::string>(path_names);
     pros::Task t(precompute_paths_task, stored);
@@ -130,7 +124,6 @@ void RamsetePathFollower::precompute_paths_task(void* param) {
     delete path_names;
 }
 
-// --- Helper Functions ---
 std::vector<std::pair<double,double>> RamsetePathFollower::parse_pairs(const std::string& line) {
     std::vector<std::pair<double,double>> result;
     std::string temp;
