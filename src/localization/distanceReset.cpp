@@ -18,10 +18,10 @@ struct SensorConfig {
     double mounting_angle;
 };
 
-const SensorConfig front_sensor_cfg = {-2, -5, 0};   
-const SensorConfig left_sensor_cfg  = {0, -5.75, 90};   
-const SensorConfig right_sensor_cfg = {0, 5.75, -90};  
-const SensorConfig back_sensor_cfg  = {-7.5, -4.75, 180}; 
+const SensorConfig front_sensor_cfg = {-0.75, -3.5, 0};   
+const SensorConfig left_sensor_cfg  = {-0.5, -5.1 - 0.7 + 6, 90};   
+const SensorConfig right_sensor_cfg = {-0.5, 5.1 + 0.7 + 0.5 + 2, -90};  
+const SensorConfig back_sensor_cfg  = {-7.5 - 1.2, -2.75, 180}; 
 
 struct SensorReadings {
     double dist_mm;
@@ -168,14 +168,15 @@ distancePose calculateGlobalPosition(
     }
     
     if (!x_cands.empty()) {
-        est_x = std::accumulate(x_cands.begin(), x_cands.end(), 0.0) / x_cands.size();
-        using_odom_x = false;
+    est_x = std::accumulate(x_cands.begin(), x_cands.end(), 0.0) / x_cands.size();
+    using_odom_x = false;
     }
 
     if (!y_cands.empty()) {
         est_y = std::accumulate(y_cands.begin(), y_cands.end(), 0.0) / y_cands.size();
         using_odom_y = false;
     }
+
 
     distancePose pose;
     pose.x = est_x;
@@ -194,14 +195,15 @@ distancePose distanceReset(bool setPose = true) {
     const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    return pose;
+    if(setPose)
+        return pose;
 
 }
 
 distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use, bool setPose) {
     double heading_deg = chassis.getPose().theta; 
 
-    const int invalid_dist_mm = 10000; 
+    const int invalid_dist_mm = 10000;
     const int invalid_confidence = 0; 
 
     SensorReadings front_data = front_use

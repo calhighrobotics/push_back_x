@@ -11,7 +11,8 @@
 #include <string>
 #include "MCL.h"
 #include "ramsete.h"
-Alliance currentAlliance = RED_ALLIANCE;
+
+Color currentAlliance = Color::RED;
 
 static void alliance_btn_event_handler(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
@@ -19,17 +20,17 @@ static void alliance_btn_event_handler(lv_event_t * e) {
     lv_obj_t * label = lv_obj_get_child(btn, 0);
 
     if(code == LV_EVENT_CLICKED) {
-        if(currentAlliance == RED_ALLIANCE) {
-            currentAlliance = BLUE_ALLIANCE;
+        if(currentAlliance == RED) {
+            currentAlliance = Color::BLUE;
             lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_BLUE), 0);
             lv_label_set_text(label, "BLUE");
         } else {
-            currentAlliance = RED_ALLIANCE;
+            currentAlliance = Color::RED;
             lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
             lv_label_set_text(label, "RED");
         }
         
-        std::cout << "Alliance switched to: " << (currentAlliance == RED_ALLIANCE ? "Red" : "Blue") << std::endl;
+        std::cout << "Alliance switched to: " << (currentAlliance == Color::RED ? "Red" : "Blue") << std::endl;
     }
 }
 
@@ -63,21 +64,21 @@ void initialize() {
     //distance_sensor_disconnect_warning();
 
     //precompute_auton_paths();
-
+    /*
    chassis.setPose(-63.5, -18.5, 180);
    MCL::StartMCL(-63.5, -18.5, 180);
    pros::Task mclTask(MCL::MonteCarlo);
+    */
 
     console.focus();
     create_alliance_selector();
-    chassis.setPose(-63.5, -18.5, 180);
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
 
-            //distancePose dpose = distanceReset();
+            //distancePose dpose = distanceReset(false);
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
@@ -89,9 +90,10 @@ void initialize() {
             console.printf("Using Y: %d\n", dpose.using_odom_y);
             */
             
+            /*
             console.printf("X MCL: %f\n", MCL::X);
             console.printf("Y MCL: %f\n", MCL::Y);
-    
+            */
             pros::delay(100);
         }
     });
@@ -126,11 +128,11 @@ class Vector2 {
     };
 
 void collect_velocity_vs_voltage_data() {
-    std::vector<float> inputs = {
-        0.0f,  0.25f, 0.5f,  0.75f, 1.0f,  1.25f, 1.5f,  1.75f, 2.0f,  2.25f,
-        2.5f,  2.75f, 3.0f,  3.25f, 3.5f,  3.75f, 4.0f,  4.25f, 4.5f,  4.75f,
-        5.0f,  5.25f, 5.5f,  5.75f, 6.0f,  6.25f, 6.5f,  6.75f, 7.0f,
-    };
+  std::vector<float> inputs = {
+    0.0f,  0.5f,  1.0f,  1.5f,  2.0f,  2.5f,  3.0f,  3.5f,  4.0f,  4.5f,
+    5.0f,  5.5f,  6.0f,  6.5f,  7.0f,  7.5f,  8.0f,  8.5f,  9.0f,  9.5f,
+    10.0f, 10.5f, 11.0f, 11.5f, 12.0f
+};
 
     std::vector<float> outputs = {0.f};
     outputs.reserve(inputs.size());
@@ -148,8 +150,7 @@ void collect_velocity_vs_voltage_data() {
         float v_sum = 0;
         int n;
         for (n = 0; n < 500; ++n) {
-            v_sum += (std::fabs(leftMotors.get_actual_velocity() * rpm_to_mps_factor) +
-                      std::fabs(rightMotors.get_actual_velocity() * rpm_to_mps_factor)) / 2;
+            v_sum += std::fabs(imu.get_gyro_rate().z * M_PI / 180);
         }
 
         outputs.emplace_back(v_sum / (float)n);
@@ -161,7 +162,10 @@ void collect_velocity_vs_voltage_data() {
             rightMotors.move_voltage(v);
             pros::delay(10);
         }
-
+        if(input >= 6)
+        {
+            pros::delay(5000);
+        }
         direction = -direction;
     }
 
@@ -174,7 +178,7 @@ void collect_velocity_vs_voltage_data() {
     std::cout << "\b" << std::endl;
 }
 
-void collect_voltage_step_data(float step_input, unsigned int duration) {
+void collect_voltage_step_data(float step_input, float duration) {
     std::vector<float> outputs = {};
     duration *= 100;
     outputs.reserve(duration);
@@ -183,8 +187,7 @@ void collect_voltage_step_data(float step_input, unsigned int duration) {
     rightMotors.move_voltage(-step_input * 1000);
 
     for (int i = 0; i < duration; ++i) {
-        auto speed = (std::fabs(leftMotors.get_actual_velocity() * rpm_to_mps_factor) +
-                      std::fabs(rightMotors.get_actual_velocity() * rpm_to_mps_factor)) / 2;
+        auto speed = std::fabs(imu.get_gyro_rate().z * M_PI / 180);
         std::cout << Vector2((float)i / 100, speed).latex() << "," << std::flush;
         pros::delay(10);
     }
@@ -206,7 +209,7 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
         leftMotors.move_voltage(turnVoltage * 1000);
         rightMotors.move_voltage(-turnVoltage * 1000);
 
-        auto pose = chassis.getPose(false);  // don't estimate
+        auto pose = chassis.getPose(false); 
         logs.push_back("(" + std::to_string(pose.x) + "," + std::to_string(pose.y) + "),");
         logs2.push_back(std::to_string(pose.theta) + ",");
 
@@ -219,43 +222,41 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
     std::cout << "/n";
     for (auto &s : logs2) std::cout << s, pros::delay(50);
 }
-
 const VelocityControllerConfig config{
-(7.22576300573 + 5.19338427813)/2,
-1.3620794699,
-1.26552223944,
-1.54163120695,
-11.6978629947,
-11.6978629947,
-46.9504105993,
+5.8432642308,
+0.213526937516,
+1.14429410811,
+0.906356177095,
+0.347072436421,
+11.4953431776,
+54.5797495382,
 };
+
 
 
 void velocity_test(const VelocityControllerConfig &config, float max_velocity, int duration, int acceleration_time) {
     duration /= 10;
     acceleration_time /= 10;
 
-    VoltageController controller(config.kV, config.KA_straight, config.KA_turn, config.KS_straight, config.KS_turn, config.KP_straight, config.KI_straight, 99999, 11.5);
+    VoltageController controller(config.kV, config.KA_straight, config.KA_turn, config.KS_straight, config.KS_turn, config.KP_straight, config.KI_straight, 99999, 12.8 * INCH_TO_METER);
 
-    std::cout << "\\left[";
+    //std::cout << "\\left[";
 
     int i;
     for (i = 0; i < duration; ++i) {
         auto v_d = max_velocity * fminf(fminf(1, (float)i / (float)acceleration_time),
                                         (float)(duration - i) / (float)acceleration_time);
-        auto speed = (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2;
-        std::cout << Vector2(i * 0.01f, speed).latex() << ",";
+        //auto speed = (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2;
+        //std::cout << Vector2(i * 0.01f, v_d).latex() << ",";
+        float velocity = std::fabs(imu.get_gyro_rate().z * M_PI/180.0f);
+        std::cout << Vector2(i * 0.01f, velocity).latex() << ",";
         std::cout.flush();
-        auto voltage = controller.update(v_d, 0, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
+        auto voltage = controller.update(0, v_d, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
         leftMotors.move_voltage(voltage.leftVoltage * 1000);
         rightMotors.move_voltage(voltage.rightVoltage * 1000);
 
         pros::delay(10);
     }
-    
-    std::cout << Vector2(0.01f * (float)i, (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2)
-                     .latex()
-              << "\\right]" << std::endl;
 
     leftMotors.brake();
     rightMotors.brake();
@@ -265,12 +266,14 @@ void velocity_test(const VelocityControllerConfig &config, float max_velocity, i
 }
 
 void autonomous() {
-   awp_auton();
+    chassis.setPose(0,0,0);
+   //awp_auton();
    //right_auton();
    //velocity_test(config, 6, 900, 1);
    //collect_velocity_vs_voltage_data();
-   //collect_voltage_step_data(5.82062493625, 2);
-   
+   //collect_voltage_step_data(6, 3);
+   //velocity_test(config, 5, 5000,1000);
+   carry_auton();
 }
 
 /*
@@ -292,6 +295,7 @@ Turn:
 */
 
 void opcontrol() {
+    colorSort(currentAlliance);
     while(true)
     {
         int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);

@@ -82,6 +82,7 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
 
         if(r_config.log) {
             std::ostringstream ss;
+            //ss << Vector2(time, leftMotors.get_actual_velocity() * rpm_to_mps_factor).latex() << ",";
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
             logs.push_back(ss.str());
         }
@@ -93,8 +94,8 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
         pros::Task::delay_until(&start_time_ms, 10);
     }
     
-    chassis.moveToPose(trajectory.back().x / INCH_TO_METER, trajectory.back().y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 1000);
-    chassis.waitUntilDone();
+    //chassis.moveToPose(trajectory.back().x / INCH_TO_METER, trajectory.back().y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 1000);
+    //chassis.waitUntilDone();
     rightMotors.brake();
     leftMotors.brake();
 

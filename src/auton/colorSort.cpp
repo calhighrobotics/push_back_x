@@ -10,10 +10,10 @@ enum Color {
 int get_color() {
     double hue = color_sensor.get_hue();
     Color color = NONE;
-    if ((hue > 0 && hue < 50) || (hue > 310 && hue < 361)) {
+    if ((hue > 40 && hue < 60)) {
         color = RED;
     }
-    else if (hue > 150 && hue < 270) {
+    else if (hue > 100 && hue < 150) {
         color = BLUE;
     }
     return color;
@@ -26,11 +26,12 @@ void colorSortFn(const Color allianceColor)
         Color detectedColor = static_cast<Color>(get_color());
         if (detectedColor == RED || detectedColor == BLUE) {
             if (detectedColor == allianceColor) {
-                topMotor.move_velocity(200);
+                //topMotor.move_velocity(200);
             } else {
-                topMotor.move_velocity(-200); 
+                topMotor.move_voltage(-8 * 1000);
             }
             pros::delay(200); 
+            topMotor.brake();
         }
         pros::delay(100);
     }

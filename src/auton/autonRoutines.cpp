@@ -15,18 +15,18 @@
 /*
 
 Straight:
-KV = 5.19338427813
-1.26552223944
-0.676257433253
-11.6978629947
-46.9504105993
+KV = 5.83366315659
+1.14915679465
+0.277890461166
+11.8794542097
+59.3640060487
 
 Turn:
-7.22576300573
-1.36207946996
-1.54163120695
-19.8980417469
-106.56124453
+6.69921571762
+1.01377617649
+0.956265367397
+14.8634454339
+101.977995601
 
 */
 
@@ -41,17 +41,17 @@ const int triball_delay = 500;
 const int dual_ball_delay = 500;
 
 const VelocityControllerConfig config{
-(7.22576300573 + 5.19338427813)/2,
-1.3620794699,
-1.26552223944,
-1.54163120695,
-11.6978629947,
-11.6978629947,
-46.9504105993,
+5.8432642308,
+0.213526937516,
+1.14429410811,
+0.906356177095,
+0.347072436421,
+11.4953431776,
+54.5797495382,
 };
 
     
-RamsetePathFollower ramsete(config,30, 0.8);
+RamsetePathFollower ramsete(config,1, 0.9);
 /*
 class Vector2 {
  public:
@@ -147,7 +147,7 @@ void right_auton()
 
 void carry_auton() {
     //chassis.setPose(-24, 24, 90);
-    ramsete.followPath(right_1, {.log = true, .test = true});
+    ramsete.followPath(test_path, {.log = true, .test = true});
 }
 
 void left_auton() {
