@@ -70,8 +70,11 @@ void initialize() {
    pros::Task mclTask(MCL::MonteCarlo);
     */
 
+    /*
+    chassis.setPose(-48.5, -54.56, 270);
     console.focus();
     create_alliance_selector();
+    */
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
@@ -90,10 +93,10 @@ void initialize() {
             console.printf("Using Y: %d\n", dpose.using_odom_y);
             */
             
-            /*
+            
             console.printf("X MCL: %f\n", MCL::X);
             console.printf("Y MCL: %f\n", MCL::Y);
-            */
+            
             pros::delay(100);
         }
     });
@@ -273,7 +276,11 @@ void autonomous() {
    //collect_velocity_vs_voltage_data();
    //collect_voltage_step_data(6, 3);
    //velocity_test(config, 5, 5000,1000);
-   carry_auton();
+   //carry_auton();
+   awp_auton();
+   //right_auton();
+   //chassis.turnToHeading(125, 10000);
+   //chassis.moveToPoint(12, 24, 10000);
 }
 
 /*
@@ -296,6 +303,7 @@ Turn:
 
 void opcontrol() {
     colorSort(currentAlliance);
+    bool trapDoor_commanded = false;
     while(true)
     {
         int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
@@ -321,13 +329,12 @@ void opcontrol() {
         {
             intake_to_basket();
         }
-        else
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
         {
-            intake_stop();
-            //resting_state();
+            if(descore.is_extended())
+                descore.retract();
         }
-
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_A))
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
         {
             throttle = 0;
             steer = 0;
@@ -336,18 +343,24 @@ void opcontrol() {
             leftMotors.brake();
             rightMotors.brake();
         }
+        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_X))
+        {
+            if(!trapDoor.is_extended())
+                trapDoor.extend();
+        }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         {
             matchload.toggle();
         }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
+        else
         {
-            trapDoor.toggle();
+            resting_state();
         }
-        else {
-            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-        }
+
+        
+        
+        
+
 
 
 

@@ -39,15 +39,15 @@ lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib:
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(10, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(11, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              30, // derivative gain (kD)
+                                              40, // derivative gain (kD)
                                               3, // anti windup
                                               0.2, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
                                               0, // large error range, in inches
                                               0, // large error range timeout, in milliseconds
-                                              20 // maximum acceleration (slew)
+                                              15 // maximum acceleration (slew)
 );
 
 // angular PID controller
@@ -63,15 +63,15 @@ lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
 );
 
 lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
-                                      10,   // minimum output where drivetrain will move out of 127
-                                      1.02 // expo curve gain
+                                            10,   // minimum output where drivetrain will move out of 127
+                                            1.01 // expo curve gain
 );
 
-// input curve for steer input during driver control
-lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
-                                  5, // minimum output where drivetrain will move out of 127
-                                  1.025 // expo curve gain
+lemlib::ExpoDriveCurve steer_curve(5,   // joystick deadband out of 127
+                                         10,   // minimum output where drivetrain will move out of 127
+                                         1.02 // expo curve gain
 );
+
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
@@ -87,6 +87,7 @@ pros::Distance backDistance(11);
 pros::adi::Pneumatics trapDoor('A', false);
 pros::adi::Pneumatics matchload('B', false);
 pros::adi::Pneumatics basket('C', false);
+pros::adi::Pneumatics descore('D', true);
 
 pros::Optical color_sensor(14);
 

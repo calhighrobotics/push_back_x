@@ -17,6 +17,8 @@ public:
         float zeta = 0.7f;
         int exit_points = 5;
         bool test = false;
+        bool turnFirst = false;
+        bool end_correction = false;
     };
 
     // Constructor

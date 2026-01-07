@@ -52,6 +52,7 @@ void resting_state()
     intake_stop();
     trapDoor.retract();
     topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+    descore.extend();
 }
 
 void matchload_state(bool state)
@@ -141,7 +142,7 @@ void enable_fused_odometry(bool enable) {
     }
 }
 
-void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true)
+void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true, float earlyExit = 0)
 {
     lemlib::Pose targetPose(
         expected_x + distance * std::sin(lemlib::degToRad(expected_theta)),
@@ -149,7 +150,7 @@ void relativeMotion(float expected_x, float expected_y, float expected_theta, fl
         expected_theta
     );
 
-    chassis.moveToPoint(targetPose.x, targetPose.y, timeout_ms, {.forwards = forw});
+    chassis.moveToPoint(targetPose.x, targetPose.y, timeout_ms, {.forwards = forw, .earlyExitRange = earlyExit});
 }
 
 void matchload_counter(int balls, int time_ms)

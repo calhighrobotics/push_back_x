@@ -19,10 +19,10 @@ namespace MCL {
   vector<Particle> Particles(num_particles); 
 
   vector<MCLDistanceSensor> Sensors = {
-   MCLDistanceSensor(frontDistance, Point(-3.5, -0.75), FRONT),
-   MCLDistanceSensor(rightDistance, Point(-5.25, -0.5), RIGHT),
-   MCLDistanceSensor(leftDistance, Point(8.3, -0.5), LEFT),
-   MCLDistanceSensor(backDistance, Point(-2.75, -8.7), BACK),
+   MCLDistanceSensor(frontDistance, Point(-3, -0.75), FRONT),
+   MCLDistanceSensor(rightDistance, Point(6.3, -0.5), RIGHT),
+   MCLDistanceSensor(leftDistance, Point(-6.9, -0.5), LEFT),
+   MCLDistanceSensor(backDistance, Point(-2.75, -10), BACK),
  };
 
   Field field_;

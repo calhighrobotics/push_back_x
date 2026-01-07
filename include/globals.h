@@ -54,6 +54,7 @@ extern pros::Distance backDistance;
 extern pros::adi::Pneumatics trapDoor;
 extern pros::adi::Pneumatics matchload;
 extern pros::adi::Pneumatics basket;
+extern pros::adi::Pneumatics descore;
 
 extern pros::Optical color_sensor;
 

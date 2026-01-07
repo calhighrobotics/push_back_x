@@ -21,11 +21,12 @@ RamsetePathFollower::RamsetePathFollower(const VelocityControllerConfig& config,
       ), b(b_), zeta(zeta_) {}
 
 void RamsetePathFollower::followPath(const std::string& path_name, const ramseteConfig& r_config) {
+    chassis.waitUntilDone();
     std::vector<State> trajectory;
     float time = 0;
-    if(r_config.path_index - 1 >= 0 && (size_t)(r_config.path_index - 1) < precomputed_paths.size()) {
-        if (!precomputed_paths.at(r_config.path_index-1).empty()) {
-            trajectory = precomputed_paths.at(r_config.path_index-1);
+    if(r_config.path_index  >= 0 && (size_t)(r_config.path_index) < precomputed_paths.size()) {
+        if (!precomputed_paths.at(r_config.path_index).empty()) {
+            trajectory = precomputed_paths.at(r_config.path_index);
         }
     }
     
@@ -39,7 +40,9 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
     
     if(r_config.test)
         chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
-    
+
+    if(r_config.turnFirst)
+        chassis.turnToHeading(r_config.backwards ? lemlib::radToDeg(M_PI_2 - trajectory[0].heading) + 180 : lemlib::radToDeg(M_PI_2 - trajectory[0].heading), 1000);
     std::vector<std::string> logs;
     int counter = 0;
 
@@ -87,15 +90,17 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
             logs.push_back(ss.str());
         }
 
-        if(counter + r_config.exit_points >= trajectory_size) break;
+        if(counter + r_config.exit_points >= trajectory_size && !r_config.test) break;
         
         counter++;
         time += 0.01;
         pros::Task::delay_until(&start_time_ms, 10);
     }
-    
-    //chassis.moveToPose(trajectory.back().x / INCH_TO_METER, trajectory.back().y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 1000);
-    //chassis.waitUntilDone();
+    if(!r_config.test && r_config.end_correction)
+    {
+        chassis.moveToPose(trajectory.back().x / INCH_TO_METER, trajectory.back().y / INCH_TO_METER, lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 300);
+        chassis.waitUntilDone();
+    }
     rightMotors.brake();
     leftMotors.brake();
 
