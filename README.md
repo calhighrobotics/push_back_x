@@ -14,12 +14,18 @@ We are a VEX VRC team based in the Bay Area, California.
    - Post motor disconnet warnings on controller to inform driver of disfunctional robot operations
  - Temperature Warning:
    - Controller warning when motor is overheating to prevent motor abuse
+ - Distance Sensor Disconnect Warning:
+   - Controller warning when motor is overheating to prevent fault distance resets
 # Autonomous Features:
- - Voltage controller based on PID and feedforward loop to account for static)
+ - Arc based odometry inspired by the Pilons:
+   - Utilizes 2 odometry tracking wheels (horizontal and vertical)
+   - Utilizes IMU for heading and acceleration
+ - Voltage controller based on PID and feedforward loop to account for static friction, voltage slip, etc.
  - RAMSETE Control:
    - uses odometry to correct error in motion based on set of velocity instructions and corresponding positions
    - convert relative error between current and expected positions to global error
    - produce exaggerated linear and angular velocity based on correction required
+   - Current velocity calculated by averaging motor encoders for more accurate tangential velocity calculations (Victim to slip and encoder noise)
  - Vision-based Control:
    - Use VEX vision sensor for object detection
    - Detects blocks on the field
@@ -36,6 +42,16 @@ We are a VEX VRC team based in the Bay Area, California.
    - ignore invalid sensor readings (beyond distance limit)
    - rotate relative reading to global distances using robot heading
    - return estimated global position for odometry recalibration
+ - Monte Carlo Localization:
+   - Uses advanced particle filter for robot pose localization in 2d space
+   - Current performance runs around 2000 particles (10ms) and 5000 particles (33ms (distance sensor refresh time))
+   - Utilizes raycast and line intersection logic for map based local known MCL
+   - Robust MCL in progress for more accurate sensor likelyhood model
+ - Color Sorting:
+   - Using optical sensor for color signature identification as well as sorting
+   - Through the use of our topMotor, we are able to eject blocks of the other alliance
+   - In skills we are able to utilize this for storing/separating blocks of different color for control bonus
+   - Uses both simple blocking function as well as "multithreading" (TASK)
  - Codebase:
    - Meticulous branching/merging system with github
    - Object-oriented approach to codebase system representations
