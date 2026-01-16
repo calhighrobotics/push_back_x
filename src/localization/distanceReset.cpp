@@ -7,7 +7,7 @@ const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
 const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
 const double HALF_WIDTH = FIELD_WIDTH / 2.0;
 const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
-const double MAX_SENSOR_RANGE = 1500 * MM_TO_IN;
+const double MAX_SENSOR_RANGE = 2000 * MM_TO_IN;
 const double MIN_SENSOR_RANGE = 10 * MM_TO_IN;
 
 bool controller_screen_avilable;
@@ -196,7 +196,8 @@ distancePose distanceReset(bool setPose = false) {
 
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
     if(setPose)
-        return pose;
+        chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
+    return pose;
 }
 
 distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use, bool setPose) {

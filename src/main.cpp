@@ -75,23 +75,25 @@ void initialize() {
     console.focus();
     create_alliance_selector();
     */
+    console.focus();
+    chassis.setPose(-47, 47, 270);
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
 
-            //distancePose dpose = distanceReset(false);
+            distancePose dpose = distanceReset(false);
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
             
-            /*
+            
             console.printf("D X: %f\n", dpose.x);
             console.printf("D Y: %f\n", dpose.y);
             console.printf("Using X: %d\n", dpose.using_odom_x);
             console.printf("Using Y: %d\n", dpose.using_odom_y);
-            */
+            
             
             
             console.printf("X MCL: %f\n", MCL::X);
@@ -270,17 +272,9 @@ void velocity_test(const VelocityControllerConfig &config, float max_velocity, i
 
 void autonomous() {
     chassis.setPose(0,0,0);
+   //elim_auton();
+   skills_auton();
    //awp_auton();
-   //right_auton();
-   //velocity_test(config, 6, 900, 1);
-   //collect_velocity_vs_voltage_data();
-   //collect_voltage_step_data(6, 3);
-   //velocity_test(config, 5, 5000,1000);
-   //carry_auton();
-   awp_auton();
-   //right_auton();
-   //chassis.turnToHeading(125, 10000);
-   //chassis.moveToPoint(12, 24, 10000);
 }
 
 /*
