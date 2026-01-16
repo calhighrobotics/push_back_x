@@ -1,9 +1,4 @@
-#include "lemlib/chassis/chassis.hpp"
-#include "main.h"
 #include "globals.h" 
-#include "pros/misc.h"
-#include "lemlib/api.hpp"
-#include "lemlib/util.hpp"
 #include "auton/autonFunctions.h"
 #include "pros/rtos.hpp"
 #include "velocityController.h"
@@ -12,6 +7,7 @@
 #include "distanceReset.h"
 #include "MCL.h"
 #include "colorSort.h"
+#include "crossBarrierDetection.h"
 
 /*
 
@@ -202,50 +198,7 @@ void left_auton() {
 }
 
 void elim_auton() {
-    chassis.setPose(0, 0, 0);
-   pros::lcd::print(0, "x: %.2f y: %.2f theta: %.2f", chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta);
-	chassis.moveToPose(-17, -30, 90, 1250, {.forwards = false, .horizontalDrift = 2, .lead = 0.3});
-	chassis.waitUntilDone();
-	chassis.moveToPoint(16, -30, 2000, {.forwards = true, .minSpeed = 100});
-	chassis.waitUntilDone();
-	chassis.moveToPose(27, 0, 0, 3000, {.forwards = true, .horizontalDrift = 2, .lead = 0.5, .minSpeed = 70});
-	chassis.waitUntilDone();
-	chassis.turnToHeading(0, 2000, {}, true);
-   chassis.waitUntilDone();
-   pros::delay(200);
-   int tube = (chassis.getPose().x + ((frontDistance.get_distance() - 440) / 25.4));
-   pros::screen::print(pros::E_TEXT_MEDIUM, 4, "tube pos: %d, dis: %d, current: %2f", tube, frontDistance.get_distance(), chassis.getPose().x);
-   pros::delay(200);
-   pros::delay(200);
-	chassis.moveToPose(tube, 20, 0, 1000, {.forwards = true, .maxSpeed = 80, .minSpeed = 70});
-   chassis.waitUntilDone();
-   chassis.moveToPoint(chassis.getPose().x, 22, 700, {.forwards = true, .minSpeed = 100});
-	for(int i = 0; i<2; i++){
-		chassis.moveToPoint(chassis.getPose().x, 21, 700, {.forwards = false, .minSpeed = 70});
-		chassis.moveToPoint(chassis.getPose().x, 22, 1000, {.forwards = true, .minSpeed = 100});
-	}
-   pros::delay(2000);
-
-   chassis.moveToPose(tube, -5, 0, 1000, {.forwards = false});
-   chassis.turnToHeading(0, 2000, {}, true);
-   chassis.waitUntilDone();
-   pros::delay(200);
-   int goal = (chassis.getPose().x + ((frontDistance.get_distance() - 395) / 25.4));
-   pros::screen::print(pros::E_TEXT_MEDIUM, 6, "goal pos: %d, dis: %d, current: %2f", goal, frontDistance.get_distance(), chassis.getPose().x);
-   pros::delay(500);
-	chassis.moveToPose(goal, -22, 0, 2000, {.forwards = false, .horizontalDrift = 2, .lead = 0.4});
-   chassis.waitUntilDone();
-	chassis.moveToPose(12, -2, 270, 7000, {.forwards = true, .horizontalDrift = 2, .lead = 0.6, .minSpeed = 90, .earlyExitRange = 0.5});
-	chassis.moveToPose(2, -60, 180, 3000, {.forwards = true, .horizontalDrift = 2, .lead = 0.5});
-   chassis.turnToHeading(180, 2000);
-   chassis.waitUntilDone();
-   chassis.moveToPoint(2, -100, 7000, {.forwards = true});
-   chassis.waitUntilDone();
-   
-
-   chassis.turnToHeading(180, 2000, {}, true);
-   chassis.waitUntilDone();
-   pros::delay(500);
+    crossBarrier();
 }
 
 void awp_auton() {
@@ -354,6 +307,8 @@ void awp_auton() {
 }
 
 void skills_auton() {
+    descore.extend();
+    color_sort_enable = false;
 
     const int longgoal_delay = 1100;
     const int midgoal_delay = 1000;
@@ -365,6 +320,8 @@ void skills_auton() {
     const int triball_delay = 500;
     const int dual_ball_delay = 500;
     const float starting_pitch = imu.get_pitch();
+
+
     chassis.setPose(-55, 0, 270);
     chassis.tank(90, 90);
     pros::delay(1200);
@@ -383,24 +340,19 @@ void skills_auton() {
     chassis.setPose(pose.x, pose.y, 270);
     chassis.turnToPoint(-24, 24, 1000);
     chassis.moveToPoint(-24, 24, 2000);
-    chassis.turnToPoint(-11.5, 11.5, 1000, {.forwards = false});
-    chassis.moveToPoint(-11.5, 11.5, 1500, {.forwards = false});
-    chassis.waitUntilDone();
+    chassis.turnToPoint(-12.3, 14.2, 1000, {.forwards = false});
+    chassis.moveToPoint(-12.3, 14.2, 1500, {.forwards = false}, false);
     
-    chassis.turnToPoint(-47, 50, 1000);
-    chassis.moveToPoint(-47, 50, 2000);
-    chassis.turnToPoint(-72 + matchload_offset, 51, 1000);
-    chassis.waitUntilDone();
+    chassis.turnToPoint(-45, 54, 1000);
+    chassis.moveToPoint(-45, 54, 2000);
+    chassis.turnToPoint(-72 + matchload_offset, 47.5, 1000, {}), false;
     distanceReset(true);
-    chassis.moveToPoint(-72 + matchload_offset, 51, 1500);
-    chassis.waitUntilDone();
+    chassis.moveToPoint(-72 + matchload_offset, 47.5, 1500, {}, false);
     ramsete.followPath(skills_1, {.backwards = true});
-    chassis.moveToPoint(22 + longgoal_offset, 62, 3000, {.forwards = false, .maxSpeed = 90});
-    chassis.waitUntilDone();
+    chassis.moveToPoint(22 + longgoal_offset, 62, 3000, {.forwards = false, .maxSpeed = 90}, false);
     distanceReset(true);
-    chassis.turnToPoint(47, 48, 1500, {.forwards = false});
+    chassis.turnToPoint(45, 48, 1500, {.forwards = false});
     chassis.moveToPoint(47, 48, 2000, {.forwards = false});
-    chassis.waitUntilDone();
     chassis.turnToPoint(22 + longgoal_offset - 2, 48, 1000, {.forwards = false}, false);
     distanceReset(true);
     chassis.moveToPoint(22 + longgoal_offset - 2, 48, 1500, {.forwards = false}, false);
