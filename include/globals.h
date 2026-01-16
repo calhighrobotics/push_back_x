@@ -8,6 +8,7 @@
 #include "pros/motors.h"
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
+#include "colorSort.h"
 
 
 struct State {
@@ -59,4 +60,7 @@ extern pros::adi::Pneumatics descore;
 extern pros::Optical color_sensor;
 
 extern pros::Vision vision_sensor;
+
+extern Color allianceColor;
+extern bool color_sort_enable;
 

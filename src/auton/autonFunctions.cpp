@@ -6,6 +6,7 @@
 #include "MCL.h"
 #include "pros/rtos.hpp"
 #include <cmath>
+#include "colorSort.h"
 
 void intake(int power = 12000)
 {
@@ -22,23 +23,22 @@ void score_bottomgoal(int power = 12000)
     intakeMotor.move_voltage(-power);
 }
 
-void score_longgoal(int power = 12000)
+void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
 {
     intake(power);
-    topMotor.move_voltage(power);
-}
+    if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
+    {
+        pros::delay(35);
+        topMotor.move_voltage(-12000);
+        std::cout << "Color Rejected" << std::endl;
+    }
+    else
+    {
+        pros::delay(35);
+        topMotor.move_voltage(power);
+        std::cout << "Color Accepted" << std::endl;
+    }
 
-void score_midgoal(int power = 12000)
-{
-    intake(power);
-    topMotor.move_voltage(power);
-    if(!trapDoor.is_extended()) trapDoor.extend();
-}
-
-void intake_to_basket()
-{
-    intake();
-    topMotor.move_voltage(-6000);
 }
 
 void intake_stop()
@@ -47,10 +47,44 @@ void intake_stop()
     topMotor.move_voltage(0);
 }
 
-void resting_state()
+void score_midgoal(int power = 12000)
+{
+    if(get_color() != allianceColor)
+    {
+        pros::delay(35);
+        topMotor.move_voltage(-8000);
+    }
+    else {
+        pros::delay(35);
+        topMotor.move_voltage(12000);
+    }
+
+    pros::delay(200);
+    intake(power);
+    topMotor.move_voltage(power);
+    if(!trapDoor.is_extended()) trapDoor.extend();
+}
+
+void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
+{
+    leftMotors.move(-20);
+    rightMotors.move(-20);
+    score_longgoal(power, allianceColor);
+}
+
+void intake_to_basket()
+{
+    intake();
+    topMotor.move_voltage(-6000);
+}
+
+
+
+void resting_state(bool trapDoor_commanded = false)
 {
     intake_stop();
-    trapDoor.retract();
+    if(!trapDoor_commanded)
+        trapDoor.retract();
     topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
     descore.extend();
 }

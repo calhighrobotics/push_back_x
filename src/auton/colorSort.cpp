@@ -1,19 +1,14 @@
 #include "globals.h"
 #include "pros/rtos.hpp"
 
-enum Color {
-    NONE = 0,
-    RED = 1,
-    BLUE = 2
-};
 
-int get_color() {
+Color get_color() {
     double hue = color_sensor.get_hue();
     Color color = NONE;
-    if ((hue > 40 && hue < 60)) {
+    if ((hue > 10 && hue < 30)) {
         color = RED;
     }
-    else if (hue > 100 && hue < 150) {
+    else if (hue > 190 && hue < 250) {
         color = BLUE;
     }
     return color;

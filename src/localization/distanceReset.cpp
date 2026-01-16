@@ -7,7 +7,7 @@ const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
 const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
 const double HALF_WIDTH = FIELD_WIDTH / 2.0;
 const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
-const double MAX_SENSOR_RANGE = 2000 * MM_TO_IN;
+const double MAX_SENSOR_RANGE = 1500 * MM_TO_IN;
 const double MIN_SENSOR_RANGE = 10 * MM_TO_IN;
 
 bool controller_screen_avilable;
@@ -19,9 +19,9 @@ struct SensorConfig {
 };
 
 const SensorConfig front_sensor_cfg = {-0.75, -3, 0};   
-const SensorConfig left_sensor_cfg  = {-0.5, -6.9, 90};   
+const SensorConfig left_sensor_cfg  = {-0.5, -6.4, 90};   
 const SensorConfig right_sensor_cfg = {-0.5, 6.3, -90};  
-const SensorConfig back_sensor_cfg  = {-9, -2.75, 180}; 
+const SensorConfig back_sensor_cfg  = {-10.5, -3, 180}; 
 
 struct SensorReadings {
     double dist_mm;

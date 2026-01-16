@@ -1,5 +1,4 @@
 #pragma once
-#include "globals.h"
 
 enum Color {
     NONE = 0,
@@ -7,7 +6,7 @@ enum Color {
     BLUE = 2
 };
 
-int get_color();
+Color get_color();
 
 void colorSortFn(const Color allianceColor);
 

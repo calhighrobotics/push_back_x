@@ -112,52 +112,49 @@ void precompute_auton_paths() {
 
 void right_auton()
 {
-    chassis.setPose(-48, -10.5, 115);
-    intake(12000);
-    chassis.moveToPoint(-22, -24,550);
-    chassis.waitUntil(10.5); 
-    matchload_state(true);
-    pros::delay(100);
-    matchload_state(false);
-    //Ramsete path to dual_ball
-    //ramsete.followPath(right_1, {.exit_points = 0, .end_correction = false});
-    chassis.turnToPoint(-4, -48, 500);
-    relativeMotion(-20, -24, 143, 24.5, 1000, true);
-    chassis.waitUntilDone();
-    matchload_state(true);
-    pros::delay(dual_ball_delay);
+    int longgoal_y_believed = -48;
 
-
-    //Ramsete backward path to -47, -47
-
-    resting_state();
-    chassis.turnToPoint(-24, -47, 850, {.forwards = false});
-    distanceReset(true);
-
-    chassis.moveToPoint(-24 + longgoal_offset, -47, 750, {.forwards = false});
-    chassis.waitUntilDone();
-    resting_state();
-    score_longgoal();
-    distanceReset(true);
-    pros::delay(longgoal_delay);
-    resting_state();
-    chassis.turnToPoint(-73, -46, 200);
-    chassis.moveToPoint(-72 + matchload_offset, -47, 850, {.maxSpeed = 85});
-    chassis.waitUntilDone();
-    distanceReset(true);
+    chassis.setPose(-51.25, -18.5, 180);
     intake();
-    pros::delay(matchload_delay + 300);
-    chassis.turnToPoint(-24, -51, 300, {.forwards = false});
-    chassis.moveToPoint(-24 - longgoal_offset, -47, 1000, {.forwards = false});
+    chassis.moveToPoint(-51.25, -51, 1000);
+    matchload_state(true);
+    chassis.waitUntilDone();
+
+    chassis.turnToPoint(-72, -51, 1000);
+    chassis.waitUntilDone();
+    
+    chassis.moveToPoint(-72 + matchload_offset - 1.25, -51, 1000, {.minSpeed = 20});
+    chassis.waitUntilDone();
+    pros::delay(175);
+    chassis.turnToPoint(-22 - longgoal_offset, -51.5, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset, -51.5, 1000, {.forwards = false, .minSpeed=35});
     chassis.waitUntilDone();
     resting_state();
-    score_longgoal();
-    distanceReset(true);
-    pros::delay(longgoal_delay);
     matchload_state(false);
-    chassis.moveToPose(-42.25, -30.5, 0, 750);
-    chassis.turnToPoint(-17.25, -30.5, 500, {.forwards = false});
-    chassis.moveToPoint(-17.25, -30.5, 750, {.forwards = false, .minSpeed = 20});
+    score_longgoal_auton();
+    distancePose pose = distanceReset(true);
+    longgoal_y_believed = pose.y;
+    pros::delay(longgoal_delay + 150);
+    resting_state();
+    relativeMotion(chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta, 4, 200, true);
+    chassis.turnToPoint(-22, -22, 1000);
+    intake();
+    chassis.moveToPoint(-22 , -22, 1000, {.maxSpeed = 85, .minSpeed = 20});
+    chassis.waitUntil(16);
+    matchload_state(true);
+    chassis.waitUntilDone();
+
+    chassis.turnToPoint(-39, longgoal_y_believed, 1000, {.forwards = false});
+    chassis.moveToPoint(-39, longgoal_y_believed, 1500, {.forwards = false});
+    chassis.turnToPoint(-22 - longgoal_offset - 2, longgoal_y_believed, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset - 2, longgoal_y_believed, 1500, {.forwards = false}, false);
+    intake_stop();
+    score_longgoal_auton();
+    pros::delay(1000);
+    resting_state(false);
+    chassis.moveToPoint(-22 - longgoal_offset - 7, longgoal_y_believed, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset - 1, longgoal_y_believed, 1000, {.forwards = false});
+    score_longgoal_auton();
 
 }
 
@@ -259,71 +256,101 @@ void awp_auton() {
     */
     //colorSort(Color::RED);
     //FIRST LONGGOAL
-    
+    /*
+    MCL::StartMCL(-51.25, -18.5, 180);
+    pros::Task mclTask(MCL::MonteCarlo);
+    enable_fused_odometry(true);
+    */
+    //colorSort(Color::RED);
+
+    //FIRST LONGGOAL
+    descore.extend();
     chassis.setPose(-51.25, -18.5, 180);
-    chassis.moveToPoint(-51.25, -48, 2000);
+    intake();
+    chassis.moveToPoint(-51.25, -51, 1000);
     matchload_state(true);
     chassis.waitUntilDone();
 
-    intake();
-    chassis.turnToPoint(-72, -48, 2000);
+    chassis.turnToPoint(-72, -51, 1000);
     chassis.waitUntilDone();
     
-    chassis.moveToPoint(-72 + matchload_offset, -48, 2000, {.minSpeed=25});
+    chassis.moveToPoint(-72 + matchload_offset, -51, 1000, {.minSpeed = 20});
     chassis.waitUntilDone();
+    pros::delay(50);
+    
+    /*
+    matchload_state(true);
+    intake();
+    ramsete.followPath(awp_1, {.end_correction = true};
+    */
+
     //pros::delay(matchload_delay);
-    chassis.turnToPoint(-22 - longgoal_offset, -52, 2000, {.forwards = false});
-    chassis.moveToPoint(-22 - longgoal_offset, -52, 2000, {.forwards = false,.minSpeed=20});
+    chassis.turnToPoint(-22 - longgoal_offset, -51.5, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset, -51.5, 1000, {.forwards = false, .minSpeed=35});
     chassis.waitUntilDone();
     resting_state();
     matchload_state(false);
-    score_longgoal();
-    distancePose pose = distanceReset(true);
-    pros::delay(longgoal_delay + 300);
+    score_longgoal_auton();
+    distanceReset(true);
+    pros::delay(longgoal_delay + 150);
     resting_state();
+    relativeMotion(chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta, 4, 200, true);
 
     //MIDDLE AUTON
-    relativeMotion(pose.x, pose.y, 270, 4, 1000, true);
-    chassis.turnToPoint(-20, -24, 2000);
+    //chassis.swingToPoint(-20 , -24, lemlib::DriveSide::RIGHT, 800);
+    chassis.turnToPoint(-24, -24, 1000);
+
     intake();
-    chassis.moveToPoint(-20 , -24, 2000, {.maxSpeed = 85});
-    chassis.waitUntil(18);
+    chassis.moveToPoint(-24 , -24, 1000, {.maxSpeed = 85, .minSpeed = 20});
+    chassis.waitUntil(17);
     matchload_state(true);
     chassis.waitUntilDone();
-    chassis.turnToPoint(-20, 29, 2000);
+
+    chassis.turnToPoint(-24, 24, 1000);
     chassis.waitUntilDone();
-    chassis.moveToPoint(-20, 26.5, 2000, {.maxSpeed = 85});
+    chassis.moveToPoint(-24, 24, 1500, {.maxSpeed = 85});
     chassis.waitUntil(5);
     matchload_state(false);
-    chassis.waitUntil(38.5);
+    chassis.waitUntil(39);
     matchload_state(true);
     chassis.waitUntilDone();
-    chassis.turnToPoint(-11.5, 12.5, 2000, {.forwards = false});
-    chassis.moveToPoint(-11.5, 12.5, 2000, {.forwards = false, .minSpeed=20});
+    chassis.turnToPoint(-12.3, 14.2, 1000, {.forwards = false});
     chassis.waitUntilDone();
-    matchload_state(false);
+    //relativeMotion(-20, 20, 133, 11.5, 1000, false);
+    //chassis.moveToPoint(-10, 11.7, 1000, {.forwards = false});
+    chassis.moveToPoint(-12.3, 14.2, 1000, {.forwards = false});
+    //chassis.moveToPose(-11, 12, 133, 850, {.forwards = false, .minSpeed = 20});
+    chassis.waitUntilDone();
+    resting_state();
     score_midgoal();
-    pros::delay(midgoal_delay);
-    
-    //2nd LONGGOAL
-    chassis.moveToPoint(-47, 47, 2000);
-    chassis.waitUntilDone();
+    pros::delay(midgoal_delay + 150);
+    intake_stop();
     matchload_state(true);
-    chassis.turnToPoint(-72, 47, 2000);
-    distanceReset(true);
-    chassis.waitUntilDone();
-    chassis.moveToPoint(-72 + matchload_offset, 47, 2000,{.minSpeed=30});
-
-    resting_state(); // reset trapdoor from mid goal here
     intake();
+    chassis.turnToPoint(-45, 54, 500);
     chassis.waitUntilDone();
-    chassis.turnToPoint(-24, 48, 2000, {.forwards = false});
-    pros::delay(matchload_delay);
+    chassis.moveToPoint(-45, 54, 1200);
+    chassis.waitUntilDone();
+    trapDoor.retract();
+    matchload_state(true);
+    matchload.extend();
+    chassis.waitUntilDone();
+    chassis.turnToHeading(270, 1000);
+    chassis.waitUntilDone();
+    pros::delay(5);
+    distancePose pose = distanceReset(true);
+    std::cout << "x: " << pose.x << " y: " << pose.y << std::endl;
+    chassis.moveToPoint(-72 + matchload_offset - 2, 47.5, 1500, {.maxSpeed = 100, .minSpeed = 20});
+    chassis.waitUntilDone();
+    pros::delay(250);
+    
+    chassis.turnToPoint(-22 - longgoal_offset - 2.5, 47.5, 1000, {.forwards = false});
 
-    chassis.moveToPoint(-22 - longgoal_offset, 48, 2000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset - 2.5, 47.5, 2000, {.forwards = false, .minSpeed = 35});
     chassis.waitUntil(10);
     matchload_state(false);
-    score_longgoal();
+    chassis.waitUntilDone();
+    score_longgoal_auton();
 }
 
 void skills_auton() {

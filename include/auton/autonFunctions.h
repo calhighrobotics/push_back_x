@@ -5,6 +5,7 @@
 #include "pros/misc.h"
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
+#include "colorSort.h"
 
 
 
@@ -14,15 +15,17 @@ void outtake(int power = 12000);
 
 void score_bottomgoal(int power = 12000);
 
-void score_longgoal(int power = 12000);
+void score_longgoal(int power = 12000, Color allianceColor = Color::RED);
 
 void score_midgoal(int power = 12000);
+
+void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED);
 
 void intake_to_basket();
 
 void intake_stop();
 
-void resting_state();
+void resting_state(bool trapDoor_commanded = false);
 
 void matchload_state(bool state);
 
