@@ -63,4 +63,5 @@ extern pros::Vision vision_sensor;
 
 extern Color allianceColor;
 extern bool color_sort_enable;
+extern bool midgoal_first;
 

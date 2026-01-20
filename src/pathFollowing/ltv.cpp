@@ -1,31 +1,21 @@
-#include "ramsete.h" 
+#include "ltv.h"
 #include "lemlib/util.hpp"
 #include <cmath>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <iostream>
-#include <algorithm> 
+#include <algorithm>
 
-// --- Helper Math Classes/Functions ---
+LTVPathFollower::Vector2::Vector2(float x, float y) : x(x), y(y) {}
 
-RamsetePathFollower::Vector2::Vector2(float x, float y) : x(x), y(y) {}
-
-std::string RamsetePathFollower::Vector2::latex() const {
+std::string LTVPathFollower::Vector2::latex() const {
     std::ostringstream oss;
     oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
     return oss.str();
 }
 
-double RamsetePathFollower::sinc(double x) {
-    // Modified: Safer epsilon and 4th order Taylor series for better precision
-    if (std::abs(x) < 1e-6) {
-        return 1.0 - (x * x) / 6.0 + (x * x * x * x) / 120.0;
-    }
-    return std::sin(x) / x;
-}
-
-double RamsetePathFollower::angleError(double robotAngle, double targetAngle) {
+double LTVPathFollower::angleError(double robotAngle, double targetAngle) {
     constexpr double TWO_PI = 2.0 * M_PI;
     double diff = std::fmod(targetAngle - robotAngle, TWO_PI);
     if (diff < -M_PI) diff += TWO_PI;
@@ -33,9 +23,7 @@ double RamsetePathFollower::angleError(double robotAngle, double targetAngle) {
     return diff;
 }
 
-// --- Constructor ---
-
-RamsetePathFollower::RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_)
+LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
     : controller(
           config.kV,
           config.KA_straight,
@@ -44,23 +32,59 @@ RamsetePathFollower::RamsetePathFollower(const VelocityControllerConfig& config,
           config.KS_turn,
           config.KP_straight,
           config.KI_straight,
-          99999.0,
-          TRACK_WIDTH * INCH_TO_METER
-      ), b(b_), zeta(zeta_) {}
+          99999.0, 
+          12.8f * INCH_TO_METER
+      ) {}
 
-// --- Path Management ---
+Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
+    Eigen::MatrixXf X = Q; 
+    Eigen::MatrixXf X_prev;
+    Eigen::MatrixXf K;
 
-void RamsetePathFollower::precompute_paths(const std::vector<std::string>& path_names) {
+    for (int i = 0; i < 1000; ++i) {
+        X_prev = X;
+        K = (R + B.transpose() * X * B).inverse() * B.transpose() * X * A;
+        X = A.transpose() * X * (A - B * K) + Q;
+
+        if ((X - X_prev).norm() < 1e-4) {
+            break;
+        }
+    }
+    return X;
+}
+
+std::pair<Eigen::MatrixXf, Eigen::MatrixXf> LTVPathFollower::discretizeAB(
+    const Eigen::MatrixXf& contA, const Eigen::MatrixXf& contB, double dtSeconds) {
+
+    int states = contA.rows();
+    int inputs = contB.cols();
+
+    Eigen::MatrixXf M(states + inputs, states + inputs);
+    M.setZero();
+    M.topLeftCorner(states, states) = contA;
+    M.topRightCorner(states, inputs) = contB;
+
+    Eigen::MatrixXf Mdt = M * dtSeconds;
+    Eigen::MatrixXf I = Eigen::MatrixXf::Identity(M.rows(), M.cols());
+    Eigen::MatrixXf M2 = Mdt * Mdt;
+    
+    Eigen::MatrixXf phi = I + Mdt + (M2 / 2.0); 
+
+    Eigen::MatrixXf discA = phi.topLeftCorner(states, states);
+    Eigen::MatrixXf discB = phi.topRightCorner(states, inputs);
+
+    return {discA, discB};
+}
+
+void LTVPathFollower::precompute_paths(const std::vector<std::string>& path_names) {
     auto* stored = new std::vector<std::string>(path_names);
     pros::Task t(precompute_paths_task, stored);
 }
 
-void RamsetePathFollower::precompute_paths_task(void* param) {
+void LTVPathFollower::precompute_paths_task(void* param) {
     auto* path_names = static_cast<std::vector<std::string>*>(param);
-
     precomputed_paths.clear();
     precomputed_paths.reserve(path_names->size());
-
     for (const auto& name : *path_names) {
         precomputed_paths.push_back(prepare_trajectory(name));
         pros::delay(10); 
@@ -68,7 +92,7 @@ void RamsetePathFollower::precompute_paths_task(void* param) {
     delete path_names;
 }
 
-std::vector<std::pair<double,double>> RamsetePathFollower::parse_pairs(const std::string& line) {
+std::vector<std::pair<double,double>> LTVPathFollower::parse_pairs(const std::string& line) {
     std::vector<std::pair<double,double>> result;
     std::string temp;
     bool inside_parens = false;
@@ -90,7 +114,7 @@ std::vector<std::pair<double,double>> RamsetePathFollower::parse_pairs(const std
     return result;
 }
 
-std::vector<State> RamsetePathFollower::prepare_trajectory(const std::string& data) {
+std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) {
     std::istringstream ss(data);
     std::vector<std::pair<double,double>> X, L, A;
     std::string line;
@@ -103,10 +127,8 @@ std::vector<State> RamsetePathFollower::prepare_trajectory(const std::string& da
 
     size_t n = X.size();
     if (n == 0) return {};
-
     std::vector<State> states(n);
 
-    // Fill position and velocity
     for (size_t i = 0; i < n; i++) {
         states[i].x = X[i].first;
         states[i].y = X[i].second;
@@ -114,106 +136,104 @@ std::vector<State> RamsetePathFollower::prepare_trajectory(const std::string& da
         states[i].angular_vel = A[i].second;
     }
 
-    // Modified: Central Difference for smoother headings
-    // Forward diff for start
-    if (n > 1) {
-        states[0].heading = atan2(states[1].y - states[0].y, states[1].x - states[0].x);
-    }
-    
-    // Central diff for body
+    if (n > 1) states[0].heading = atan2(states[1].y - states[0].y, states[1].x - states[0].x);
     for (size_t i = 1; i < n - 1; i++) {
         states[i].heading = atan2(states[i + 1].y - states[i - 1].y, states[i + 1].x - states[i - 1].x);
     }
-    
-    // Backward diff for end (or copy previous)
-    if (n > 1) {
-        states[n - 1].heading = atan2(states[n - 1].y - states[n - 2].y, states[n - 1].x - states[n - 2].x);
-    }
+    if (n > 1) states[n - 1].heading = atan2(states[n - 1].y - states[n - 2].y, states[n - 1].x - states[n - 2].x);
 
     return states;
 }
 
-// --- Path Following Logic ---
-
-void RamsetePathFollower::followPath(const std::string& path_name, const ramseteConfig& r_config) {
+void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
     std::vector<State> trajectory;
     
-    // 1. Load Trajectory
-    if(r_config.path_index >= 0 && (size_t)(r_config.path_index) < precomputed_paths.size()) {
-        if (!precomputed_paths.at(r_config.path_index).empty()) {
-            trajectory = precomputed_paths.at(r_config.path_index);
+    if(l_config.path_index >= 0 && (size_t)(l_config.path_index) < precomputed_paths.size()) {
+        if (!precomputed_paths.at(l_config.path_index).empty()) {
+            trajectory = precomputed_paths.at(l_config.path_index);
         }
     }
-    if (trajectory.empty()) {
-        trajectory = prepare_trajectory(path_name);
-    }
+    if (trajectory.empty()) trajectory = prepare_trajectory(path_name);
     if (trajectory.empty()) return;
 
-    // 2. Setup Initial Pose
-    if(r_config.test) {
-        // In test mode, snap robot to start pose
+    Eigen::Matrix3f Q_mat; 
+    Q_mat << l_config.q_x, 0, 0,
+             0, l_config.q_y, 0,
+             0, 0, l_config.q_theta;
+
+    Eigen::Matrix2f R_mat;
+    R_mat << l_config.r_vel, 0,
+             0, l_config.r_ang;
+
+    if(l_config.test) {
         chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
-    } else if(r_config.turnFirst) {
-        // In real run, turn to face start
+    } else if(l_config.turnFirst) {
         double targetH = lemlib::radToDeg(M_PI_2 - trajectory[0].heading);
-        chassis.turnToHeading(r_config.backwards ? targetH + 180 : targetH, 1000);
+        chassis.turnToHeading(l_config.backwards ? targetH + 180 : targetH, 1000);
     }
 
     std::vector<std::string> logs;
     int trajectory_size = trajectory.size();
     
-    // Modified: Minimum velocity threshold for Gain Calculation (Fixes end behavior)
-    // 0.25 is (0.5 m/s)^2. This keeps the controller stiff at the end.
-    const float min_k_sq_vel = 0.25f; 
+    double dt = 0.01; 
 
     for (int i = 0; i < trajectory_size; ++i) {
         uint32_t start_time_ms = pros::millis();
         const auto &target_state = trajectory[i];
 
-        // --- Pose Acquisition & Conversion ---
         lemlib::Pose current_pose = chassis.getPose(true);
         current_pose.x *= INCH_TO_METER;
         current_pose.y *= INCH_TO_METER;
-        // Convert LemLib (0 is North, CW+) to Math (0 is East, CCW+)
-        current_pose.theta = M_PI_2 - current_pose.theta;
+        current_pose.theta = M_PI_2 - current_pose.theta; 
 
-        // --- Error Calculation ---
-        double targetHeadingAdjusted = target_state.heading + (r_config.backwards ? M_PI : 0);
+        double targetHeadingAdjusted = target_state.heading + (l_config.backwards ? M_PI : 0);
         double errorTheta = angleError(current_pose.theta, targetHeadingAdjusted);
-
-        // Global Error Vector
+        
         Eigen::Vector3d global_error;
         global_error << target_state.x - current_pose.x, target_state.y - current_pose.y, errorTheta;
 
-        // Global to Local Rotation Matrix
         Eigen::Matrix3d rotation_matrix;
         rotation_matrix <<  std::cos(current_pose.theta), std::sin(current_pose.theta), 0, 
                            -std::sin(current_pose.theta), std::cos(current_pose.theta), 0, 
                             0, 0, 1;
 
-        Eigen::Vector3d local_error = rotation_matrix * global_error;
-        float e_x = local_error(0);
-        float e_y = local_error(1);
-        float e_t = local_error(2);
+        Eigen::Vector3d error = rotation_matrix * global_error;
 
-        // --- Ramsete Controller ---
-        float vd = target_state.linear_vel * (r_config.backwards ? -1.0 : 1.0);
-        float wd = target_state.angular_vel;
+        float v_ref = target_state.linear_vel * (l_config.backwards ? -1.0 : 1.0);
+        float w_ref = target_state.angular_vel;
 
-        // Modified: Gain Floor Logic
-        // Ensures 'k' doesn't vanish when vd and wd are zero at the end of path
-        float k = 2.0 * r_config.zeta * std::sqrt(wd * wd + r_config.b * std::max((float)(vd * vd), min_k_sq_vel));
+        float v_calc = v_ref;
+        if (std::abs(v_calc) < 0.25) {
+            v_calc = (v_calc >= 0) ? 0.25 : -0.25;
+        }
 
-        float v_desired_ramsete = vd * std::cos(e_t) + k * e_x;
-        float w_desired_ramsete = wd + k * e_t + (r_config.b * vd * sinc(e_t) * e_y);
+        Eigen::Matrix3f A;
+        A << 0, 0, 0,
+             0, 0, v_calc,
+             0, 0, 0;
 
-        // --- Output Generation ---
+        Eigen::Matrix<float, 3, 2> B;
+        B << 1, 0,
+             0, 0,
+             0, 1;
+
+        auto discAB = discretizeAB(A, B, dt);
+
+        Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
+        
+        Eigen::MatrixXf K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
+
+        Eigen::Vector2f u = K * error.cast<float>();
+
+        float v_cmd = v_ref + u(0);
+        float w_cmd = w_ref + u(1);
+
         float left_actual_mps = leftMotors.get_actual_velocity() * rpm_to_mps_factor;
         float right_actual_mps = rightMotors.get_actual_velocity() * rpm_to_mps_factor;
 
         DrivetrainVoltages output_voltages = controller.update(
-            v_desired_ramsete, 
-            w_desired_ramsete, 
+            v_cmd, 
+            w_cmd, 
             left_actual_mps, 
             right_actual_mps
         );
@@ -221,37 +241,23 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
         rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
         leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
 
-
-        if(trajectory_size - i <= r_config.exit_points) {
-            // Modified: Removed 'break' to allow natural settling
-            // Rely on Gain Floor logic to maintain control until the end
-            break;
-        }
-        // --- Logging ---
-        if(r_config.log) {
+        if(l_config.log) {
             std::ostringstream ss;
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
             logs.push_back(ss.str());
         }
 
-        // Modified: Removed 'exit_points' break. 
-        // We rely on Ramsete to settle naturally using the Gain Floor logic.
-        
         pros::Task::delay_until(&start_time_ms, 10);
     }
 
-    // --- End Correction ---
-    // With the improved gain logic, moveToPose is often unnecessary, 
-    // but we keep it if the user requests strict end correction.
-    if(!r_config.test && r_config.end_correction) {
-        // Allow a small settle time for the Ramsete gain to finish its job
+    if(!l_config.test && l_config.end_correction) {
         pros::delay(100); 
         chassis.moveToPose(
             trajectory.back().x / INCH_TO_METER, 
             trajectory.back().y / INCH_TO_METER, 
             lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 
             2000, 
-            {.lead = r_config.mpose_lead}
+            {.lead = l_config.mpose_lead}
         );
         chassis.waitUntilDone();
     }
@@ -259,7 +265,7 @@ void RamsetePathFollower::followPath(const std::string& path_name, const ramsete
     rightMotors.brake();
     leftMotors.brake();
 
-    if(r_config.log) {
+    if(l_config.log) {
         for (const auto& line : logs) {
             std::cout << line;
             pros::delay(50);

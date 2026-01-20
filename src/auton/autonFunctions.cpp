@@ -4,6 +4,7 @@
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
 #include "MCL.h"
+#include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include <cmath>
 #include "colorSort.h"
@@ -11,6 +12,8 @@
 void intake(int power = 12000)
 {
     intakeMotor.move_voltage(power);
+    topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    topMotor.brake();
 }
 
 void outtake(int power = 12000)
@@ -28,16 +31,15 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
     intake(power);
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
-        pros::delay(35);
         topMotor.move_voltage(-12000);
         std::cout << "Color Rejected" << std::endl;
     }
     else
     {
-        pros::delay(35);
         topMotor.move_voltage(power);
         std::cout << "Color Accepted" << std::endl;
     }
+    pros::delay(33);
 
 }
 
@@ -49,17 +51,20 @@ void intake_stop()
 
 void score_midgoal(int power = 12000)
 {
-    if(get_color() != allianceColor)
+    if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
-        pros::delay(35);
         topMotor.move_voltage(-8000);
     }
     else {
-        pros::delay(35);
         topMotor.move_voltage(12000);
     }
-
-    pros::delay(200);
+    if(midgoal_first)
+    {
+        outtake(8000);
+        topMotor.move_voltage(-12000);
+        pros::delay(300);
+        midgoal_first = false;
+    }
     intake(power);
     topMotor.move_voltage(power);
     if(!trapDoor.is_extended()) trapDoor.extend();

@@ -2,6 +2,7 @@
 
 #include "Eigen/Dense"
 #include "velocityController.h"
+#include "lemlib/api.hpp" // Required for lemlib::Omniwheel and constants
 #include <vector>
 #include <string>
 #include "globals.h"
@@ -15,17 +16,17 @@ public:
         int path_index  = -1;
         float b = 2.0f;
         float zeta = 0.7f;
-        int exit_points = 5;
         bool test = false;
         bool turnFirst = false;
         bool end_correction = false;
+        float mpose_lead = 0.6f; // Added: Required for the final moveToPose call
+        int exit_points = 0;
     };
 
     // Constructor
     RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_);
 
     // Method Declarations
-    // Note: 'const std::string&' and 'const ramseteConfig&' (Pass by Reference)
     void followPath(const std::string& path_name, const ramseteConfig& r_config);
     void precompute_paths(const std::vector<std::string>& path_names);
 
@@ -33,6 +34,8 @@ private:
     // Constants
     static constexpr float INCH_TO_METER = 0.0254f;
     static constexpr float TRACK_WIDTH = 12.8f;
+    
+    // Ensure lemlib is included or these constants are valid
     static constexpr float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
     static constexpr float gear_ratio = 4.0f / 3.0f;
     static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;

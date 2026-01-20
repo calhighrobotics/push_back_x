@@ -25,7 +25,7 @@ lemlib::Drivetrain drivebase(
     450, 
     5);
 
-pros::IMU imu(19);
+pros::Imu imu(19);
 
 pros::Rotation horizontal_tracking_sensor(20);
 pros::Rotation vertical_tracking_sensor(-16);
@@ -55,7 +55,7 @@ lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
                                               1, // small error range, in inches
                                               25, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              50, // large error range timeout, in milliseconds
+                                              100, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
@@ -91,7 +91,8 @@ pros::Optical color_sensor(5);
 pros::Vision vision_sensor(16);
 
 Color allianceColor = Color::RED;
-bool color_sort_enable = true;
+bool color_sort_enable = false;
+bool midgoal_first = false;
 
 
 

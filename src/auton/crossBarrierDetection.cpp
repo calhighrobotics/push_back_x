@@ -5,7 +5,7 @@
 const double PITCH_CLIMB_THRESHOLD = 15.0; // Degrees robot tilts up when climbing
 const double PITCH_LEVEL_THRESHOLD = 5.0;  // Degrees considered "flat"
 const double CROSSING_TIMEOUT = 3000;      // MS to abort if stuck (Safety)
-const double DRIVE_SPEED = 100;            // Motor voltage (0-127) for power
+const double DRIVE_SPEED =  90;            // Motor voltage (0-127) for power
 const double HEADING_KP = 2.0;             // Strength of heading correction
 
 void crossBarrier() {

@@ -48,59 +48,8 @@ const VelocityControllerConfig config{
 };
 
     
-RamsetePathFollower ramsete(config,2, 0.9);
-/*
-class Vector2 {
- public:
-     Vector2(float x, float y) : x(x), y(y) {}
-     std::string latex() const {
-         std::ostringstream oss;
-         oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
-         return oss.str();
-     }
+RamsetePathFollower ramsete(config,2.5, 0.9);
 
-     float x;
-     float y;
-};
-
-const float INCH_TO_METER = 0.0254f;
-const float TRACK_WIDTH = 11.5f;
-
-const float wheel_circumference = lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
-const float gear_ratio = 4.0f / 3.0f;
-
-const float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
-
-void velocity_test(const VelocityControllerConfig &config, float max_velocity, int duration, int acceleration_time) {
-    duration /= 10;
-    acceleration_time /= 10;
-
-    VoltageController controller(config.kV, config.KA_straight, config.KA_turn, config.KS_straight, config.KS_turn, config.KP_straight, config.KI_straight, 99999, 11.5);
-
-    std::cout << "\\left[";
-
-    int i;
-    for (i = 0; i < duration; ++i) {
-        auto v_d = max_velocity * fminf(fminf(1, (float)i / (float)acceleration_time),
-                                        (float)(duration - i) / (float)acceleration_time);
-        auto speed = (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2;
-        std::cout << Vector2(i * 0.01f, speed).latex() << ",";
-        std::cout.flush();
-        auto voltage = controller.update(v_d, 0, leftMotors.get_actual_velocity() * rpm_to_mps_factor, rightMotors.get_actual_velocity() * rpm_to_mps_factor);
-        leftMotors.move_voltage(voltage.leftVoltage * 1000);
-        rightMotors.move_voltage(voltage.rightVoltage * 1000);
-
-        pros::delay(10);
-    }
-    std::cout << Vector2(0.01f * (float)i, (leftMotors.get_actual_velocity() + rightMotors.get_actual_velocity()) / 2)
-                     .latex()
-              << "\\right]" << std::endl;
-
-    leftMotors.brake();
-    rightMotors.brake();
-    std::cout << "\b" << std::endl;
-}
-*/
 void precompute_auton_paths() {
     std::vector<std::string> paths = {};
     ramsete.precompute_paths(paths);
@@ -160,45 +109,48 @@ void carry_auton() {
 
 void left_auton() {
 
-    chassis.setPose(-48.147, 10.854, 70);
+    chassis.setPose(-47, 12, 60);
     intake();
-    chassis.moveToPoint(-22, 24, 1000);
-    chassis.waitUntilDone();
+    chassis.turnToPoint(-22, 22, 1000, {});
+    chassis.moveToPoint(-22, 22 , 1000, {});
+    chassis.waitUntil(20);
     matchload_state(true);
-    pros::delay(triball_delay);
+    chassis.waitUntilDone();
+    pros::delay(100);
     matchload_state(false);
+
+    ramsete.followPath(left_1, {.end_correction = true});
     matchload_state(true);
-    pros::delay(dual_ball_delay);
-    matchload_state(false);
-
-    chassis.waitUntilDone();
-    resting_state();
-    score_midgoal(12000);
-
-    pros::delay(midgoal_delay); 
-    chassis.turnToPoint(-48, 47, 750);
-    chassis.moveToPoint(-48, 47, 1500);
-
-    //Intake from matchload
-    chassis.turnToPoint(-72, 47, 750);
-    chassis.waitUntilDone();
-    matchload_state(true);
-    chassis.moveToPoint(-72 + matchload_offset, 47, 1000);
-    chassis.waitUntilDone();
-    intake();
+    ramsete.followPath(left_2, {.backwards = true});
+    
+    chassis.turnToPoint(-72 + matchload_offset, 47, 1000);
+    distanceReset(true);
+    chassis.moveToPoint(-72 + matchload_offset, 47, 1500, {.forwards = true}, false);
     pros::delay(matchload_delay);
 
-    //Score on longgoal
-
-    chassis.moveToPoint(-48 - longgoal_offset,  47, 1000, {.forwards = false});
+    chassis.turnToPoint(-22 - longgoal_offset, 47, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset, 47, 2000, {.forwards = false, .minSpeed = 35});
+    chassis.waitUntil(10);
+    intake_stop();
     chassis.waitUntilDone();
+    score_longgoal_auton();
+    pros::delay(longgoal_delay + 150);
     resting_state();
-    score_longgoal();
-    
+
+    ramsete.followPath(left_3, {.end_correction = true});
+    descore.retract();
+    leftMotors.move(100);
+    rightMotors.move(100);
+    pros::delay(1500);
+    leftMotors.brake();
+    rightMotors.brake();
+
 }
 
 void elim_auton() {
-    crossBarrier();
+    std::cout << "Completed skills_2 path" << std::endl;
+    ramsete.followPath(skills_test, {.test = true});
+    std::cout << "Completed skills_2 path" << std::endl;
 }
 
 void awp_auton() {
@@ -247,7 +199,8 @@ void awp_auton() {
     distanceReset(true);
     pros::delay(longgoal_delay + 150);
     resting_state();
-    relativeMotion(chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta, 4, 200, true);
+    /*
+    relativeMotion(chassis.getPose().x, chassis.getPose().y, chassis.getPose().theta, 4, 1000, true);
 
     //MIDDLE AUTON
     //chassis.swingToPoint(-20 , -24, lemlib::DriveSide::RIGHT, 800);
@@ -256,6 +209,8 @@ void awp_auton() {
     intake();
     chassis.moveToPoint(-24 , -24, 1000, {.maxSpeed = 85, .minSpeed = 20});
     chassis.waitUntil(17);
+    */
+    ramsete.followPath(awp_1, {.end_correction = true, .exit_points = 5});
     matchload_state(true);
     chassis.waitUntilDone();
 
@@ -280,7 +235,7 @@ void awp_auton() {
     intake_stop();
     matchload_state(true);
     intake();
-    chassis.turnToPoint(-45, 54, 500);
+    chassis.turnToPoint(-45, 54, 2000);
     chassis.waitUntilDone();
     chassis.moveToPoint(-45, 54, 1200);
     chassis.waitUntilDone();
@@ -319,9 +274,7 @@ void skills_auton() {
     const int matchload_offset = 11.9;
     const int triball_delay = 500;
     const int dual_ball_delay = 500;
-    const float starting_pitch = imu.get_pitch();
-
-
+    /*
     chassis.setPose(-55, 0, 270);
     chassis.tank(90, 90);
     pros::delay(1200);
@@ -329,11 +282,12 @@ void skills_auton() {
     rightMotors.brake();
     pros::delay(1000);
     chassis.tank(-100, -100);
-    pros::delay(1000);
+    pros::delay(600);
     leftMotors.brake();
     rightMotors.brake();
     chassis.turnToHeading(270, 1000);
     chassis.waitUntilDone();
+    */
     chassis.setPose(-46, 0, 270);
     distancePose pose = distanceReset(true);
     std::cout << "Believed Y from parking zone" << pose.y << std::endl;
@@ -376,7 +330,21 @@ void skills_auton() {
     chassis.moveToPoint(72 - matchload_offset, -47, 2000, {}, false);
     pros::delay(matchload_delay);
 
+    ramsete.followPath(skills_4, {.backwards = true, .end_correction = true});
+    chassis.moveToPoint(-22 - longgoal_offset, -62, 2000, {.forwards = true, .earlyExitRange = 2}, false);
+    ramsete.followPath(skills_5, {.backwards = false, .end_correction = true});
+    chassis.turnToPoint(-22 - longgoal_offset - 2, -47, 1000, {.forwards = false}, false);
+    distanceReset(true);
+    chassis.moveToPoint(-22 - longgoal_offset - 2, -47, 1500, {.forwards = false}, false);
+    pros::delay(longgoal_delay);
+    distanceReset(true);
 
+    chassis.turnToPoint(-72 + matchload_offset, -47, 1000);
+    chassis.moveToPoint(-72 + matchload_offset, -47, 2000, {.forwards = true}, false);
+    pros::delay(matchload_delay);
 
+    ramsete.followPath(skills_6, {.backwards = false, .end_correction = true});
+    chassis.turnToPoint(-72 + 5.5, 0, 1000);
+    chassis.moveToPoint(-72 + 5.5, 0, 2000, {.forwards = true});
 
 }

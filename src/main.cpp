@@ -114,7 +114,9 @@ void competition_initialize() {
 
 void autonomous() {
     //selector.run_auton();
-    skills_auton();
+    //skills_auton();
+    //awp_auton();
+    elim_auton();
 }
 
 /*
@@ -122,7 +124,7 @@ void autonomous() {
 Straight:
 KV = 5.19338427813
 1.26552223944
-0.676257433253
+0.67257433253
 11.6978629947
 46.9504105993
 
@@ -142,6 +144,11 @@ void opcontrol() {
     {
         int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
+        {
+            midgoal_first = true;
+        }
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
         {
@@ -200,6 +207,7 @@ void opcontrol() {
         else
         {
             resting_state(trapDoor_commanded);
+            midgoal_first = false;
         }
 
         if(throttle < 5)
