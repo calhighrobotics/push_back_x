@@ -222,9 +222,9 @@ typedef void * lv_fs_drv_user_data_t;
 #define LV_FS_STDIO_PATH "/usd/"
 #define LV_FS_STDIO_CACHE_SIZE 0
 
-#define LV_USE_LODEPNG 1
+#define LV_USE_PNG 1
 #define LV_USE_GIF 1
-#define LV_USE_TJPGD 1
+#define LV_USE_SJPG 1
 
 /*1: Add a `user_data` to drivers and objects*/
 #define LV_USE_USER_DATA        1

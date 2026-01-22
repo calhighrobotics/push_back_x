@@ -1,15 +1,21 @@
+#include <sstream>
+#include <string>
+#include "lemlib/chassis/trackingWheel.hpp"
+#include "pros/colors.hpp"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
 #include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/motors.h"
-
+#include "pros/optical.hpp"
+#include "pros/vision.hpp"
+#include "colorSort.h"
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({11,-12,13});
-pros::MotorGroup leftMotors({-1,2,-3});
+pros::MotorGroup rightMotors({8,-9,10}, pros::MotorGears::blue);
+pros::MotorGroup leftMotors({-1,2,-3}, pros::MotorGears::blue);
 
 lemlib::Drivetrain drivebase(
     &leftMotors, 
@@ -17,70 +23,80 @@ lemlib::Drivetrain drivebase(
     11.5, 
     lemlib::Omniwheel::NEW_325, 
     450, 
-    2);
+    5);
 
-pros::IMU imu(8);
+pros::Imu imu(19);
 
-pros::Rotation horizontal_tracking_sensor(9);
-pros::Rotation vertical_tracking_sensor(10);
+pros::Rotation horizontal_tracking_sensor(20);
+pros::Rotation vertical_tracking_sensor(-16);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, 6.5, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.1,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, -6.37728606611, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, 0.110912828986,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(30, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(11, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              100, // derivative gain (kD)
+                                              40, // derivative gain (kD)
                                               3, // anti windup
-                                              1, // small error range, in inches
-                                              100, // small error range timeout, in milliseconds
+                                              0.5, // small error range, in inches
+                                              50, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              500, // large error range timeout, in milliseconds
-                                              20 // maximum acceleration (slew)
+                                              200, // large error range timeout, in milliseconds
+                                              35 // maximum acceleration (slew)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(4, // proportional gain (kP)
-                                              0, // integral gain (kI)
-                                              24.5, // derivative gain (kD)
-                                              3, // anti windup
-                                              1, // small error range, in degrees
-                                              100, // small error range timeout, in milliseconds
-                                              3, // large error range, in degrees
-                                              500, // large error range timeout, in milliseconds
+lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
+                                              0.0015, // integral gain (kI)
+                                              24, // derivative gain (kD)
+                                               3, // anti windup
+                                              1, // small error range, in inches
+                                              25, // small error range timeout, in milliseconds
+                                              3, // large error range, in inches
+                                              100, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
 lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
-                                      10,   // minimum output where drivetrain will move out of 127
-                                      1 // expo curve gain
+                                            10,   // minimum output where drivetrain will move out of 127
+                                            1.01 // expo curve gain
 );
 
-// input curve for steer input during driver control
-lemlib::ExpoDriveCurve steer_curve(5, // joystick deadband out of 127
-                                  5, // minimum output where drivetrain will move out of 127
-                                  1.02 // expo curve gain
+lemlib::ExpoDriveCurve steer_curve(5,   // joystick deadband out of 127
+                                         10,   // minimum output where drivetrain will move out of 127
+                                         1.02 // expo curve gain
 );
+
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-pros::Motor intakeMotor(6);
-pros::Motor agitator(16, pros::v5::MotorGears::green);
-pros::Motor midMotor(20);
+pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
+pros::Motor topMotor(7, pros::v5::MotorGears::blue);
 
 
-pros::Distance right(4);
-pros::Distance left(5);
-pros::Distance front(7);
-pros::Distance back(8);
+pros::Distance rightDistance(6);
+pros::Distance leftDistance(12);
+pros::Distance frontDistance(13);
+pros::Distance backDistance(11);
+
+pros::adi::Pneumatics trapDoor('A', false);
+pros::adi::Pneumatics matchload('B', false);
+pros::adi::Pneumatics basket('C', false);
+pros::adi::Pneumatics descore('D', false);
+
+pros::Optical color_sensor(5);
+
+pros::Vision vision_sensor(16);
+
+Color allianceColor = Color::RED;
+bool color_sort_enable = false;
+bool midgoal_first = false;
 
 
-pros::adi::Pneumatics topRoller('B', false);
-pros::adi::Pneumatics midRollerHeight('A', true);
-pros::adi::Pneumatics matchload_mech('D', false);
-pros::adi::Pneumatics aligner('C', true);
+
+
 
 
 

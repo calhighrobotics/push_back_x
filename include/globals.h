@@ -6,6 +6,20 @@
 #include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/motors.h"
+<<<<<<< HEAD
+#include "pros/optical.hpp"
+#include "pros/vision.hpp"
+#include "colorSort.h"
+
+
+struct State {
+    float x, y, heading, linear_vel, angular_vel;
+} ;
+
+
+
+=======
+>>>>>>> main
 
 extern pros::Controller controller;
 
@@ -31,19 +45,26 @@ extern lemlib::ExpoDriveCurve steer_curve;
 
 extern lemlib::Chassis chassis;
 extern pros::Motor intakeMotor;
-extern pros::Motor agitator;
-extern pros::Motor midMotor;
-
-
-extern pros::Distance right(4);
-extern pros::Distance left(5);
-extern pros::Distance front(7);
-extern pros::Distance back(8);
+extern pros::Motor topMotor;
 
 
 
-extern pros::adi::Pneumatics topRoller;
-extern pros::adi::Pneumatics midRollerHeight;
-extern pros::adi::Pneumatics matchload_mech;
-extern pros::adi::Pneumatics aligner;
+extern pros::Distance rightDistance;
+extern pros::Distance leftDistance;
+extern pros::Distance frontDistance;
+extern pros::Distance backDistance;
+
+
+extern pros::adi::Pneumatics trapDoor;
+extern pros::adi::Pneumatics matchload;
+extern pros::adi::Pneumatics basket;
+extern pros::adi::Pneumatics descore;
+
+extern pros::Optical color_sensor;
+
+extern pros::Vision vision_sensor;
+
+extern Color allianceColor;
+extern bool color_sort_enable;
+extern bool midgoal_first;
 
