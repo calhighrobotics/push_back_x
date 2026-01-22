@@ -204,6 +204,10 @@ void opcontrol() {
             color_sort_enable = !color_sort_enable;
             controller.rumble(".");
         }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
+        {
+            alignToGoal(1);
+        }
         else
         {
             resting_state(trapDoor_commanded);

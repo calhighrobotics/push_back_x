@@ -2,14 +2,15 @@
 
 #include "Eigen/Dense"
 #include "velocityController.h"
-#include "lemlib/api.hpp" // Required for lemlib::Omniwheel and constants
+#include "lemlib/api.hpp" 
 #include <vector>
 #include <string>
+#include <atomic>
 #include "globals.h"
 
 class RamsetePathFollower {
 public:
-    // Config struct defined inside the class
+    // Config struct
     struct ramseteConfig {
         bool backwards = false;
         bool log = false;
@@ -19,36 +20,59 @@ public:
         bool test = false;
         bool turnFirst = false;
         bool end_correction = false;
-        float mpose_lead = 0.6f; // Added: Required for the final moveToPose call
-        int exit_points = 0;
+        float mpose_lead = 0.6f;
     };
 
-    // Constructor
     RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_);
 
-    // Method Declarations
+    // --- Main Methods ---
+    // Now launches a task and returns immediately
     void followPath(const std::string& path_name, const ramseteConfig& r_config);
+    
+    // Blocks until the movement is complete
+    void waitUntilDone();
+
+    // Blocks until the robot has traveled 'dist_inches' along the path
+    void waitUntil(float dist_inches);
+    
+    // Stops the current movement immediately
+    void cancel();
+
+    // Returns true if the robot is currently following a path
+    bool isRunning();
+
     void precompute_paths(const std::vector<std::string>& path_names);
 
 private:
-    // Constants
     static constexpr float INCH_TO_METER = 0.0254f;
     static constexpr float TRACK_WIDTH = 12.8f;
-    
-    // Ensure lemlib is included or these constants are valid
     static constexpr float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
     static constexpr float gear_ratio = 4.0f / 3.0f;
     static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
 
-    // Member Variables
     VoltageController controller;
     const float b;
     const float zeta;
 
-    // Static member for path storage
+    // --- Task & State Management ---
+    pros::Task* task = nullptr;
+    std::atomic<bool> is_running {false};
+    std::atomic<float> distance_traveled {0.0f}; // in inches
+    std::atomic<bool> cancel_request {false};
+
+    // Internal struct to pass arguments to the task
+    struct TaskParams {
+        RamsetePathFollower* instance;
+        std::string path_name;
+        ramseteConfig config;
+    };
+
     static inline std::vector<std::vector<State>> precomputed_paths;
 
-    // Helper functions
+    // --- Helpers ---
+    static void task_trampoline(void* params);
+    void followPathImpl(const std::string& path_name, const ramseteConfig& r_config);
+    
     static void precompute_paths_task(void* param);
     static std::vector<std::pair<double,double>> parse_pairs(const std::string& line);
     static std::vector<State> prepare_trajectory(const std::string& data);
@@ -56,7 +80,6 @@ private:
     double angleError(double robotAngle, double targetAngle);
     double sinc(double x);
 
-    // Nested Helper Class
     class Vector2 {
     public:
         Vector2(float x, float y);

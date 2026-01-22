@@ -1,5 +1,6 @@
 #include "globals.h" 
 #include "auton/autonFunctions.h"
+#include "ltv.h"
 #include "pros/rtos.hpp"
 #include "velocityController.h"
 #include "paths.h"
@@ -49,6 +50,7 @@ const VelocityControllerConfig config{
 
     
 RamsetePathFollower ramsete(config,2.5, 0.9);
+LTVPathFollower ltv(config);
 
 void precompute_auton_paths() {
     std::vector<std::string> paths = {};
@@ -97,14 +99,32 @@ void right_auton()
     score_longgoal_auton();
     pros::delay(1000);
     resting_state(false);
-    chassis.moveToPoint(-22 - longgoal_offset - 7, longgoal_y_believed, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset - 1, longgoal_y_believed, 1000, {.forwards = false});
     chassis.moveToPoint(-22 - longgoal_offset - 1, longgoal_y_believed, 1000, {.forwards = false});
     score_longgoal_auton();
+    pros::delay(1000);
+
 
 }
 
 void carry_auton() {
-    //chassis.setPose(-24, 24, 90);
+    chassis.setPose(-51.25, -18.5, 180);
+    distanceReset(true);
+    intake();
+    ramsete.followPath(awp_1, {.end_correction = true});
+    ramsete.waitUntil(5);
+    matchload_state(true);
+    ramsete.waitUntilDone();
+    pros::delay(matchload_delay);
+    chassis.turnToPoint(-22 - longgoal_offset, -51.5, 1000, {.forwards = false});
+    chassis.moveToPoint(-22 - longgoal_offset, -51.5, 1000, {.forwards = false, .minSpeed=35}, false);
+    intake_stop();
+    score_longgoal_auton();
+    pros::delay(longgoal_delay + 150);
+    matchload_state(false);
+    distanceReset(true);
+
+    
 }
 
 void left_auton() {
@@ -148,9 +168,7 @@ void left_auton() {
 }
 
 void elim_auton() {
-    std::cout << "Completed skills_2 path" << std::endl;
-    ramsete.followPath(skills_test, {.test = true});
-    std::cout << "Completed skills_2 path" << std::endl;
+    ltv.followPath(skills_test, {.test = true});
 }
 
 void awp_auton() {
@@ -210,7 +228,8 @@ void awp_auton() {
     chassis.moveToPoint(-24 , -24, 1000, {.maxSpeed = 85, .minSpeed = 20});
     chassis.waitUntil(17);
     */
-    ramsete.followPath(awp_1, {.end_correction = true, .exit_points = 5});
+    ramsete.followPath(awp_1, {.end_correction = true});
+    ramsete.waitUntilDone();
     matchload_state(true);
     chassis.waitUntilDone();
 
@@ -303,6 +322,7 @@ void skills_auton() {
     distanceReset(true);
     chassis.moveToPoint(-72 + matchload_offset, 47.5, 1500, {}, false);
     ramsete.followPath(skills_1, {.backwards = true});
+    ramsete.waitUntilDone();
     chassis.moveToPoint(22 + longgoal_offset, 62, 3000, {.forwards = false, .maxSpeed = 90}, false);
     distanceReset(true);
     chassis.turnToPoint(45, 48, 1500, {.forwards = false});
@@ -319,20 +339,24 @@ void skills_auton() {
     pros::delay(longgoal_delay);
     distanceReset(true);
     ramsete.followPath(skills_2, {.backwards = false, .end_correction = true});
+    ramsete.waitUntilDone();
     chassis.tank(100, 100);
     pros::delay(1500);
     chassis.turnToHeading(180, 2000);
     chassis.waitUntilDone();
     distanceReset(true);
     ramsete.followPath(skills_3, {.backwards = false, .end_correction = true});
+    ramsete.waitUntilDone();
     chassis.turnToPoint(72 - matchload_offset, -47, 1000);
     distanceReset(true);
     chassis.moveToPoint(72 - matchload_offset, -47, 2000, {}, false);
     pros::delay(matchload_delay);
 
     ramsete.followPath(skills_4, {.backwards = true, .end_correction = true});
+    ramsete.waitUntilDone();
     chassis.moveToPoint(-22 - longgoal_offset, -62, 2000, {.forwards = true, .earlyExitRange = 2}, false);
     ramsete.followPath(skills_5, {.backwards = false, .end_correction = true});
+    ramsete.waitUntilDone();
     chassis.turnToPoint(-22 - longgoal_offset - 2, -47, 1000, {.forwards = false}, false);
     distanceReset(true);
     chassis.moveToPoint(-22 - longgoal_offset - 2, -47, 1500, {.forwards = false}, false);
@@ -344,6 +368,7 @@ void skills_auton() {
     pros::delay(matchload_delay);
 
     ramsete.followPath(skills_6, {.backwards = false, .end_correction = true});
+    ramsete.waitUntilDone();
     chassis.turnToPoint(-72 + 5.5, 0, 1000);
     chassis.moveToPoint(-72 + 5.5, 0, 2000, {.forwards = true});
 

@@ -14,17 +14,17 @@ public:
         bool backwards = false;
         bool log = false;
         int path_index = -1;
-        
+
         // LTV Cost Matrices diagonal elements
         // Q: State cost [x_error, y_error, theta_error]
-        float q_x = 0.05f;
-        float q_y = 0.05f;
-        float q_theta = 0.01f;
+        float q_x = 1.0f;
+        float q_y = 8.0f;
+        float q_theta = 6.0f;
 
         // R: Control cost [velocity_correction, angular_correction]
         // Higher R = smoother, less aggressive corrections
-        float r_vel = 1.0f;
-        float r_ang = 1.0f;
+        float r_vel = 0.5f;
+        float r_ang = 0.8f;
 
         bool test = false;
         bool turnFirst = false;
