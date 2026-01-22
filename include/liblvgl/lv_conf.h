@@ -440,7 +440,6 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  * glyphs cannot be processed by the library and won't be rendered.
  */
 #define LV_USE_FONT_COMPRESSED 1
-#define LV_USE_QRCODE 0
 
 /* Enable subpixel rendering */
 #define LV_USE_FONT_SUBPX 1
@@ -589,9 +588,6 @@ typedef void * lv_obj_user_data_t;
  * LV_EXT_CLICK_AREA_FULL: The extra area can be adjusted in all 4 directions (-32k..+32k px)
  */
 #define LV_USE_EXT_CLICK_AREA  LV_EXT_CLICK_AREA_TINY
-
-#define LV_USE_FLEX 1
-#define LV_USE_GRID 1
 
 /*==================
  *  LV OBJ X USAGE
