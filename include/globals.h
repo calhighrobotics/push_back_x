@@ -6,6 +6,7 @@
 #include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/motors.h"
+<<<<<<< HEAD
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
 #include "colorSort.h"
@@ -17,6 +18,8 @@ struct State {
 
 
 
+=======
+>>>>>>> main
 
 extern pros::Controller controller;
 
