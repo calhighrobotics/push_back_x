@@ -85,6 +85,7 @@ pros::adi::Pneumatics trapDoor('A', false);
 pros::adi::Pneumatics matchload('B', false);
 pros::adi::Pneumatics basket('C', false);
 pros::adi::Pneumatics descore('D', false);
+pros::adi::Pneumatics lowGoalAligner('E', false);
 
 pros::Optical color_sensor(5);
 

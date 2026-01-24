@@ -56,6 +56,7 @@ extern pros::adi::Pneumatics trapDoor;
 extern pros::adi::Pneumatics matchload;
 extern pros::adi::Pneumatics basket;
 extern pros::adi::Pneumatics descore;
+extern pros::adi::Pneumatics lowGoalAligner;
 
 extern pros::Optical color_sensor;
 

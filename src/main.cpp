@@ -220,6 +220,10 @@ void opcontrol() {
         {
             alignToGoal(1);
         }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
+        {
+            lowGoalAligner.toggle();
+        }
         else
         {
             ramp_up_time = 0;
