@@ -49,7 +49,7 @@ const VelocityControllerConfig config{
 };
 
     
-RamsetePathFollower ramsete(config,2.5, 0.9);
+RamsetePathFollower ramsete(config,50, 0);
 LTVPathFollower ltv(config);
 
 void precompute_auton_paths() {
@@ -168,7 +168,7 @@ void left_auton() {
 }
 
 void elim_auton() {
-    ltv.followPath(skills_test, {.test = true});
+    ltv.followPath(awp_1, {.log = true, .test = true});
 }
 
 void awp_auton() {

@@ -15,3 +15,6 @@ temp.log
 temp.errors
 *.ini
 .d/
+
+# Ignore files with the text "logfile" in their name in the root directory
+/*logfile*

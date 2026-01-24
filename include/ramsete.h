@@ -15,8 +15,8 @@ public:
         bool backwards = false;
         bool log = false;
         int path_index  = -1;
-        float b = 2.0f;
-        float zeta = 0.7f;
+        float b = 30.0f * 0.85;
+        float zeta = 0.0f;
         bool test = false;
         bool turnFirst = false;
         bool end_correction = false;
@@ -45,7 +45,7 @@ public:
 
 private:
     static constexpr float INCH_TO_METER = 0.0254f;
-    static constexpr float TRACK_WIDTH = 12.8f;
+    static constexpr float TRACK_WIDTH = 11.55f;
     static constexpr float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
     static constexpr float gear_ratio = 4.0f / 3.0f;
     static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;

@@ -20,7 +20,7 @@ pros::MotorGroup leftMotors({-1,2,-3}, pros::MotorGears::blue);
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
-    11.5, 
+    11., 
     lemlib::Omniwheel::NEW_325, 
     450, 
     5);
@@ -30,8 +30,8 @@ pros::Imu imu(19);
 pros::Rotation horizontal_tracking_sensor(20);
 pros::Rotation vertical_tracking_sensor(-16);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, -6.37728606611, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, 0.110912828986,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, -6.26707246263, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, -0.091865514797,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
@@ -93,6 +93,7 @@ pros::Vision vision_sensor(16);
 Color allianceColor = Color::RED;
 bool color_sort_enable = false;
 bool midgoal_first = false;
+int ramp_up_time = 1000;
 
 
 

@@ -105,6 +105,33 @@ void initialize() {
     });
 }
 
+
+void find_tracking_center(float turnVoltage, uint32_t time_ms) {
+    chassis.setPose(0, 0, 0);
+
+    std::vector<std::string> logs;
+    std::vector<std::string> logs2;
+
+    uint32_t start = pros::millis();
+    while (pros::millis() - start < time_ms)
+    {
+        leftMotors.move_voltage(turnVoltage * 1000);
+        rightMotors.move_voltage(-turnVoltage * 1000);
+
+        auto pose = chassis.getPose(false);  // don't estimate
+        logs.push_back(std::to_string(pose.x) + "," + std::to_string(pose.y) + ",");
+        logs2.push_back(std::to_string(pose.theta) + ",");
+
+        pros::delay(20);
+    }
+    leftMotors.brake();
+    rightMotors.brake();
+
+    for (auto &s : logs) std::cout << s, pros::delay(50);
+    std::cout << std::endl;
+    for (auto &s : logs2) std::cout << s, pros::delay(50);
+}
+
 void disabled() {
     selector.focus();
 }
@@ -116,26 +143,10 @@ void autonomous() {
     //selector.run_auton();
     //skills_auton();
     //awp_auton();
+    //find_tracking_center(5, 5000);
     elim_auton();
 }
 
-/*
-
-Straight:
-KV = 5.19338427813
-1.26552223944
-0.67257433253
-11.6978629947
-46.9504105993
-
-Turn:
-7.22576300573
-1.36207946996
-1.54163120695
-19.8980417469
-106.56124453
-
-*/
 
 void opcontrol() {
     std::cout << allianceColor << std::endl;
@@ -165,6 +176,7 @@ void opcontrol() {
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
         {
             score_midgoal();
+            ramp_up_time += 10;
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
         {
@@ -210,6 +222,7 @@ void opcontrol() {
         }
         else
         {
+            ramp_up_time = 0;
             resting_state(trapDoor_commanded);
             midgoal_first = false;
         }
