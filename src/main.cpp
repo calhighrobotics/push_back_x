@@ -1,17 +1,19 @@
 #include "main.h"
 #include "globals.h" 
 #include "liblvgl/core/lv_obj_pos.h"
+#include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "auton/autonRoutines.h"
-#include "auton/autonFunctions.h"
 #include "robodash/views/selector.hpp"
-#include "distanceReset.h"
 #include "colorSort.h"
 #include "warnings.h"
 #include <string>
 #include "MCL.h"
 #include "visionAlignment.h"
-#include "ramsete.h"
+
+#include "ltv.h"
+#include "TwiddleTuner.hpp"
+#include "paths.h"
 
 void alliance_btn_event_handler(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
@@ -76,7 +78,7 @@ void initialize() {
     */
     calibrate_vision();
     create_alliance_selector();
-    selector.focus();
+    console.focus();
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
@@ -139,6 +141,40 @@ void disabled() {
 void competition_initialize() {
 }
 
+void distanceCalibration()
+{
+    // 1. Reset position and move back 4 inches
+    chassis.setPose(0, 0, 0);
+    // Move to y = -4. forwards = false ensures we reverse to that point.
+    chassis.moveToPoint(0, -4, 2000, {.forwards = false});
+    chassis.waitUntilDone(); // Wait for the move to finish before turning
+
+    // 2. Setup sensors and targets
+    std::vector<pros::Distance*> sensors = {&frontDistance, &leftDistance, &backDistance, &rightDistance};
+    std::vector<std::string> sensorNames = {"Front", "Left", "Back", "Right"};
+    std::vector<int> angles = {0, 30, 45};
+
+    // 3. Loop through the target angles
+    for (int angle : angles)
+    {
+        // Turn to the specific heading (0, then 30, then 45)
+        chassis.turnToHeading(angle, 2000);
+        chassis.waitUntilDone(); // Wait for the turn to finish
+        
+        // Optional: Short delay to let the sensor readings stabilize after moving
+        pros::delay(200); 
+
+        // 4. Log measurements from all sensors for this angle
+        printf("--- Calibration at %d Degrees ---\n", angle);
+        for(int i = 0; i < sensors.size(); i++)
+        {
+            int reading = sensors.at(i)->get();
+            // Prints: "Front Sensor: 120 mm"
+            printf("%s Sensor: %d mm\n", sensorNames.at(i).c_str(), reading);
+        }
+    }
+}
+
 void autonomous() {
     //selector.run_auton();
     //skills_auton();
@@ -149,6 +185,7 @@ void autonomous() {
 
 
 void opcontrol() {
+    /*
     std::cout << allianceColor << std::endl;
     bool trapDoor_commanded = false;
     while(true)
@@ -168,6 +205,7 @@ void opcontrol() {
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
         {
             outtake();
+            low_ramp_down_time += 10;
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
         {
@@ -220,8 +258,13 @@ void opcontrol() {
         {
             alignToGoal(1);
         }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
+        {
+            lowGoalAligner.toggle();
+        }
         else
         {
+            low_ramp_down_time = 0;
             ramp_up_time = 0;
             resting_state(trapDoor_commanded);
             midgoal_first = false;
@@ -233,7 +276,55 @@ void opcontrol() {
             chassis.curvature(throttle, steer, false);
         pros::delay(10);
     }
+    */
+
+    const VelocityControllerConfig config{
+    5.8432642308,
+    0.213526937516,
+    1.14429410811,
+    0.906356177095,
+    0.347072436421,
+    11.4953431776,
+    54.5797495382,
+    };
+
+    TwiddleTuner tuner;
+    LTVPathFollower follower(config);
+
+    // Button A to Start Optimization Run
+    // Button B to Reset/Stop
+    
+    while (true) {
+        if (controller.get_digital_new_press(DIGITAL_A)) {
+            // 1. Get current experimental weights
+            LTVPathFollower::ltvConfig exp_config = tuner.getConfig();
+            
+            // 2. Run the path
+            // Robot MUST be at starting position before pressing A
+            LTVPathFollower::PathScore result = follower.followPath(tuning_curve_2, exp_config);
+            
+            // 3. Feed the result back to the tuner
+            tuner.update(result.final_score);
+            
+            // 4. Feedback
+            controller.print(0, 0, "Score: %.2f", result.final_score);
+            pros::delay(500);
+            controller.rumble(".");
+        }
+        else if(controller.get_digital_new_press(DIGITAL_UP)) {
+            tuner = TwiddleTuner(); // Reset tuner logic
+            
+            // Visual feedback that reset happened
+            controller.clear_line(0); 
+            pros::delay(50);
+            controller.print(0, 0, "TUNER RESET!");
+            controller.rumble("-"); // Long rumble for reset
+            leftMotors.brake();
+            rightMotors.brake();
+            pros::delay(1000); // Wait so you can read the text
+            controller.clear_line(0);
+
+        }
+        pros::delay(20);
+    }
 }
-
-
-

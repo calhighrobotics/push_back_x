@@ -1,6 +1,8 @@
 #include "ltv.h"
 #include "lemlib/util.hpp"
+#include "pros/motors.h"
 #include <cmath>
+#include <sys/types.h>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -44,7 +46,7 @@ Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eige
     Eigen::MatrixXf X_prev;
     Eigen::MatrixXf K;
 
-    for (int i = 0; i < 35; ++i) {
+    for (int i = 0; i < 25; ++i) {
         X_prev = X;
         Eigen::MatrixXf R_BXB = R + B.transpose() * X * B;
         K = R_BXB.inverse() * B.transpose() * X * A;
@@ -138,7 +140,8 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
     return states;
 }
 
-void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
+LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
+    // [Setup Code Remains the Same...]
     std::vector<State> trajectory;
     if(l_config.path_index >= 0 && (size_t)(l_config.path_index) < precomputed_paths.size()) {
         if (!precomputed_paths.at(l_config.path_index).empty()) {
@@ -148,8 +151,10 @@ void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& 
     if (trajectory.empty()) trajectory = prepare_trajectory(path_name);
     if (trajectory.empty()) {
         std::cout << "[LTV] Error: Empty trajectory." << std::endl;
-        return;
+        return {0,0,0,1000000.0};
     }
+
+    // Tuning Matrices
     Eigen::Matrix3f Q_mat; 
     Q_mat << l_config.q_x, 0, 0,
              0, l_config.q_y, 0,
@@ -157,87 +162,161 @@ void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& 
     Eigen::Matrix2f R_mat;
     R_mat << l_config.r_vel, 0,
              0, l_config.r_ang;
+
+    // Initial Pose Setup
     if(l_config.test) {
-        chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
+        chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, l_config.backwards ? M_PI_2 - trajectory[0].heading + M_PI : M_PI_2 - trajectory[0].heading, true);
     } else if(l_config.turnFirst) {
         double targetH = lemlib::radToDeg(M_PI_2 - trajectory[0].heading);
         chassis.turnToHeading(l_config.backwards ? targetH + 180 : targetH, 1000);
     }
+
     std::vector<std::string> logs;
     int trajectory_size = trajectory.size();
-    uint32_t prev_time = pros::millis();
+    
+    // --- FIX 1: CONSTANT CONTROL DT ---
+    // We trust the loop delay more than the system clock for derivative math stability
+    const double CONTROL_DT = 0.01; 
+
+    // -- Scoring Variables --
+    double sum_lat_error = 0;
+    double sum_head_error = 0;
+    double sum_jerk = 0;
+    float prev_w_cmd = 0;
+    int steps = 0;
+
+    // --- FIX 2: GAIN CACHING SETUP ---
+    // Initialize K with zeros. We will compute it on the first tick.
+    Eigen::MatrixXf K = Eigen::MatrixXf::Zero(2, 3);
+    int compute_counter = 0; 
+    const int RECOMPUTE_INTERVAL = 5; // Re-solve Riccati every 50ms
+
+    uint32_t start_time = pros::millis();
+    uint32_t next_wake_time = start_time;
+
     for (int i = 0; i < trajectory_size; ++i) {
-        uint32_t current_time = pros::millis();
-        double dt = (current_time - prev_time) / 1000.0;
-        if (dt <= 0.002) dt = 0.01;
-        if (dt > 0.1) dt = 0.1;
-        prev_time = current_time;
+        // We use the loop structure to enforce timing, but math uses CONTROL_DT
+        
         const auto &target_state = trajectory[i];
         lemlib::Pose current_pose = chassis.getPose(true);
+        
+        // Convert LemLib pose to standard math frame (Meters & Radians)
         current_pose.x *= INCH_TO_METER;
         current_pose.y *= INCH_TO_METER;
         double math_theta = M_PI_2 - current_pose.theta; 
+        
         double targetHeadingAdjusted = target_state.heading + (l_config.backwards ? M_PI : 0);
         double errorTheta = angleError(math_theta, targetHeadingAdjusted);
+        
+        // Calculate Error Vector (Global -> Local)
         Eigen::Vector3d global_error;
         global_error << target_state.x - current_pose.x, target_state.y - current_pose.y, errorTheta;
+        
         Eigen::Matrix3d rotation_matrix;
         rotation_matrix <<  std::cos(math_theta), std::sin(math_theta), 0, 
                            -std::sin(math_theta), std::cos(math_theta), 0, 
                             0, 0, 1;
         Eigen::Vector3d error = rotation_matrix * global_error;
+
         float v_ref = target_state.linear_vel * (l_config.backwards ? -1.0 : 1.0);
         float w_ref = target_state.angular_vel;
+
+        // --- SINGULARITY HANDLING ---
+        float lateral_coupling = v_ref;
         float v_model = v_ref;
         if (std::abs(v_model) < 0.05) {
-            v_model = (v_model >= 0) ? 0.05 : -0.05;
+            v_model = (v_model >= 0) ? 0.05 : -0.05; 
+            lateral_coupling = 0.0; 
         }
-        Eigen::Matrix3f A;
-        A << 0, w_ref, 0,
-             -w_ref, 0, v_model,
-             0, 0, 0;
-        Eigen::Matrix<float, 3, 2> B;
-        B << 1, 0,
-             0, 0,
-             0, 1;
-        auto discAB = discretizeAB(A, B, dt);
-        Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
-        Eigen::MatrixXf K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
-        Eigen::Vector2f u = K * error.cast<float>();
+
+        // --- FIX 2: CONDITIONAL DARE SOLVE ---
+        // Only run the heavy matrix math every N ticks. 
+        // This removes structural jitter while keeping gains accurate enough.
+        if (compute_counter % RECOMPUTE_INTERVAL == 0) {
+            Eigen::Matrix3f A;
+            A << 0, w_ref, 0,
+                 -w_ref, 0, lateral_coupling, 
+                 0, 0, 0;
+            
+            Eigen::Matrix<float, 3, 2> B;
+            B << 1, 0,
+                 0, 0,
+                 0, 1;
+            
+            // Use stable CONTROL_DT for discretization
+            auto discAB = discretizeAB(A, B, CONTROL_DT);
+            Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
+            
+            // Update K
+            K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
+        }
+        compute_counter++;
+
+        // --- FIX 3: ERROR CLAMPING ---
+        // Prevents gain spikes from reacting to massive instantaneous errors (e.g. vision jumps)
+        Eigen::Vector3f e_clamped = error.cast<float>();
+        
+        // Clamp Lateral Error (Y) to +/- 0.3 meters (approx 1 foot)
+        // Clamp Heading Error to +/- 0.5 radians (approx 30 degrees)
+        // We leave X (Longitudinal) unclamped usually, or looser.
+        e_clamped(1) = clamp(e_clamped(1), -0.3f, 0.3f);
+        e_clamped(2) = clamp(e_clamped(2), -0.5f, 0.5f);
+
+        // Apply Control Law
+        Eigen::Vector2f u = K * e_clamped;
+        
         float u_v = clamp(u(0), -l_config.max_lin_correction, l_config.max_lin_correction);
         float u_w = clamp(u(1), -l_config.max_ang_correction, l_config.max_ang_correction);
+        
         float v_cmd = v_ref + u_v;
         float w_cmd = w_ref + u_w;
+
+        // --- SCORING (Corrected for Local Frame) ---
+        // error(0) = X error (Longitudinal - timing/speed error)
+        // error(1) = Y error (Lateral - deviation from path)
+        
+        // Use error(1) for lateral scoring, not vector norm of X+Y
+        double lat_err = std::abs(error(1)); 
+        double head_err = std::abs(error(2));
+        double current_jerk = std::abs(w_cmd - prev_w_cmd);
+        prev_w_cmd = w_cmd;
+
+        sum_lat_error += lat_err;
+        sum_head_error += head_err;
+        sum_jerk += current_jerk;
+        steps++;
+
+        // --- MOTOR OUTPUT ---
         float left_actual_mps = leftMotors.get_actual_velocity() * rpm_to_mps_factor;
         float right_actual_mps = rightMotors.get_actual_velocity() * rpm_to_mps_factor;
+        
         DrivetrainVoltages output_voltages = controller.update(
             v_cmd, 
             w_cmd, 
             left_actual_mps, 
             right_actual_mps
         );
+
         rightMotors.move_voltage(output_voltages.rightVoltage * 1000.0);
         leftMotors.move_voltage(output_voltages.leftVoltage * 1000.0);
+        
         if(l_config.log) {
             std::ostringstream ss;
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
             logs.push_back(ss.str());
         }
-        pros::delay(10);
+
+        // --- PRECISE LOOP TIMING ---
+        // Ensures the loop actually takes 10ms, matching CONTROL_DT
+        next_wake_time += 10;
+        pros::Task::delay_until(&next_wake_time, 10);
     }
-    if(!l_config.test && l_config.end_correction) {
-        pros::delay(50);
-        chassis.moveToPose(
-            trajectory.back().x / INCH_TO_METER, 
-            trajectory.back().y / INCH_TO_METER, 
-            lemlib::radToDeg(M_PI_2 - trajectory.back().heading), 
-            1500, 
-            {.lead = l_config.mpose_lead}
-        );
-        chassis.waitUntilDone();
-    }
+
+    // Stop Motors
     rightMotors.brake();
     leftMotors.brake();
+    
+    // Logging Output
     if(l_config.log) {
         std::cout << "--- PATH LOG START ---" << std::endl;
         for (const auto& line : logs) {
@@ -246,4 +325,23 @@ void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& 
         }
         std::cout << std::endl << "--- PATH LOG END ---" << std::endl;
     }
+
+    // --- FINAL SCORE ---
+    PathScore score;
+    if (steps == 0) steps = 1;
+
+    score.total_lateral_error = sum_lat_error / steps;
+    score.total_heading_error = sum_head_error / steps;
+    score.total_jerk = sum_jerk / steps;
+
+    double performance_cost = (score.total_lateral_error * 1000.0) + 
+                              (score.total_heading_error * 2000.0) + 
+                              (score.total_jerk * 50.0);
+
+    if (steps > trajectory_size * 1.5) {
+        performance_cost += 5000.0;
+    }
+
+    score.final_score = performance_cost;
+    return score;
 }

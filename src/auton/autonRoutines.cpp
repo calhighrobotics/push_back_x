@@ -49,7 +49,7 @@ const VelocityControllerConfig config{
 };
 
     
-RamsetePathFollower ramsete(config,50, 0);
+RamsetePathFollower ramsete(config,2.5, 0.9);
 LTVPathFollower ltv(config);
 
 void precompute_auton_paths() {
@@ -168,19 +168,19 @@ void left_auton() {
 }
 
 void elim_auton() {
-    ltv.followPath(awp_1, {.log = true, .test = true});
+    ltv.followPath(tuning_curve_2, {.backwards =false ,.log = true, .test = true});
 }
 
 void awp_auton() {
     /*
-    MCL::StartMCL(-51.25, -18.5, 180);
+    MCL::StartMCL(-51.25, –18.5, 180);
     pros::Task mclTask(MCL::MonteCarlo);
     enable_fused_odometry(true);
     */
     //colorSort(Color::RED);
     //FIRST LONGGOAL
     /*
-    MCL::StartMCL(-51.25, -18.5, 180);
+    MCL::StartMCL(-51.25, –18.5, 180);
     pros::Task mclTask(MCL::MonteCarlo);
     enable_fused_odometry(true);
     */

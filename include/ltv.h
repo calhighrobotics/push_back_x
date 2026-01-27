@@ -10,30 +10,50 @@
 
 class LTVPathFollower {
 public:
+    // Struct to report performance back to the Tuner
+    struct PathScore {
+        double total_lateral_error = 0;
+        double total_heading_error = 0;
+        double total_jerk = 0;
+        double final_score = 0; // The number the Tuner tries to minimize
+    };
+
     struct ltvConfig {
         bool backwards = false;
         bool log = false;
         int path_index = -1;
         bool test = false;
         bool turnFirst = false;
-        bool end_correction = true;
+        bool end_correction = false;
         float mpose_lead = 0.6f;
-        float track_width = 11.5f;
+        float track_width = 11.55f;
+        float max_lin_correction = 10000.0f;
+        float max_ang_correction = 10000.0f;
+        int exit_points = 5;
 
-        float q_x = 10.0;
-        float q_y = 10.0f;
-        float q_theta = 20.0f;
+        // --- STABILIZED DEFAULT WEIGHTS ---
+        // These are the values that fixed the "Sawtooth" behavior.
+        // 1. Position Weights (High Accuracy)
+        float q_x = 28000.0f;
+        float q_y = 28000.0f; 
+        
+        // 2. Heading Weight (High Stability)
+        // Forces robot to align with path, preventing drift.
+        float q_theta = 8000.0f;
 
-        float r_vel = 5.0f;
-        float r_ang = 5.0f;
+        // 3. Steering Cost
+        float r_ang = 85.0f;    
 
-        float max_lin_correction = 1000.0f;
-        float max_ang_correction = 1000.0f;
+        // 4. Damping (Smoothness)
+        // Prevents the "Snap" corrections.
+        float r_vel = 20.0f;
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);
 
-    void followPath(const std::string& path_name, const ltvConfig& l_config);
+    // Now returns PathScore instead of void
+    PathScore followPath(const std::string& path_name, const ltvConfig& l_config);
+    
     void precompute_paths(const std::vector<std::string>& path_names);
 
 private:

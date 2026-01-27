@@ -15,8 +15,8 @@ public:
         bool backwards = false;
         bool log = false;
         int path_index  = -1;
-        float b = 30.0f * 0.85;
-        float zeta = 0.0f;
+        float b = 2.5;
+        float zeta = 0.9f;
         bool test = false;
         bool turnFirst = false;
         bool end_correction = false;

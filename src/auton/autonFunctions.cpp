@@ -18,7 +18,11 @@ void intake(int power = 12000)
 
 void outtake(int power = 12000)
 {
-    intakeMotor.move_voltage(-power);
+    
+    if(low_ramp_down_time >= 400)
+        intakeMotor.move_voltage( -6000);
+    else
+        intakeMotor.move_voltage(-power);
 }
 
 void score_bottomgoal(int power = 12000)
@@ -56,24 +60,31 @@ void score_midgoal(int power = 12000)
         topMotor.move_voltage(-8000);
     }
     else {
-        topMotor.move_voltage(12000);
+        if (ramp_up_time >= 400)
+        {
+            topMotor.move_voltage(4000);
+            intakeMotor.move_voltage(10000);
+        }
+        else {
+            topMotor.move_voltage(12000);
+            intakeMotor.move_voltage(12000);
+        }
     }
     if(midgoal_first)
     {
-        topMotor.move_voltage(-12000);
-        pros::delay(250);
+        //topMotor.move_voltage(-12000);
+        //pros::delay(250);
         midgoal_first = false;
         if(!trapDoor.is_extended()) trapDoor.extend();
-        intake(power);
+        intakeMotor.move_voltage(12000);
         topMotor.move_voltage(6000);
         pros::delay(500);
     }
-    if(ramp_up_time >= 1600)
-    {
-        topMotor.move_voltage(4000);
-    }
-    intake(power);
-    topMotor.move_voltage(10000);
+    //if (ramp_up_time >= 1600)
+    //{
+    //    topMotor.move_voltage(4000);
+    //}
+    //topMotor.move_voltage(10000);
     
 }
 
@@ -217,6 +228,3 @@ void matchload_counter(int balls, int time_ms)
         pros::Task::current().remove();
     });
 }
-
-
-

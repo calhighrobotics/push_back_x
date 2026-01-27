@@ -14,21 +14,21 @@
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({8,-9,10}, pros::MotorGears::blue);
-pros::MotorGroup leftMotors({-1,2,-3}, pros::MotorGears::blue);
+pros::MotorGroup rightMotors({-8,10,9}, pros::MotorGears::blue);
+pros::MotorGroup leftMotors({1,-3,-2,}, pros::MotorGears::blue);
 
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
-    11., 
+    11.55, 
     lemlib::Omniwheel::NEW_325, 
     450, 
     5);
 
-pros::Imu imu(19);
+pros::Imu imu(5);
 
-pros::Rotation horizontal_tracking_sensor(20);
-pros::Rotation vertical_tracking_sensor(-16);
+pros::Rotation horizontal_tracking_sensor(-13);
+pros::Rotation vertical_tracking_sensor(-12);
 
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, -6.26707246263, 1); //Units are in inches
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, -0.091865514797,1);
@@ -73,31 +73,26 @@ lemlib::ExpoDriveCurve steer_curve(5,   // joystick deadband out of 127
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
-pros::Motor topMotor(7, pros::v5::MotorGears::blue);
+pros::Motor topMotor(19, pros::v5::MotorGears::blue);
 
 
-pros::Distance rightDistance(6);
-pros::Distance leftDistance(12);
-pros::Distance frontDistance(13);
+pros::Distance rightDistance(20);
+pros::Distance leftDistance(15);
+pros::Distance frontDistance(14);
 pros::Distance backDistance(11);
 
 pros::adi::Pneumatics trapDoor('A', false);
 pros::adi::Pneumatics matchload('B', false);
 pros::adi::Pneumatics basket('C', false);
 pros::adi::Pneumatics descore('D', false);
+pros::adi::Pneumatics lowGoalAligner('E', false);
 
-pros::Optical color_sensor(5);
+pros::Optical color_sensor(7);
 
 pros::Vision vision_sensor(16);
 
 Color allianceColor = Color::RED;
 bool color_sort_enable = false;
 bool midgoal_first = false;
-int ramp_up_time = 1000;
-
-
-
-
-
-
-
+int ramp_up_time = 0;
+int low_ramp_down_time = 0;

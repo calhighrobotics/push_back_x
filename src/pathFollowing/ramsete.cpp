@@ -99,7 +99,7 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
     }
 
     if(r_config.test) {
-        chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
+        chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, r_config.backwards ? M_PI_2 - trajectory[0].heading + M_PI : M_PI_2 - trajectory[0].heading, true);
     } else if(r_config.turnFirst) {
         double targetH = lemlib::radToDeg(M_PI_2 - trajectory[0].heading);
         chassis.turnToHeading(r_config.backwards ? targetH + 180 : targetH, 1000);
@@ -113,10 +113,8 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
     lemlib::Pose start_pose = chassis.getPose();
     uint32_t global_start_time = pros::millis();
     
-    // Settling variables removed here
-
     while (!cancel_request) {
-        uint32_t now = pros::millis();
+        uint32_t now = pros::millis() - global_start_time;
         
         float t_elapsed_sec = (now - global_start_time) / 1000.0f;
         float exact_index = t_elapsed_sec / (path_dt_ms / 1000.0f);

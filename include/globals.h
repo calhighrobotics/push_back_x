@@ -56,6 +56,7 @@ extern pros::adi::Pneumatics trapDoor;
 extern pros::adi::Pneumatics matchload;
 extern pros::adi::Pneumatics basket;
 extern pros::adi::Pneumatics descore;
+extern pros::adi::Pneumatics lowGoalAligner;
 
 extern pros::Optical color_sensor;
 
@@ -65,4 +66,4 @@ extern Color allianceColor;
 extern bool color_sort_enable;
 extern bool midgoal_first;
 extern int ramp_up_time;
-
+extern int low_ramp_down_time;
