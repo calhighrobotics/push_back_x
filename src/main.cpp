@@ -75,7 +75,7 @@ void initialize() {
     console.focus();
     
     */
-    calibrate_vision();
+    //calibrate_vision();
     create_alliance_selector();
     console.focus();
     pros::Task screen_task([&]() {
@@ -267,7 +267,7 @@ void opcontrol() {
                 controller.print(1, 0, "Best: %.0f", tuner.getBestScore());
 
                 // Run Path
-                LTVPathFollower::PathScore result = follower.followPath(awp_1, ltv_cfg);
+                LTVPathFollower::PathScore result = follower.followPath(tuning_curve_2, ltv_cfg);
                 last_score = result.final_score;
                 gen_count++;
                 
