@@ -12,7 +12,6 @@
 #include "visionAlignment.h"
 
 #include "ltv.h"
-#include "TwiddleTuner.hpp"
 #include "paths.h"
 
 void alliance_btn_event_handler(lv_event_t * e) {
@@ -184,147 +183,120 @@ void autonomous() {
 }
 
 
+#include "main.h"
+#include "EvolutionTuner.hpp"
+// ... [Your other includes] ...
+
 void opcontrol() {
-    /*
-    std::cout << allianceColor << std::endl;
-    bool trapDoor_commanded = false;
-    while(true)
-    {
-        int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
-
-        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
-        {
-            midgoal_first = true;
-        }
-
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
-        {
-            intake();
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
-        {
-            outtake();
-            low_ramp_down_time += 10;
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
-        {
-            score_longgoal(12000, allianceColor);
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
-        {
-            score_midgoal();
-            ramp_up_time += 10;
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
-        {
-            intake_to_basket();
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
-        {
-            if(descore.is_extended())
-                descore.retract();
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
-        {
-            throttle = 0;
-            steer = 0;
-            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-            leftMotors.brake();
-            rightMotors.brake();
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
-        {
-            if(!trapDoor_commanded)
-            {
-                trapDoor_commanded = true;
-                trapDoor.extend();
-            }
-            else {
-                trapDoor_commanded = false;
-            }
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
-        {
-            matchload.toggle();
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
-        {
-            color_sort_enable = !color_sort_enable;
-            controller.rumble(".");
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
-        {
-            alignToGoal(1);
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
-        {
-            lowGoalAligner.toggle();
-        }
-        else
-        {
-            low_ramp_down_time = 0;
-            ramp_up_time = 0;
-            resting_state(trapDoor_commanded);
-            midgoal_first = false;
-        }
-
-        if(throttle < 5)
-            chassis.arcade(throttle, steer, false);
-        else
-            chassis.curvature(throttle, steer, false);
-        pros::delay(10);
-    }
-    */
-
-    const VelocityControllerConfig config{
-    5.8432642308,
-    0.213526937516,
-    1.14429410811,
-    0.906356177095,
-    0.347072436421,
-    11.4953431776,
-    54.5797495382,
+    
+    // 1. Robot Physical Config (Keep your existing values)
+    const VelocityControllerConfig velConfig{
+        5.8432642308, 0.213526937516, 1.14429410811, 
+        0.906356177095, 0.347072436421, 11.4953431776, 54.5797495382
     };
 
-    TwiddleTuner tuner;
-    LTVPathFollower follower(config);
+    LTVPathFollower follower(velConfig);
 
-    // Button A to Start Optimization Run
-    // Button B to Reset/Stop
+    // 2. Initial Seed (The "Corner King" Tune)
+    TuningConfig start_weights = { 
+        60000.0, // q_x
+        60000.0, // q_y
+        25000.0, // q_theta
+        130.0,   // r_ang
+        15.0     // r_vel
+    };
+
+    // Initialize Log-Space Evolution Tuner
+    EvolutionTuner tuner(start_weights);
     
-    while (true) {
-        if (controller.get_digital_new_press(DIGITAL_A)) {
-            // 1. Get current experimental weights
-            LTVPathFollower::ltvConfig exp_config = tuner.getConfig();
-            
-            // 2. Run the path
-            // Robot MUST be at starting position before pressing A
-            LTVPathFollower::PathScore result = follower.followPath(tuning_curve_2, exp_config);
-            
-            // 3. Feed the result back to the tuner
-            tuner.update(result.final_score);
-            
-            // 4. Feedback
-            controller.print(0, 0, "Score: %.2f", result.final_score);
-            pros::delay(500);
-            controller.rumble(".");
-        }
-        else if(controller.get_digital_new_press(DIGITAL_UP)) {
-            tuner = TwiddleTuner(); // Reset tuner logic
-            
-            // Visual feedback that reset happened
-            controller.clear_line(0); 
-            pros::delay(50);
-            controller.print(0, 0, "TUNER RESET!");
-            controller.rumble("-"); // Long rumble for reset
-            leftMotors.brake();
-            rightMotors.brake();
-            pros::delay(1000); // Wait so you can read the text
-            controller.clear_line(0);
+    double last_score = 0;
+    bool is_tuning = true;
+    int gen_count = 0;
 
+    controller.clear();
+    pros::delay(50);
+    controller.print(0, 0, "Press A to Evolve");
+
+    while (true) {
+        
+        // --- EVOLUTION STEP ---
+        if (controller.get_digital_new_press(DIGITAL_A) && is_tuning) {
+            
+            // 1. First Run: Establish Baseline
+            if (gen_count == 0) {
+                controller.print(0, 0, "Baseline Run...");
+                
+                LTVPathFollower::ltvConfig ltv_cfg;
+                ltv_cfg.q_x = start_weights.q_x;
+                ltv_cfg.q_y = start_weights.q_y;
+                ltv_cfg.q_theta = start_weights.q_theta;
+                ltv_cfg.r_ang = start_weights.r_ang;
+                ltv_cfg.r_vel = start_weights.r_vel;
+                ltv_cfg.test = true;
+                ltv_cfg.log = false;
+
+                LTVPathFollower::PathScore result = follower.followPath(awp_1, ltv_cfg);
+                last_score = result.final_score;
+                
+                tuner.next(last_score); // Feed baseline to tuner
+                gen_count++;
+            }
+            // 2. Evolution Runs
+            else {
+                tuner.next(last_score); // Generate Child based on parent success/fail
+                TuningConfig next_cfg = tuner.pending_config;
+
+                LTVPathFollower::ltvConfig ltv_cfg;
+                ltv_cfg.q_x = next_cfg.q_x;
+                ltv_cfg.q_y = next_cfg.q_y;
+                ltv_cfg.q_theta = next_cfg.q_theta;
+                ltv_cfg.r_ang = next_cfg.r_ang;
+                ltv_cfg.r_vel = next_cfg.r_vel;
+                ltv_cfg.test = true;
+                ltv_cfg.log = false;
+
+                // Logging for Terminal
+                std::cout << "\n=== GEN " << gen_count << " (Sig: " << tuner.getSigma() << ") ===" << std::endl;
+                std::cout << "Try: Qx " << (int)next_cfg.q_x << " | Qt " << (int)next_cfg.q_theta 
+                          << " | Ra " << (int)next_cfg.r_ang << std::endl;
+
+                // Controller UI
+                controller.clear();
+                pros::delay(50);
+                controller.print(0, 0, "G:%d Sig:%.2f", gen_count, tuner.getSigma());
+                controller.print(1, 0, "Best: %.0f", tuner.getBestScore());
+
+                // Run Path
+                LTVPathFollower::PathScore result = follower.followPath(awp_1, ltv_cfg);
+                last_score = result.final_score;
+                gen_count++;
+                
+                // Feedback
+                bool improved = (last_score < tuner.getBestScore());
+                std::cout << "SCORE: " << last_score << (improved ? " [NEW BEST!]" : " [FAIL]") << std::endl;
+                
+                if (improved) controller.rumble("-"); // Long rumble = Improvement
+                else controller.rumble(".");          // Short rumble = Fail
+            }
         }
+
+        // --- SAVE AND QUIT ---
+        if (controller.get_digital_new_press(DIGITAL_B)) {
+            TuningConfig best = tuner.getBestConfig();
+            std::cout << "\n****** OPTIMIZED WEIGHTS ******" << std::endl;
+            std::cout << "float q_x = " << best.q_x << ";" << std::endl;
+            std::cout << "float q_y = " << best.q_y << ";" << std::endl;
+            std::cout << "float q_theta = " << best.q_theta << ";" << std::endl;
+            std::cout << "float r_ang = " << best.r_ang << ";" << std::endl;
+            std::cout << "float r_vel = " << best.r_vel << ";" << std::endl;
+            std::cout << "*******************************" << std::endl;
+
+            controller.clear();
+            pros::delay(50);
+            controller.print(0, 0, "Saved to Term.");
+            is_tuning = false;
+        }
+
         pros::delay(20);
     }
 }
