@@ -39,7 +39,7 @@ private:
     // Constraints
     const float MAX_GAIN = 200000.0f;
     const float MIN_GAIN = 100.0f;
-    const float MAX_DAMP = 500.0f;
+    const float MAX_DAMP = 5000.0f;
     const float MIN_DAMP = 0.1f;
 
 public:
@@ -108,7 +108,7 @@ public:
             
             // Safety Clamp on Sigma (Don't let it explode or vanish)
             if(sigma > 1.0f) sigma = 1.0f; // Max 100% mutation
-            if(sigma < 0.01f) sigma = 0.01f; // Min 1% mutation
+            if(sigma < 0.001f) sigma = 0.001f; // Min 1% mutation
         }
 
         mutate();
@@ -116,30 +116,26 @@ public:
 
     // LOG-SPACE MUTATION WITH COUPLING
     void mutate() {
-        child = parent;
-        
-        // 1. Generate Gaussian noise components
-        // "common" affects related parameters similarly (Coupling)
-        float noise_q_common = dist(rng) * sigma * scales.q;
-        float noise_xy_diff  = dist(rng) * sigma * 0.2f; // Allow 20% divergence between X/Y
+    child = parent;
+    
+    // CHANGE 1: Independent Mutation (Decoupling)
+    // We remove "noise_q_common" so X and Y can find their own perfect values.
+    
+    // Evolve Gains (Q)
+    child.q_x     *= std::exp(dist(rng) * sigma * scales.q);
+    child.q_y     *= std::exp(dist(rng) * sigma * scales.q); // Now independent
+    child.q_theta *= std::exp(dist(rng) * sigma * scales.q);
+    
+    // Evolve Damping/Penalties (R)
+    // CHANGE 2: Increase R sensitivity
+    // If the robot is jerky, we need R to adapt FAST to calm it down.
+    // We use 'scales.q' here effectively to give it equal playing field.
+    child.r_ang   *= std::exp(dist(rng) * sigma * scales.q); 
+    child.r_vel   *= std::exp(dist(rng) * sigma * scales.q);
 
-        // 2. Apply Multiplicative Noise (Log-Space)
-        // val_new = val_old * e^(noise)
-        
-        // Q_x and Q_y move together, but can split slightly
-        child.q_x     *= std::exp(noise_q_common + noise_xy_diff);
-        child.q_y     *= std::exp(noise_q_common - noise_xy_diff);
-        
-        // Q_theta moves independently
-        child.q_theta *= std::exp(dist(rng) * sigma * scales.q);
-        
-        // R values move independently but stiffer
-        child.r_ang   *= std::exp(dist(rng) * sigma * scales.r);
-        child.r_vel   *= std::exp(dist(rng) * sigma * scales.r);
-
-        child = clampConfig(child);
-        pending_config = child;
-    }
+    child = clampConfig(child);
+    pending_config = child;
+}
 
     TuningConfig getBestConfig() { return parent; }
     double getBestScore() { return parent_score; }

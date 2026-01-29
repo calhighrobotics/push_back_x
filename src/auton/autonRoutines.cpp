@@ -168,7 +168,7 @@ void left_auton() {
 }
 
 void elim_auton() {
-    ltv.followPath(tuning_curve_2, {.backwards =false ,.log = true, .test = true});
+    ltv.followPath(awp_1, {.backwards =false ,.log = true, .test = true});
 }
 
 void awp_auton() {

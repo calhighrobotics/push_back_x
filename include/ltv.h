@@ -34,20 +34,20 @@ public:
         // --- STABILIZED DEFAULT WEIGHTS ---
         // These are the values that fixed the "Sawtooth" behavior.
         // 1. Position Weights (High Accuracy)
-        
-        float q_x = 65980;
-        float q_y = 65980; 
-        
-        // 2. Heading Weight (High Stability)
-        // Forces robot to align with path, preventing drift.
-        float q_theta = 14293.2;
+/*
+float q_x = 44148.2;
+float q_y = 751291.2;
+float q_theta = 275330;
+float r_ang = 100.531;
+float r_vel = 195.0193;
+*/
 
-        // 3. Steering Cost
-        float r_ang = 65.9439;    
+float q_x = 44148.2;
+float q_y = 751291.2;
+float q_theta = 275330;
+float r_ang = 100.531;
+float r_vel = 195.0193;
 
-        // 4. Damping (Smoothness)
-        // Prevents the "Snap" corrections.
-        float r_vel = 25.1605;
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);
