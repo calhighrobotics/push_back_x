@@ -26,33 +26,37 @@ public:
         bool turnFirst = false;
         bool end_correction = false;
         float mpose_lead = 0.6f;
-        float track_width = 11.55f;
-        float max_lin_correction = 10000.0f;
-        float max_ang_correction = 10000.0f;
+        float track_width = 12.8f;
+        float max_lin_correction = 1.0f;
+        float max_ang_correction = 2.5f;
         int exit_points = 5;
+        /*
+        float q_x = 44148.2;
+        float q_y = 551291.2;
+        float q_theta = 375330;
+        float r_ang = 100.531;
+        float r_vel = 195.0193;
+        */
 
-        // --- STABILIZED DEFAULT WEIGHTS ---
-        // These are the values that fixed the "Sawtooth" behavior.
-        // 1. Position Weights (High Accuracy)
-/*
-float q_x = 44148.2;
-float q_y = 751291.2;
-float q_theta = 275330;
-float r_ang = 100.531;
-float r_vel = 195.0193;
-*/
+        /*
+        float q_x = 1100.0f;
+        float q_y = 41000.0f;
+        float q_theta = 900.0f;
+        float r_ang = 100.0f;
+        float r_vel =190.0f;
+        */
 
-float q_x = 44148.2;
-float q_y = 751291.2;
-float q_theta = 275330;
-float r_ang = 100.531;
-float r_vel = 195.0193;
+        float q_x = 1100.0f;
+        float q_y = 41000.0f;
+        float q_theta = 900.0f;
+        float r_ang = 100.0f;
+        float r_vel =190.0f;
+
 
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);
 
-    // Now returns PathScore instead of void
     PathScore followPath(const std::string& path_name, const ltvConfig& l_config);
     
     void precompute_paths(const std::vector<std::string>& path_names);

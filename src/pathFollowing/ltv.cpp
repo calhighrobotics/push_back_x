@@ -38,7 +38,7 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           11.4953431776,
           54.5797495382,
           99999.0, 
-          11.55f * INCH_TO_METER
+          12.8f * INCH_TO_METER
       ) {}
 
 Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
@@ -141,7 +141,6 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
 }
 
 LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
-    // 1. Prepare Trajectory
     std::vector<State> trajectory;
     if(l_config.path_index >= 0 && (size_t)(l_config.path_index) < precomputed_paths.size()) {
         if (!precomputed_paths.at(l_config.path_index).empty()) {
@@ -154,7 +153,6 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
         return {0,0,0,1000000.0}; 
     }
 
-    // 2. Initial Pose Setup
     if(l_config.test) {
         double start_theta = l_config.backwards ? M_PI_2 - trajectory[0].heading + M_PI : M_PI_2 - trajectory[0].heading;
         chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, lemlib::radToDeg(start_theta));
@@ -163,7 +161,6 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
         chassis.turnToHeading(l_config.backwards ? targetH + 180 : targetH, 1000);
     }
 
-    // 3. Variables
     std::vector<std::string> logs;
     int trajectory_size = trajectory.size();
     u_int32_t start_time = pros::millis();
@@ -175,7 +172,6 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
     float prev_w_cmd = 0;
     int steps = 0;
 
-    // --- MAIN CONTROL LOOP ---
     for (int i = 0; i < trajectory_size; ++i) {
         u_int32_t logtime = pros::millis() - start_time;
         uint32_t current_time = pros::millis();
@@ -185,44 +181,31 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
         if (dt > 0.1) dt = 0.1;
         prev_time = current_time;
 
-        // Current Robot State
         const auto &target_state = trajectory[i];
         lemlib::Pose current_pose = chassis.getPose(true);
         current_pose.x *= INCH_TO_METER;
         current_pose.y *= INCH_TO_METER;
         
-        // --- CRITIQUE FIX 1: CALCULATE DYNAMIC SCALARS ---
         double progress = (double)i / trajectory_size;
         double velocity_scale = 1.0;
         double q_gain_mult = 1.0;
         double r_vel_mult = 1.0;
         double q_x_boost = 1.0;
 
-        // A. TERMINAL SHAPING (Stop the overshoot)
-        // If we are in the last 15% of the path...
         if (progress > 0.85) {
-            // Ramp velocity reference down to zero smoothly
-            // This prevents the "Coasting" problem by killing the feedforward v_ref
-            double ramp = (1.0 - progress) / 0.15; // Goes from 1.0 -> 0.0
+            double ramp = (1.0 - progress) / 0.15;
             if (ramp < 0) ramp = 0;
             velocity_scale *= ramp;
 
-            // Make R_vel expensive (Braking is encouraged)
             r_vel_mult = 2.0;
 
-            // Make Q sticky (Final position accuracy is critical)
             q_gain_mult = 4.0; 
         }
 
-        // B. CURVATURE SHAPING (Stop corner cutting)
-        // If the path is curving sharply, increase longitudinal penalty (q_x)
-        // This forces the robot to stay "on time" rather than rushing ahead.
         if (std::abs(target_state.angular_vel) > 0.5) { 
             q_x_boost = 2.0; 
         }
 
-        // --- APPLY SCALARS TO MATRICES ---
-        // We reconstruct matrices every loop to allow dynamic tuning
         Eigen::Matrix3f Q_mat; 
         Q_mat << l_config.q_x * q_gain_mult * q_x_boost, 0, 0,
                  0, l_config.q_y * q_gain_mult, 0,
@@ -232,7 +215,6 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
         R_mat << l_config.r_vel * r_vel_mult, 0,
                  0, l_config.r_ang;
 
-        // --- ERROR CALCULATION ---
         double math_theta = M_PI_2 - current_pose.theta; 
         double targetHeadingAdjusted = target_state.heading + (l_config.backwards ? M_PI : 0);
         double errorTheta = angleError(math_theta, targetHeadingAdjusted);
@@ -246,21 +228,15 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
                             0, 0, 1;
         Eigen::Vector3d error = rotation_matrix * global_error;
 
-        // --- REFERENCE & FEEDFORWARD ---
-        // Apply velocity_scale to BOTH v_ref and w_ref.
-        // If we slow down v without slowing down w, the robot will spin (oversteer).
-        // Constant curvature assumption: w_new = w_old * scale
         float v_ref = target_state.linear_vel * (l_config.backwards ? -1.0 : 1.0);
         float w_ref = target_state.angular_vel;
         
         v_ref *= velocity_scale;
         w_ref *= velocity_scale;
 
-        // Decoupling Logic
         float lateral_coupling = v_ref;
         if (std::abs(v_ref) < 0.05) lateral_coupling = 0.0; 
 
-        // LTV Model Matrices (Re-Linearized)
         Eigen::Matrix3f A;
         A << 0, w_ref, 0,
              -w_ref, 0, lateral_coupling, 
@@ -271,23 +247,18 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
              0, 0,
              0, 1;
         
-        // Solve DARE
         auto discAB = discretizeAB(A, B, dt);
         Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
         
-        // Calculate Control Output
         Eigen::MatrixXf K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
         Eigen::Vector2f u = K * error.cast<float>();
         
-        // Clamp Corrections
         float u_v = clamp(u(0), -l_config.max_lin_correction, l_config.max_lin_correction);
         float u_w = clamp(u(1), -l_config.max_ang_correction, l_config.max_ang_correction);
         
-        // Final Commands
         float v_cmd = v_ref + u_v;
         float w_cmd = w_ref + u_w;
 
-        // --- SCORING & OUTPUT ---
         double lat_err = std::sqrt(std::pow(error(0), 2) + std::pow(error(1), 2));
         double head_err = std::abs(error(2));
         double instant_oscillation = std::abs(w_cmd - prev_w_cmd);
@@ -317,30 +288,47 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
         pros::Task::delay_until(&current_time, 10);
     }
 
-    // 5. Cleanup
+    // Stop Motors
     rightMotors.brake();
     leftMotors.brake();
-    
+
+    // --- CALCULATE AVERAGES ---
+    if (steps == 0) steps = 1; // Prevent division by zero
+    double avg_lat_error = sum_lat_error / steps;
+    double avg_head_error = sum_head_error / steps;
+    double avg_jerk = sum_oscillation / steps;
+
+    // --- IMPROVED LOGGING OUTPUT ---
     if(l_config.log) {
-        std::cout << "--- PATH LOG START ---" << std::endl;
+        std::cout << "\n--- LTV PERFORMANCE SUMMARY ---" << std::endl;
+        std::cout << "Steps Completed: " << steps << " / " << trajectory_size << std::endl;
+        // Convert meters to inches for more intuitive VEX debugging
+        std::cout << "Avg Lateral Error: " << (avg_lat_error / INCH_TO_METER) << " in" << std::endl;
+        // Convert radians to degrees
+        std::cout << "Avg Heading Error: " << lemlib::radToDeg(avg_head_error) << " deg" << std::endl;
+        std::cout << "Avg Control Jerk:  " << avg_jerk << std::endl;
+        
+        std::cout << "\n--- COORDINATE LOG START ---" << std::endl;
         for (const auto& line : logs) {
             std::cout << line;
-            pros::delay(10);
+            pros::delay(2); // Reduced delay for faster upload
         }
-        std::cout << std::endl << "--- PATH LOG END ---" << std::endl;
+        std::cout << "\n--- LOG END ---" << std::endl;
     }
 
+    // --- FINAL SCORE ASSIGNMENT ---
     PathScore score;
-    if (steps == 0) steps = 1;
+    score.total_lateral_error = avg_lat_error;
+    score.total_heading_error = avg_head_error;
+    score.total_jerk = avg_jerk;
 
-    score.total_lateral_error = sum_lat_error / steps;
-    score.total_heading_error = sum_head_error / steps;
-    score.total_jerk = sum_oscillation / steps;
+    // Weights for the "Final Score" (Lower is better)
+    // We penalize lateral error more heavily to discourage "weaving"
+    double performance_cost = (avg_lat_error * 5000.0) + 
+                              (avg_head_error * 2000.0) + 
+                              (avg_jerk * 100.0);
 
-    double performance_cost = (score.total_lateral_error * 2000.0) + 
-                              (score.total_heading_error * 1300.0) + 
-                              (score.total_jerk * 6000);
-
+    // Timeout penalty if the robot got stuck
     if (steps > trajectory_size * 1.5) performance_cost += 10000.0;
 
     score.final_score = performance_cost;
