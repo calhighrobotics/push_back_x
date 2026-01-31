@@ -107,33 +107,6 @@ void initialize() {
     });
 }
 
-
-void find_tracking_center(float turnVoltage, uint32_t time_ms) {
-    chassis.setPose(0, 0, 0);
-
-    std::vector<std::string> logs;
-    std::vector<std::string> logs2;
-
-    uint32_t start = pros::millis();
-    while (pros::millis() - start < time_ms)
-    {
-        leftMotors.move_voltage(turnVoltage * 1000);
-        rightMotors.move_voltage(-turnVoltage * 1000);
-
-        auto pose = chassis.getPose(false);  // don't estimate
-        logs.push_back(std::to_string(pose.x) + "," + std::to_string(pose.y) + ",");
-        logs2.push_back(std::to_string(pose.theta) + ",");
-
-        pros::delay(20);
-    }
-    leftMotors.brake();
-    rightMotors.brake();
-
-    for (auto &s : logs) std::cout << s, pros::delay(50);
-    std::cout << std::endl;
-    for (auto &s : logs2) std::cout << s, pros::delay(50);
-}
-
 void disabled() {
     selector.focus();
 }
@@ -141,36 +114,50 @@ void disabled() {
 void competition_initialize() {
 }
 
-void distanceCalibration()
-{
-    // 1. Reset position and move back 4 inches
+void distanceCalibration() {
+    // Reset and back up
     chassis.setPose(0, 0, 0);
-    // Move to y = -4. forwards = false ensures we reverse to that point.
     chassis.moveToPoint(0, -4, 2000, {.forwards = false});
-    chassis.waitUntilDone(); // Wait for the move to finish before turning
+    chassis.waitUntilDone();
 
-    // 2. Setup sensors and targets
-    std::vector<pros::Distance*> sensors = {&frontDistance, &leftDistance, &backDistance, &rightDistance};
-    std::vector<std::string> sensorNames = {"Front", "Left", "Back", "Right"};
-    std::vector<int> angles = {0, 30, 45};
+    std::vector<pros::Distance*> sensors = {
+        &frontDistance, &leftDistance, &backDistance, &rightDistance
+    };
+    std::vector<std::string> names = {
+        "Front", "Left", "Back", "Right"
+    };
 
-    // 3. Loop through the target angles
-    for (int angle : angles)
-    {
-        // Turn to the specific heading (0, then 30, then 45)
-        chassis.turnToHeading(angle, 2000);
-        chassis.waitUntilDone(); // Wait for the turn to finish
-        
-        // Optional: Short delay to let the sensor readings stabilize after moving
-        pros::delay(200); 
+    // Sweep angles relative to sensor facing
+    std::vector<int> sweepAngles = {0, 30, 45};
 
-        // 4. Log measurements from all sensors for this angle
-        printf("--- Calibration at %d Degrees ---\n", angle);
-        for(int i = 0; i < sensors.size(); i++)
-        {
-            int reading = sensors.at(i)->get();
-            // Prints: "Front Sensor: 120 mm"
-            printf("%s Sensor: %d mm\n", sensorNames.at(i).c_str(), reading);
+    for (int s = 0; s < sensors.size(); s++) {
+        int baseHeading = s * 90;
+
+        // Face the sensor toward the wall
+        chassis.turnToHeading(baseHeading, 1000);
+        chassis.waitUntilDone();
+        pros::delay(300);
+
+        for (int repeat = 0; repeat < 5; repeat++) {
+            for (int angle : sweepAngles) {
+                int target = baseHeading + angle;
+
+                chassis.turnToHeading(target, 700);
+                chassis.waitUntilDone();
+                pros::delay(200);
+
+                int dist = sensors[s]->get();
+                std::cout << names[s]
+                          << " @ +" << angle
+                          << " deg: "
+                          << dist << " mm"
+                          << std::endl;
+            }
+
+            // Return to sensor zero between sweeps
+            chassis.turnToHeading(baseHeading, 700);
+            chassis.waitUntilDone();
+            pros::delay(400);
         }
     }
 }
@@ -180,7 +167,7 @@ void autonomous() {
     //skills_auton();
     //awp_auton();
     //find_tracking_center(5, 5000);
-    elim_auton();
+    distanceCalibration();
 }
 
 
@@ -212,6 +199,7 @@ void opcontrol() {
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
         {
             score_midgoal();
+            ramp_up_time += 10;
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
         {
@@ -255,8 +243,13 @@ void opcontrol() {
         {
             alignToGoal(1);
         }
+        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
+        {
+            lowGoalAligner.toggle();
+        }
         else
         {
+            ramp_up_time = 0;
             resting_state(trapDoor_commanded);
             midgoal_first = false;
         }

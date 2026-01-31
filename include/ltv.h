@@ -10,13 +10,6 @@
 
 class LTVPathFollower {
 public:
-    // Struct to report performance back to the Tuner
-    struct PathScore {
-        double total_lateral_error = 0;
-        double total_heading_error = 0;
-        double total_jerk = 0;
-        double final_score = 0; // The number the Tuner tries to minimize
-    };
 
     struct ltvConfig {
         bool backwards = false;
@@ -26,11 +19,12 @@ public:
         bool turnFirst = false;
         bool end_correction = false;
         float mpose_lead = 0.6f;
-        float track_width = 12.8f;
+        float track_width = 11.55f;
         float max_lin_correction = 1.0f;
         float max_ang_correction = 2.5f;
         int exit_points = 5;
-        /*
+
+        /* Not smooth but accurate (OverWeighted)
         float q_x = 44148.2;
         float q_y = 551291.2;
         float q_theta = 375330;
@@ -38,7 +32,7 @@ public:
         float r_vel = 195.0193;
         */
 
-        /*
+        /* Smooth and decent tuned
         float q_x = 1100.0f;
         float q_y = 41000.0f;
         float q_theta = 900.0f;
@@ -46,18 +40,19 @@ public:
         float r_vel =190.0f;
         */
 
-        float q_x = 1100.0f;
-        float q_y = 41000.0f;
-        float q_theta = 900.0f;
-        float r_ang = 100.0f;
-        float r_vel =190.0f;
+        // 1.36m/s max Speed tuned (1.5in marginal)
+        float q_x = 1100.0f; //Maybe increase to 1300 or 1200
+        float q_y = 60000.0f;
+        float q_theta = 9000.0f;
+        float r_ang = 90.0f;
+        float r_vel = 190.0f;
 
 
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);
 
-    PathScore followPath(const std::string& path_name, const ltvConfig& l_config);
+    void followPath(const std::string& path_name, const ltvConfig& l_config);
     
     void precompute_paths(const std::vector<std::string>& path_names);
 

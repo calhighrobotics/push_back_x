@@ -79,13 +79,13 @@ pros::Motor topMotor(19, pros::v5::MotorGears::blue);
 pros::Distance rightDistance(20);
 pros::Distance leftDistance(15);
 pros::Distance frontDistance(14);
-pros::Distance backDistance(11);
+pros::Distance backDistance(16);
 
 pros::adi::Pneumatics trapDoor('A', false);
-pros::adi::Pneumatics matchload('B', false);
+pros::adi::Pneumatics matchload('E', false);
 pros::adi::Pneumatics basket('C', false);
 pros::adi::Pneumatics descore('D', false);
-pros::adi::Pneumatics lowGoalAligner('E', false);
+pros::adi::Pneumatics lowGoalAligner('B', false);
 
 pros::Optical color_sensor(7);
 

@@ -38,7 +38,7 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           11.4953431776,
           54.5797495382,
           99999.0, 
-          12.8f * INCH_TO_METER
+          11.55f * INCH_TO_METER //Maybe change back to 12.8
       ) {}
 
 Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
@@ -140,7 +140,7 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
     return states;
 }
 
-LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
+void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
     std::vector<State> trajectory;
     if(l_config.path_index >= 0 && (size_t)(l_config.path_index) < precomputed_paths.size()) {
         if (!precomputed_paths.at(l_config.path_index).empty()) {
@@ -150,7 +150,6 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
     if (trajectory.empty()) trajectory = prepare_trajectory(path_name);
     if (trajectory.empty()) {
         std::cout << "[LTV] Error: Empty trajectory." << std::endl;
-        return {0,0,0,1000000.0}; 
     }
 
     if(l_config.test) {
@@ -288,49 +287,26 @@ LTVPathFollower::PathScore LTVPathFollower::followPath(const std::string& path_n
         pros::Task::delay_until(&current_time, 10);
     }
 
-    // Stop Motors
     rightMotors.brake();
     leftMotors.brake();
 
-    // --- CALCULATE AVERAGES ---
-    if (steps == 0) steps = 1; // Prevent division by zero
+    if (steps == 0) steps = 1; 
     double avg_lat_error = sum_lat_error / steps;
     double avg_head_error = sum_head_error / steps;
     double avg_jerk = sum_oscillation / steps;
 
-    // --- IMPROVED LOGGING OUTPUT ---
     if(l_config.log) {
         std::cout << "\n--- LTV PERFORMANCE SUMMARY ---" << std::endl;
         std::cout << "Steps Completed: " << steps << " / " << trajectory_size << std::endl;
-        // Convert meters to inches for more intuitive VEX debugging
         std::cout << "Avg Lateral Error: " << (avg_lat_error / INCH_TO_METER) << " in" << std::endl;
-        // Convert radians to degrees
         std::cout << "Avg Heading Error: " << lemlib::radToDeg(avg_head_error) << " deg" << std::endl;
         std::cout << "Avg Control Jerk:  " << avg_jerk << std::endl;
         
         std::cout << "\n--- COORDINATE LOG START ---" << std::endl;
         for (const auto& line : logs) {
             std::cout << line;
-            pros::delay(2); // Reduced delay for faster upload
+            pros::delay(10); 
         }
         std::cout << "\n--- LOG END ---" << std::endl;
     }
-
-    // --- FINAL SCORE ASSIGNMENT ---
-    PathScore score;
-    score.total_lateral_error = avg_lat_error;
-    score.total_heading_error = avg_head_error;
-    score.total_jerk = avg_jerk;
-
-    // Weights for the "Final Score" (Lower is better)
-    // We penalize lateral error more heavily to discourage "weaving"
-    double performance_cost = (avg_lat_error * 5000.0) + 
-                              (avg_head_error * 2000.0) + 
-                              (avg_jerk * 100.0);
-
-    // Timeout penalty if the robot got stuck
-    if (steps > trajectory_size * 1.5) performance_cost += 10000.0;
-
-    score.final_score = performance_cost;
-    return score;
 }

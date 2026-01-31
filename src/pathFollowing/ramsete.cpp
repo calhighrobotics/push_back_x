@@ -1,3 +1,9 @@
+/*
+Deprecated:
+LTV-LQR Path follower is easier to tune and more accurate (Although is MCL is seriously used Performance wise Ramsete might be better)
+*/
+
+
 #include "ramsete.h" 
 #include "lemlib/util.hpp"
 #include <cmath>

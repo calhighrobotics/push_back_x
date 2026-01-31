@@ -43,19 +43,12 @@ DrivetrainVoltages VoltageController::update(double targetLinearVelocity, double
         rightIntegral += rightError * 0.01;
     }
 
-    // Feedforward Terms
-    // Acceleration term when going straight (a = F/m); kaTurn from moment of inertia (α = τ/I).
     double kaLeft = (kaStraight * deltaV) - (kaTurn * deltaW);
     double kaRight = (kaStraight * deltaV) + (kaTurn * deltaW);
 
-    // Static friction component
     double ksLeft = (ksStraight * sign(leftVelocity)) - (ksTurn * sign(targetAngularVelocity));
     double ksRight = (ksStraight * sign(rightVelocity)) + (ksTurn * sign(targetAngularVelocity));
 
-    //double leftVoltage =
-    //    std::clamp((kV * leftVelocity) + (kaLeft) + (ksLeft) + (kP * leftError) + (kI * leftIntegral), -12.0, 12.0);
-    //double rightVoltage =
-    //    std::clamp((kV * rightVelocity) + (kaRight) + (ksRight) + (kP * rightError) + (kI * rightIntegral), -12.0, 12.0);
     double leftVoltage =
         (kV * leftVelocity) + (kaLeft) + (ksLeft) + (kP * leftError) + (kI * leftIntegral);
     double rightVoltage =

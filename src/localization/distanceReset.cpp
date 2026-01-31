@@ -18,6 +18,11 @@ struct SensorConfig {
     double mounting_angle;
 };
 
+/*
+Front: \left(-6.19257613,4.55790433\right)
+Left: \left(2.75813795,-0.09347829\right)
+
+*/
 const SensorConfig front_sensor_cfg = {-0.75, -3, 0};   
 const SensorConfig left_sensor_cfg  = {-0.5, -6.4, 90};   
 const SensorConfig right_sensor_cfg = {-0.5, 6.3, -90};  
