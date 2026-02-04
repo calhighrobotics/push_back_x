@@ -1,9 +1,11 @@
 #include "main.h"
+#include "crossBarrierDetection.h"
 #include "globals.h" 
 #include "liblvgl/core/lv_obj_pos.h"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "auton/autonRoutines.h"
+#include "pros/motors.h"
 #include "robodash/views/selector.hpp"
 #include "colorSort.h"
 #include "warnings.h"
@@ -11,40 +13,61 @@
 #include "MCL.h"
 #include "visionAlignment.h"
 #include "auton/autonFunctions.h"
-
+#include "distanceReset.h"
 #include "ltv.h"
 #include "paths.h"
 
-void alliance_btn_event_handler(lv_event_t * e) {
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * btn = lv_event_get_target(e);
-    lv_obj_t * label = lv_obj_get_child(btn, 0);
 
-    if(code == LV_EVENT_CLICKED) {
-        if(allianceColor == RED) {
-            allianceColor = Color::BLUE;
-            lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_BLUE), 0);
-            lv_label_set_text(label, "BLUE");
-        } else {
-            allianceColor = Color::RED;
-            lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
-            lv_label_set_text(label, "RED");
-        }
+static void update_alliance_btn(lv_obj_t* btn, Color newColor) {
+    lv_obj_t* label = lv_obj_get_child(btn, 0);
 
-        
-        std::cout << "Alliance switched to: " << (allianceColor == Color::RED ? "Red" : "Blue") << std::endl;
+    if (newColor == Color::RED) {
+        lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
+        lv_label_set_text(label, "RED");
+    } else {
+        lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_BLUE), 0);
+        lv_label_set_text(label, "BLUE");
     }
+
+    std::cout << "Alliance switched to: " 
+              << (newColor == Color::RED ? "Red" : "Blue") 
+              << std::endl;
 }
 
+// LVGL event handler for button click
+static void alliance_btn_event_handler(lv_event_t* e) {
+    lv_obj_t* btn = lv_event_get_target(e);
+
+    // Toggle alliance color
+    if (allianceColor == RED) {
+        allianceColor = Color::BLUE;
+    } else {
+        allianceColor = Color::RED;
+    }
+
+    // Schedule safe LVGL update
+    lv_async_call([](void* user_data){
+        lv_obj_t* btn = (lv_obj_t*)user_data;
+        update_alliance_btn(btn, allianceColor);
+    }, btn);
+}
+
+// Creates the alliance selector button
 void create_alliance_selector() {
-    lv_obj_t * btn = lv_btn_create(lv_layer_top());
+    lv_obj_t* btn = lv_btn_create(lv_layer_top());
     lv_obj_align(btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_size(btn, 80, 40);
+
+    // Initial style
     lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
-    lv_obj_t * label = lv_label_create(btn);
+
+    // Label
+    lv_obj_t* label = lv_label_create(btn);
     lv_label_set_text(label, "RED");
     lv_obj_center(label);
-    lv_obj_add_event_cb(btn, alliance_btn_event_handler, LV_EVENT_ALL, NULL);
+
+    // Event callback (CLICKED only)
+    lv_obj_add_event_cb(btn, alliance_btn_event_handler, LV_EVENT_CLICKED, nullptr);
 }
 
 
@@ -79,24 +102,25 @@ void initialize() {
     //calibrate_vision();
     create_alliance_selector();
     console.focus();
+    chassis.setPose(-62.5, -17.3, 180);
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
 
-
-            //distancePose dpose = distanceReset(false);
+            
+            distancePose dpose = distanceReset(false);
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
             
-            /*
+            
             console.printf("D X: %f\n", dpose.x);
             console.printf("D Y: %f\n", dpose.y);
             console.printf("Using X: %d\n", dpose.using_odom_x);
             console.printf("Using Y: %d\n", dpose.using_odom_y);
-            */
+            
             
             
             //console.printf("X MCL: %f\n", MCL::X);
@@ -108,7 +132,6 @@ void initialize() {
 }
 
 void disabled() {
-    selector.focus();
 }
 
 void competition_initialize() {
@@ -167,13 +190,16 @@ void autonomous() {
     //skills_auton();
     //awp_auton();
     //find_tracking_center(5, 5000);
-    distanceCalibration();
+    //distanceCalibration();
+    //elim_auton();
+    skills_auton();
 }
 
 
 void opcontrol() {
     std::cout << allianceColor << std::endl;
     bool trapDoor_commanded = false;
+    bool matchload_on = false;
     while(true)
     {
         int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
@@ -191,6 +217,10 @@ void opcontrol() {
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
         {
             outtake();
+            if(lowGoalAligner.is_extended())
+            {
+                lowGoalAligner.retract();
+            }
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
         {
@@ -203,21 +233,12 @@ void opcontrol() {
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
         {
-            intake_to_basket();
+            topMotor.move_voltage(12000);
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
         {
             if(descore.is_extended())
                 descore.retract();
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
-        {
-            throttle = 0;
-            steer = 0;
-            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-            leftMotors.brake();
-            rightMotors.brake();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
         {
@@ -232,7 +253,17 @@ void opcontrol() {
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         {
-            matchload.toggle();
+            if(matchload.is_extended())
+            {
+                matchload.retract();
+                matchload_on = false;
+            }
+            else {
+                matchload.extend();
+                matchload_on = true;
+            }
+            if(!intakeFunnel.is_extended())
+                intakeFunnel.extend();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
         {
@@ -241,7 +272,7 @@ void opcontrol() {
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
         {
-            alignToGoal(1);
+            basket.toggle();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
         {
@@ -252,12 +283,19 @@ void opcontrol() {
             ramp_up_time = 0;
             resting_state(trapDoor_commanded);
             midgoal_first = false;
+            if(!matchload_on)
+                intakeFunnel.retract();
+            lowGoalAligner.extend();
         }
 
         if(throttle < 5)
             chassis.arcade(throttle, steer, false);
         else
+        {
+            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
             chassis.curvature(throttle, steer, false);
+        }
         pros::delay(10);
     }
 }

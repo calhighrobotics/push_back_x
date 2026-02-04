@@ -6,7 +6,11 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <atomic>
+#include <memory>
+#include <algorithm>
 #include "globals.h" 
+#include "pros/rtos.hpp"
 
 class LTVPathFollower {
 public:
@@ -20,50 +24,87 @@ public:
         bool end_correction = false;
         float mpose_lead = 0.6f;
         float track_width = 11.55f;
-        float max_lin_correction = 1.0f;
-        float max_ang_correction = 2.5f;
+        float max_lin_correction = 3.0f;
+        float max_ang_correction = 5.5f;
         int exit_points = 5;
 
-        /* Not smooth but accurate (OverWeighted)
-        float q_x = 44148.2;
-        float q_y = 551291.2;
-        float q_theta = 375330;
-        float r_ang = 100.531;
-        float r_vel = 195.0193;
-        */
+        float max_velocity = 1.5f; 
+        float max_acceleration = 2.0f;
 
-        /* Smooth and decent tuned
-        float q_x = 1100.0f;
-        float q_y = 41000.0f;
-        float q_theta = 900.0f;
-        float r_ang = 100.0f;
-        float r_vel =190.0f;
-        */
-
-        // 1.36m/s max Speed tuned (1.5in marginal)
-        float q_x = 1100.0f; //Maybe increase to 1300 or 1200
-        float q_y = 60000.0f;
-        float q_theta = 9000.0f;
+        // 1.36m/s max Speed tuned
+        float q_x = 1150.0f; 
+        float q_y = 70000.0f; 
+        float q_theta = 9000.0f; 
         float r_ang = 90.0f;
         float r_vel = 190.0f;
-
-
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);
-
     void followPath(const std::string& path_name, const ltvConfig& l_config);
+
+    /**
+     * @brief Move to a target pose using a non-linear Bezier curve.
+     * @param x Target X in inches
+     * @param y Target Y in inches
+     * @param theta_deg Target Heading in degrees. Set to -999 to ignore end heading (MoveToPoint).
+     * @param timeout_ms Timeout in milliseconds
+     * @param max_speed Max speed in m/s (optional, < 0 uses config default)
+     * @param backwards Whether to move backwards
+     */
+    void moveTo(float x, float y, float theta_deg, float timeout_ms, float max_speed = -1.0f, bool backwards = false);
+    
+    // Returns the total length of a path in inches
+    double getPathLength(const std::string& path_name);
+
+    // --- Control & Task Management ---
+
+    void waitUntilDone();
+    void waitUntil(float dist_inches);
+    
+    /**
+     * @brief Wait until the robot is within a certain radius of the target coordinates.
+     * @param x_inch Target X in inches
+     * @param y_inch Target Y in inches
+     * @param radius_inch Search radius (default 2.0 inches)
+     */
+    void waitUntil(float x_inch, float y_inch, float radius_inch = 2.0f);
+    
+    void cancel();
+    bool isRunning();
     
     void precompute_paths(const std::vector<std::string>& path_names);
 
 private:
     static constexpr float INCH_TO_METER = 0.0254f;
+    static constexpr float METER_TO_INCH = 39.3700787f;
     
     static constexpr float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
     static constexpr float gear_ratio = 4.0f / 3.0f;
     static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
 
     VoltageController controller;
+
+    // Task management
+    pros::Task* task = nullptr;
+    std::atomic<bool> is_running {false};
+    std::atomic<bool> cancel_request {false};
+    
+    // Fix #2: Explicit unit name
+    std::atomic<float> distance_traveled_inches {0.0f};
+
+    struct TaskParams {
+        LTVPathFollower* instance;
+        std::string path_name;
+        ltvConfig config;
+        std::vector<State> dynamic_path; 
+    };
+
+    static void task_trampoline(void* params);
+    
+    void followPathImpl(const std::string& path_name, const ltvConfig& l_config, const std::vector<State>& dynamic_path = {});
+
+    // Helper to generate a Bezier curve profile
+    std::vector<State> generateCurvedPath(lemlib::Pose start, lemlib::Pose end, float max_v, float max_a, bool backwards);
 
     static inline std::vector<std::vector<State>> precomputed_paths;
 

@@ -1,6 +1,6 @@
 /*
 Deprecated:
-LTV-LQR Path follower is easier to tune and more accurate (Although is MCL is seriously used Performance wise Ramsete might be better)
+LTV-LQR Path follower is easier to tune and more accurate (Although if MCL is seriously used Performance wise Ramsete might be better)
 */
 
 

@@ -10,4 +10,4 @@ extern const double DRIVE_SPEED;             // Motor voltage (0-127)
 extern const double HEADING_KP;               // Heading correction gain
 
 // Cross-field barrier routine
-void crossBarrier();
+void crossBarrier(int times = 2);

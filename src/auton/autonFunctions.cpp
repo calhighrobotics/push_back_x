@@ -36,6 +36,7 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
         topMotor.move_voltage(-12000);
+        pros::delay(100);
         std::cout << "Color Rejected" << std::endl;
     }
     else
@@ -43,7 +44,6 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
         topMotor.move_voltage(power);
         std::cout << "Color Accepted" << std::endl;
     }
-    pros::delay(33);
 
 }
 
@@ -90,8 +90,8 @@ void score_midgoal(int power = 12000)
 
 void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
 {
-    leftMotors.move(-20);
-    rightMotors.move(-20);
+    leftMotors.move(-30);
+    rightMotors.move(-30);
     score_longgoal(power, allianceColor);
 }
 

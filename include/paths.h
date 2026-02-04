@@ -19,3 +19,11 @@ extern const std::string skills_6;
 extern const std::string skills_7;
 
 extern const std::string skills_8;
+
+extern const std::string left_1;
+
+extern const std::string left_2;
+
+extern const std::string left_3;
+
+extern const std::string left_4;
