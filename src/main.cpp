@@ -16,6 +16,7 @@
 #include "distanceReset.h"
 #include "ltv.h"
 #include "paths.h"
+#include "ramsete.h"
 
 
 static void update_alliance_btn(lv_obj_t* btn, Color newColor) {
@@ -34,39 +35,32 @@ static void update_alliance_btn(lv_obj_t* btn, Color newColor) {
               << std::endl;
 }
 
-// LVGL event handler for button click
 static void alliance_btn_event_handler(lv_event_t* e) {
     lv_obj_t* btn = lv_event_get_target(e);
 
-    // Toggle alliance color
     if (allianceColor == RED) {
         allianceColor = Color::BLUE;
     } else {
         allianceColor = Color::RED;
     }
 
-    // Schedule safe LVGL update
     lv_async_call([](void* user_data){
         lv_obj_t* btn = (lv_obj_t*)user_data;
         update_alliance_btn(btn, allianceColor);
     }, btn);
 }
 
-// Creates the alliance selector button
 void create_alliance_selector() {
     lv_obj_t* btn = lv_btn_create(lv_layer_top());
     lv_obj_align(btn, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_set_size(btn, 80, 40);
 
-    // Initial style
     lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_RED), 0);
 
-    // Label
     lv_obj_t* label = lv_label_create(btn);
     lv_label_set_text(label, "RED");
     lv_obj_center(label);
 
-    // Event callback (CLICKED only)
     lv_obj_add_event_cb(btn, alliance_btn_event_handler, LV_EVENT_CLICKED, nullptr);
 }
 
@@ -138,7 +132,6 @@ void competition_initialize() {
 }
 
 void distanceCalibration() {
-    // Reset and back up
     chassis.setPose(0, 0, 0);
     chassis.moveToPoint(0, -4, 2000, {.forwards = false});
     chassis.waitUntilDone();
@@ -150,13 +143,11 @@ void distanceCalibration() {
         "Front", "Left", "Back", "Right"
     };
 
-    // Sweep angles relative to sensor facing
     std::vector<int> sweepAngles = {0, 30, 45};
 
     for (int s = 0; s < sensors.size(); s++) {
         int baseHeading = s * 90;
 
-        // Face the sensor toward the wall
         chassis.turnToHeading(baseHeading, 1000);
         chassis.waitUntilDone();
         pros::delay(300);
@@ -177,7 +168,6 @@ void distanceCalibration() {
                           << std::endl;
             }
 
-            // Return to sensor zero between sweeps
             chassis.turnToHeading(baseHeading, 700);
             chassis.waitUntilDone();
             pros::delay(400);
@@ -185,13 +175,9 @@ void distanceCalibration() {
     }
 }
 
+
+
 void autonomous() {
-    //selector.run_auton();
-    //skills_auton();
-    //awp_auton();
-    //find_tracking_center(5, 5000);
-    //distanceCalibration();
-    //elim_auton();
     skills_auton();
 }
 

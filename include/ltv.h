@@ -24,8 +24,8 @@ public:
         bool end_correction = false;
         float mpose_lead = 0.6f;
         float track_width = 11.55f;
-        float max_lin_correction = 3.0f;
-        float max_ang_correction = 5.5f;
+        float max_lin_correction = 1.0f;
+        float max_ang_correction = 2.5f;
         int exit_points = 5;
 
         float max_velocity = 1.5f; 
@@ -33,9 +33,9 @@ public:
 
         // 1.36m/s max Speed tuned
         float q_x = 1150.0f; 
-        float q_y = 70000.0f; 
+        float q_y = 90000.0f; 
         float q_theta = 9000.0f; 
-        float r_ang = 90.0f;
+        float r_ang = 115.0f;
         float r_vel = 190.0f;
     };
 

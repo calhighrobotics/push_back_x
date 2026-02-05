@@ -88,6 +88,7 @@ void score_midgoal(int power = 12000)
     
 }
 
+
 void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
 {
     leftMotors.move(-30);

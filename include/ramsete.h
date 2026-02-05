@@ -25,20 +25,14 @@ public:
 
     RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_);
 
-    // --- Main Methods ---
-    // Now launches a task and returns immediately
     void followPath(const std::string& path_name, const ramseteConfig& r_config);
-    
-    // Blocks until the movement is complete
+
     void waitUntilDone();
 
-    // Blocks until the robot has traveled 'dist_inches' along the path
     void waitUntil(float dist_inches);
     
-    // Stops the current movement immediately
     void cancel();
 
-    // Returns true if the robot is currently following a path
     bool isRunning();
 
     void precompute_paths(const std::vector<std::string>& path_names);
