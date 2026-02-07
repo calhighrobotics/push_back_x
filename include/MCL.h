@@ -84,10 +84,10 @@ public:
   Field (void) {
     Goals = std::vector<Goal>({
       //Long Goals
-      Goal(Point(-24, -48 + 2.5), 2.5),
-      Goal(Point(24, -48 + 2.5), 2.5),
-      Goal(Point(-24, 48 - 2.5), 2.5),
-      Goal(Point(24, 48 - 2.5), 2.5),
+      Goal(Point(-24, -48 + 2.5), 1.2),
+      Goal(Point(24, -48 + 2.5), 1.2),
+      Goal(Point(-24, 48 - 2.5), 1.2),
+      Goal(Point(24, 48 - 2.5), 1.2),
       //MatchLoaders
       Goal(Point(-72 + 2.5,-48), 2.3),
       Goal(Point(-72 + 2.5,48), 2.3),

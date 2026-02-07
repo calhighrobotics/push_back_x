@@ -1,6 +1,7 @@
 #include <sstream>
 #include <string>
 #include "lemlib/chassis/trackingWheel.hpp"
+#include "pros/ai_vision.h"
 #include "pros/colors.hpp"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
@@ -53,9 +54,9 @@ lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
                                               24, // derivative gain (kD)
                                                3, // anti windup
                                               1, // small error range, in inches
-                                              50, // small error range timeout, in milliseconds
+                                              100, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              100, // large error range timeout, in milliseconds
+                                              200, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
@@ -85,8 +86,9 @@ pros::adi::Pneumatics trapDoor('A', false);
 pros::adi::Pneumatics matchload('E', false);
 pros::adi::Pneumatics basket('F', false);
 pros::adi::Pneumatics descore('D', false);
-pros::adi::Pneumatics lowGoalAligner('B', true);
-pros::adi::Pneumatics intakeFunnel('C', false);
+pros::adi::Pneumatics intakeFunnel('B', true);
+pros::adi::Pneumatics scoringBand('C', false);
+pros::adi::Pneumatics blockBlocker('G', true);
 
 pros::Optical color_sensor(7);
 

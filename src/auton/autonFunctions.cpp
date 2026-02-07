@@ -3,7 +3,6 @@
 #include "pros/misc.h"
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
-#include "MCL.h"
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include <cmath>
@@ -115,17 +114,10 @@ void resting_state(bool trapDoor_commanded = false)
 
 void matchload_state(bool state)
 {
-    if(state && !matchload.is_extended())
-    {
+    if(state)
         matchload.extend();
-    }
-    else if(matchload.is_extended())
-    {
+    else if(!state)
         matchload.retract();
-    }
-    else {
-        std::cout << "Matchload state unchanged\n" << std::endl;
-    }
 }
 
 void longgoal_prep()
@@ -140,65 +132,30 @@ void reset_odometry()
 
 void matchload_wiggle(int time = 1000, int speed = 100)
 {
-    u_int32_t start_time = pros::millis();
-    int sign = 1;
-   while(pros::millis() - start_time < time)
-   {
-        leftMotors.move_voltage(3000 * sign);
-        rightMotors.move_voltage(3000 * sign);
-        sign *= -1;
-        pros::delay(speed);
-   }
-   leftMotors.brake();
-   rightMotors.brake();
-}
+    uint32_t startTime = pros::millis();
+    double initialHeading = chassis.getPose().theta;
+    double targetHeading = std::round(initialHeading / 90.0) * 90.0;
+    bool flip = false;
 
-void MCL_reset(bool x = true, bool y = true)
-{
-    MCL::particle_mutex.take();
-    float X = x ? MCL::X : chassis.getPose().x;
-    float Y = y ? MCL::Y : chassis.getPose().y;
-    MCL::particle_mutex.give();
-    chassis.setPose(X, Y, chassis.getPose().theta);
-}
-
-pros::Task* fusionTask = nullptr;
-
-void fusion_loop_fn(void* ignore) {
-    const uint32_t LOOP_DELAY_MS = 10;
-    uint32_t start_time = pros::millis();
-
-    const float MCL_GAIN = 0.05f; 
-
-    while (true) {
-        lemlib::Pose odomPose = chassis.getPose(true);
-        
-        MCL::particle_mutex.take();
-        float target_x = MCL::X;
-        float target_y = MCL::Y;
-        MCL::particle_mutex.give();
-
-        float new_x = odomPose.x + (target_x - odomPose.x) * MCL_GAIN;
-        float new_y = odomPose.y + (target_y - odomPose.y) * MCL_GAIN;
-        chassis.setPose(new_x, new_y, odomPose.theta);
-
-        pros::Task::delay_until(&start_time, LOOP_DELAY_MS);
-    }
-}
-
-void enable_fused_odometry(bool enable) {
-    if (enable) {
-        if (fusionTask == nullptr) {
-            fusionTask = new pros::Task(fusion_loop_fn, NULL, "MCL_Fusion");
+    while ((pros::millis() - startTime) < time) {
+        if (flip) {
+            leftMotors.move(-speed);
+            rightMotors.move(speed);
+        } else {
+            leftMotors.move(speed);
+            rightMotors.move(-speed);
         }
-    } else {
-        if (fusionTask != nullptr) {
-            fusionTask->remove(); 
-            delete fusionTask;  
-            fusionTask = nullptr; 
-        }
+        flip = !flip;
+        pros::delay(100);
     }
+
+    leftMotors.brake();
+    rightMotors.brake();
+    pros::delay(50);
+    chassis.turnToHeading(targetHeading, 800);
 }
+
+
 
 void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true, float earlyExit = 0)
 {

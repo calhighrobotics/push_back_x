@@ -35,12 +35,6 @@ void reset_odometry();
 
 void matchload_wiggle(int time = 1000, int speed = 100);
 
-void MCL_reset(bool x = true, bool y = true);
-
-void fusion_loop_fn(void* ignore);
-
-void enable_fused_odometry(bool state);
-
 void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true, float EarlyExit = 0);
 
 void matchload_counter(int balls, int time_ms);

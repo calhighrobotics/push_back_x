@@ -82,21 +82,17 @@ void initialize() {
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
     color_sensor.set_led_pwm(100);
-    /*
-   chassis.setPose(-63.5, -18.5, 180);
-   MCL::StartMCL(-63.5, -18.5, 180);
+   chassis.setPose(-45.7, -0.5, 270);
+   /*
+   MCL::StartMCL(-45.7, -0.5, 270);
    pros::Task mclTask(MCL::MonteCarlo);
     */
-
-    /*
-    chassis.setPose(-48.5, -54.56, 270);
     console.focus();
     
-    */
+    
     //calibrate_vision();
     create_alliance_selector();
     console.focus();
-    chassis.setPose(-62.5, -17.3, 180);
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
@@ -117,8 +113,8 @@ void initialize() {
             
             
             
-            //console.printf("X MCL: %f\n", MCL::X);
-            //console.printf("Y MCL: %f\n", MCL::Y);
+            console.printf("X MCL: %f\n", MCL::X);
+            console.printf("Y MCL: %f\n", MCL::Y);
             
             pros::delay(100);
         }
@@ -179,6 +175,7 @@ void distanceCalibration() {
 
 void autonomous() {
     skills_auton();
+
 }
 
 
@@ -203,9 +200,9 @@ void opcontrol() {
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
         {
             outtake();
-            if(lowGoalAligner.is_extended())
+            if(intakeFunnel.is_extended())
             {
-                lowGoalAligner.retract();
+                intakeFunnel.retract();
             }
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
@@ -219,7 +216,7 @@ void opcontrol() {
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
         {
-            topMotor.move_voltage(12000);
+            
         }
         else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
         {
@@ -248,8 +245,6 @@ void opcontrol() {
                 matchload.extend();
                 matchload_on = true;
             }
-            if(!intakeFunnel.is_extended())
-                intakeFunnel.extend();
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
         {
@@ -259,19 +254,32 @@ void opcontrol() {
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
         {
             basket.toggle();
+            if(!scoringBand.is_extended())
+            {
+                scoringBand.extend();
+            }
         }
         else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
         {
-            lowGoalAligner.toggle();
+            intakeFunnel.toggle();
         }
         else
         {
             ramp_up_time = 0;
             resting_state(trapDoor_commanded);
             midgoal_first = false;
-            if(!matchload_on)
-                intakeFunnel.retract();
-            lowGoalAligner.extend();
+            intakeFunnel.extend();
+            if(color_sort_enable)
+            {
+                blockBlocker.retract();
+            }
+            else {
+                blockBlocker.extend();
+            }
+            if(!basket.is_extended() && scoringBand.is_extended())
+            {
+                scoringBand.retract();
+            }
         }
 
         if(throttle < 5)
@@ -282,6 +290,9 @@ void opcontrol() {
             rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
             chassis.curvature(throttle, steer, false);
         }
+
         pros::delay(10);
     }
+
+    
 }
