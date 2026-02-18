@@ -42,9 +42,9 @@ lemlib::ControllerSettings lateral_controller(11, // proportional gain (kP)
                                               40, // derivative gain (kD)
                                               3, // anti windup
                                               0.5, // small error range, in inches
-                                              100, // small error range timeout, in milliseconds
+                                              50, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              150, // large error range timeout, in milliseconds
+                                              70, // large error range timeout, in milliseconds
                                               35 // maximum acceleration (slew)
 );
 
@@ -54,9 +54,9 @@ lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
                                               24, // derivative gain (kD)
                                                3, // anti windup
                                               1, // small error range, in inches
-                                              100, // small error range timeout, in milliseconds
+                                              25, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              200, // large error range timeout, in milliseconds
+                                              50, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
@@ -88,14 +88,14 @@ pros::adi::Pneumatics basket('F', false);
 pros::adi::Pneumatics descore('D', false);
 pros::adi::Pneumatics intakeFunnel('B', true);
 pros::adi::Pneumatics scoringBand('C', false);
-pros::adi::Pneumatics blockBlocker('G', true);
+pros::adi::Pneumatics blockBlocker('G', false);
 
 pros::Optical color_sensor(7);
 
 pros::Vision vision_sensor(16);
 
 Color allianceColor = Color::RED;
-bool color_sort_enable = true;
+bool color_sort_enable = false;
 bool midgoal_first = false;
 int ramp_up_time = 0;
 int low_ramp_down_time = 0;

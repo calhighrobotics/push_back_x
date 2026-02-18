@@ -16,9 +16,23 @@ Established terminal connection
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.2 (b34)     Uptime:    0.000 s
-Compiled:   Feb  6 2026 14:05:23     Directory:                        
+Compiled:   Feb 17 2026 13:29:14     Directory:                        
 
 
-Color Accepted
-Color Accepted
+1
+--- AUTOTUNE: SENSORS ---
+Keep robot still for 3 seconds...
+FAILED: No wall seen.
+--- AUTOTUNE: TRANSLATION ---
+Robot will drive 48 inches.
+RESULT: Trans Base: 0.050, Gain: 0.020
+--- AUTOTUNE: ROTATION ---
+Robot will spin 10 times to measure drift.
+RESULT: Rot Step Noise set to 0.0743 (N=725)
+
+=== FINAL TUNED PARAMS ===
+double PARAMS_SENSOR_SIGMA = 2.5000;
+double PARAMS_ROT_NOISE_STD = 0.0743;
+double PARAMS_TRANS_BASE = 0.0500;
+double PARAMS_TRANS_GAIN = 0.0200;
 WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

@@ -265,7 +265,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         double q_gain_mult = 1.0;
         double r_vel_mult = 1.0;
         double q_x_boost = 1.0;
-
         // Ramp down velocity at the end
         if (progress > 0.85) {
             // 0.0 at 0.85, 1.0 at 1.0
@@ -283,7 +282,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
             r_vel_mult = 1.0 + (1.0 * end_phase); // Blends 1.0 -> 2.0
             q_gain_mult = 1.0 + (2.0 * end_phase); // Blends 1.0 -> 3.0
         }
-        
         if (std::abs(target_state.angular_vel) > 0.5) { 
             q_x_boost = 2; 
         }

@@ -81,17 +81,14 @@ void initialize() {
     temp_warning();
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
-    color_sensor.set_led_pwm(100);
-   chassis.setPose(-45.7, -0.5, 270);
-   /*
-   MCL::StartMCL(-45.7, -0.5, 270);
-   pros::Task mclTask(MCL::MonteCarlo);
-    */
     console.focus();
-    
-    
     //calibrate_vision();
     create_alliance_selector();
+    /*
+    chassis.setPose(-51.25, -18.5, 180);
+    MCL::StartMCL(-51.25, -18.5, 180);
+    pros::Task mcl_task(MCL::MonteCarlo);
+    */
     console.focus();
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
@@ -105,16 +102,18 @@ void initialize() {
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
             
-            
+        
             console.printf("D X: %f\n", dpose.x);
             console.printf("D Y: %f\n", dpose.y);
             console.printf("Using X: %d\n", dpose.using_odom_x);
             console.printf("Using Y: %d\n", dpose.using_odom_y);
+            /*
+            console.printf("MCL X: %f\n", MCL::global_X);
+            console.printf("MCL Y: %f\n", MCL::global_Y);
+            console.printf("MCL THETA %f\n", MCL::global_Theta);
+            */
+        
             
-            
-            
-            console.printf("X MCL: %f\n", MCL::X);
-            console.printf("Y MCL: %f\n", MCL::Y);
             
             pros::delay(100);
         }
@@ -126,6 +125,8 @@ void disabled() {
 
 void competition_initialize() {
 }
+
+#include "MCLAutotuner.h" // <--- Add this include
 
 void distanceCalibration() {
     chassis.setPose(0, 0, 0);
@@ -171,121 +172,141 @@ void distanceCalibration() {
     }
 }
 
-
-
 void autonomous() {
     skills_auton();
-
+    //elim_auton();
 }
 
 
-void opcontrol() {
+
+
+void opcontrol()
+{
     std::cout << allianceColor << std::endl;
     bool trapDoor_commanded = false;
     bool matchload_on = false;
-    while(true)
-    {
+
+    enum class ScoringMode {
+        NONE,
+        INTAKE,
+        OUTTAKE,
+        MIDGOAL,
+        LONGGOAL,
+        MANUAL_UP
+    };
+
+    while (true) {
         int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
-        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2))
-        {
-            midgoal_first = true;
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+            trapDoor_commanded = !trapDoor_commanded;
+            if (trapDoor_commanded)
+                trapDoor.extend();
         }
 
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
-        {
-            intake();
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
-        {
-            outtake();
-            if(intakeFunnel.is_extended())
-            {
-                intakeFunnel.retract();
-            }
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
-        {
-            score_longgoal(12000, allianceColor);
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
-        {
-            score_midgoal();
-            ramp_up_time += 10;
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
-        {
-            
-        }
-        else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
-        {
-            if(descore.is_extended())
-                descore.retract();
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X))
-        {
-            if(!trapDoor_commanded)
-            {
-                trapDoor_commanded = true;
-                trapDoor.extend();
-            }
-            else {
-                trapDoor_commanded = false;
-            }
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
-        {
-            if(matchload.is_extended())
-            {
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
+            if (matchload.is_extended()) {
                 matchload.retract();
                 matchload_on = false;
-            }
-            else {
+            } else {
                 matchload.extend();
                 matchload_on = true;
             }
         }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
-        {
+
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
             color_sort_enable = !color_sort_enable;
             controller.rumble(".");
         }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
-        {
+
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
             basket.toggle();
-            if(!scoringBand.is_extended())
-            {
+            if (!scoringBand.is_extended())
                 scoringBand.extend();
-            }
-        }
-        else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
-        {
-            intakeFunnel.toggle();
-        }
-        else
-        {
-            ramp_up_time = 0;
-            resting_state(trapDoor_commanded);
-            midgoal_first = false;
-            intakeFunnel.extend();
-            if(color_sort_enable)
-            {
-                blockBlocker.retract();
-            }
-            else {
-                blockBlocker.extend();
-            }
-            if(!basket.is_extended() && scoringBand.is_extended())
-            {
-                scoringBand.retract();
-            }
         }
 
-        if(throttle < 5)
-            chassis.arcade(throttle, steer, false);
-        else
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) {
+            scoringBand.toggle();
+        }
+
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
+            midgoal_first = true;
+        }
+
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
         {
+            descore.retract();        
+        }
+        else {
+            descore.extend();
+        }
+
+        ScoringMode scoringMode = ScoringMode::NONE;
+
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+            scoringMode = ScoringMode::LONGGOAL;
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+            scoringMode = ScoringMode::MIDGOAL;
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)) {
+            scoringMode = ScoringMode::MANUAL_UP;
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+            scoringMode = ScoringMode::OUTTAKE;
+        }
+        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+            scoringMode = ScoringMode::INTAKE;
+        }
+
+        switch (scoringMode) {
+            case ScoringMode::INTAKE:
+                intake();
+                break;
+
+            case ScoringMode::OUTTAKE:
+                outtake(9000);
+                if (intakeFunnel.is_extended())
+                    intakeFunnel.retract();
+                low_ramp_down_time += 10;
+                break;
+
+            case ScoringMode::MIDGOAL:
+                score_midgoal();
+                ramp_up_time += 10;
+                break;
+
+            case ScoringMode::LONGGOAL:
+                score_longgoal(12000, allianceColor);
+                break;
+
+            case ScoringMode::MANUAL_UP:
+                topMotor.move(12000);
+                intakeMotor.move(-12000);
+                break;
+
+            case ScoringMode::NONE:
+                ramp_up_time = 0;
+                resting_state(trapDoor_commanded);
+                midgoal_first = false;
+                intakeFunnel.extend();
+                low_ramp_down_time = 0;
+                if(!color_sort_enable && scoringBand.is_extended())
+                {
+                    scoringBand.retract();
+                }
+                break;
+        }
+
+        if (color_sort_enable)
+            blockBlocker.extend();
+        else
+            blockBlocker.retract();
+
+        if (throttle < 5) {
+            chassis.arcade(throttle, steer, false);
+        } else {
             leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
             rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
             chassis.curvature(throttle, steer, false);
@@ -293,6 +314,4 @@ void opcontrol() {
 
         pros::delay(10);
     }
-
-    
 }

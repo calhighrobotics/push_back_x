@@ -3,11 +3,11 @@
 #include <cmath>
 
 const double PITCH_CLIMB_THRESHOLD = 9;
-const double PITCH_LEVEL_THRESHOLD = 0.4;
+const double PITCH_LEVEL_THRESHOLD = 0.5;
 const double CROSSING_TIMEOUT = 3000;
 const double DRIVE_SPEED = 100;
 const double HEADING_KP = 2.0;
-const int POST_LANDING_TIME = 300;
+const int POST_LANDING_TIME = 200;
 
 void crossBarrier(int times = 2, bool reverse = false) {
     double targetHeading = imu.get_heading();
@@ -47,7 +47,7 @@ void crossBarrier(int times = 2, bool reverse = false) {
                 chassis.tank((DRIVE_SPEED * dir) + turnOffset, (DRIVE_SPEED * dir) - turnOffset);
             }
 
-            if (!hasClimbed && currentPitch > PITCH_CLIMB_THRESHOLD) {
+            if (reverse ? : !hasClimbed && currentPitch > PITCH_CLIMB_THRESHOLD) {
                 hasClimbed = true;
                 std::cout << "Status: CLIMBING" << std::endl;
             }

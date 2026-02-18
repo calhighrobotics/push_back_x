@@ -10,6 +10,7 @@
 
 void intake(int power = 12000)
 {
+    intakeFunnel.extend();
     intakeMotor.move_voltage(power);
     topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     topMotor.brake();
@@ -17,9 +18,9 @@ void intake(int power = 12000)
 
 void outtake(int power = 12000)
 {
-    
-    if(low_ramp_down_time >= 400)
-        intakeMotor.move_voltage( -6000);
+    topMotor.move_voltage(-12000);
+    if(low_ramp_down_time >= 1000)
+        intakeMotor.move_voltage( -12000);
     else
         intakeMotor.move_voltage(-power);
 }
@@ -34,8 +35,8 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
     intake(power);
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
-        topMotor.move_voltage(-12000);
-        pros::delay(100);
+        topMotor.move_voltage(-8000);
+        pros::delay(33);
         std::cout << "Color Rejected" << std::endl;
     }
     else
@@ -56,28 +57,41 @@ void score_midgoal(int power = 12000)
 {
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
-        topMotor.move_voltage(-8000);
+        topMotor.move_voltage(-10000);
+        pros::delay(33);
     }
     else {
-        if (ramp_up_time >= 400)
+        if (ramp_up_time >= 800)
         {
-            topMotor.move_voltage(4000);
-            intakeMotor.move_voltage(10000);
+            topMotor.move_voltage(5000); // Prev: 4000
+            intakeMotor.move_voltage(12000);
+        }
+        else if(ramp_up_time >= 400)
+        {
+            topMotor.move_voltage(6000);
+            intakeMotor.move_voltage(12000);
         }
         else {
-            topMotor.move_voltage(12000);
+            topMotor.move_voltage(10000);
             intakeMotor.move_voltage(12000);
         }
     }
     if(midgoal_first)
     {
-        //topMotor.move_voltage(-12000);
-        //pros::delay(250);
-        midgoal_first = false;
-        if(!trapDoor.is_extended()) trapDoor.extend();
-        intakeMotor.move_voltage(12000);
-        topMotor.move_voltage(6000);
-        pros::delay(500);
+        if(!color_sort_enable)
+        {
+            midgoal_first = false;
+            trapDoor.extend();
+            intakeMotor.move_voltage(12000);
+            topMotor.move_voltage(6000);
+        }
+        else if(color_sort_enable && get_color() == allianceColor)
+        {
+            midgoal_first = false;
+            trapDoor.extend();
+            intakeMotor.move_voltage(12000);
+            topMotor.move_voltage(6000);
+        }
     }
     //if (ramp_up_time >= 1600)
     //{
@@ -90,8 +104,8 @@ void score_midgoal(int power = 12000)
 
 void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
 {
-    leftMotors.move(-30);
-    rightMotors.move(-30);
+    leftMotors.move(-50);
+    rightMotors.move(-50);
     score_longgoal(power, allianceColor);
 }
 
@@ -109,7 +123,6 @@ void resting_state(bool trapDoor_commanded = false)
     if(!trapDoor_commanded)
         trapDoor.retract();
     topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-    descore.extend();
 }
 
 void matchload_state(bool state)
@@ -186,3 +199,11 @@ void matchload_counter(int balls, int time_ms)
         pros::Task::current().remove();
     });
 }
+/*
+void score_from_basket()
+{
+    color_sort_enable = false;
+    topMotor.move(12000);     
+    intakeMotor.move(-12000);
+}
+*/
