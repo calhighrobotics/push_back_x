@@ -89,6 +89,7 @@ void initialize() {
     MCL::StartMCL(-51.25, -18.5, 180);
     pros::Task mcl_task(MCL::MonteCarlo);
     */
+    chassis.setPose(-22 - longgoal_offset, 47.5, 180);
     console.focus();
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
@@ -97,16 +98,17 @@ void initialize() {
             pose = chassis.getPose();
 
             
-            distancePose dpose = distanceReset(false);
+            //distancePose dpose = distanceReset(false, 1);
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
             
-        
+            /*
             console.printf("D X: %f\n", dpose.x);
             console.printf("D Y: %f\n", dpose.y);
             console.printf("Using X: %d\n", dpose.using_odom_x);
             console.printf("Using Y: %d\n", dpose.using_odom_y);
+            */
             /*
             console.printf("MCL X: %f\n", MCL::global_X);
             console.printf("MCL Y: %f\n", MCL::global_Y);
@@ -115,7 +117,7 @@ void initialize() {
         
             
             
-            pros::delay(100);
+            pros::delay(20);
         }
     });
 }
@@ -126,7 +128,6 @@ void disabled() {
 void competition_initialize() {
 }
 
-#include "MCLAutotuner.h" // <--- Add this include
 
 void distanceCalibration() {
     chassis.setPose(0, 0, 0);
@@ -175,6 +176,7 @@ void distanceCalibration() {
 void autonomous() {
     skills_auton();
     //elim_auton();
+    //trapDoor.extend();
 }
 
 
@@ -305,7 +307,7 @@ void opcontrol()
             blockBlocker.retract();
 
         if (throttle < 5) {
-            chassis.arcade(throttle, steer, false);
+            chassis.arcade(throttle, (int)low_power_steer_curve(steer), true);
         } else {
             leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
             rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);

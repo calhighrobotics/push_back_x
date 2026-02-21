@@ -6,4 +6,4 @@ extern const double CROSSING_TIMEOUT;
 extern const double DRIVE_SPEED;
 extern const double HEADING_KP;
 
-void crossBarrier(int times = 2, bool reverse = false);
+void crossBarrier(int times = 2, bool reverse = false, bool fullyDrop = true);

@@ -38,3 +38,7 @@ void matchload_wiggle(int time = 1000, int speed = 100);
 void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true, float EarlyExit = 0);
 
 void matchload_counter(int balls, int time_ms);
+
+float low_power_steer_curve(int steer);
+
+void score_midgoal_auton(int power = 12000);

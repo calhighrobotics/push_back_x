@@ -55,27 +55,6 @@ void intake_stop()
 
 void score_midgoal(int power = 12000)
 {
-    if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
-    {
-        topMotor.move_voltage(-10000);
-        pros::delay(33);
-    }
-    else {
-        if (ramp_up_time >= 800)
-        {
-            topMotor.move_voltage(5000); // Prev: 4000
-            intakeMotor.move_voltage(12000);
-        }
-        else if(ramp_up_time >= 400)
-        {
-            topMotor.move_voltage(6000);
-            intakeMotor.move_voltage(12000);
-        }
-        else {
-            topMotor.move_voltage(10000);
-            intakeMotor.move_voltage(12000);
-        }
-    }
     if(midgoal_first)
     {
         if(!color_sort_enable)
@@ -93,6 +72,32 @@ void score_midgoal(int power = 12000)
             topMotor.move_voltage(6000);
         }
     }
+    if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
+    {
+        topMotor.move_voltage(-10000);
+        pros::delay(33);
+    }
+    else {
+        if (ramp_up_time >= 1200)
+        {
+            topMotor.move_voltage(8000);
+            intakeMotor.move_voltage(12000);
+        }
+        if (ramp_up_time >= 800)
+        {
+            topMotor.move_voltage(5000); // Prev: 4000
+            intakeMotor.move_voltage(12000);
+        }
+        else if(ramp_up_time >= 400)
+        {
+            topMotor.move_voltage(6000);
+            intakeMotor.move_voltage(12000);
+        }
+        else {
+            topMotor.move_voltage(10000);
+            intakeMotor.move_voltage(12000);
+        }
+    }
     //if (ramp_up_time >= 1600)
     //{
     //    topMotor.move_voltage(4000);
@@ -101,6 +106,22 @@ void score_midgoal(int power = 12000)
     
 }
 
+void score_midgoal_auton(int power = 12000)
+{
+    intake(12000);
+    chassis.tank(-40, -40);
+    topMotor.move_voltage(6000);
+    pros::delay(250);
+    topMotor.move_voltage(7000);
+    pros::delay(400);
+    topMotor.move_voltage(6500);
+    pros::delay(400);
+    topMotor.move_voltage(6500);
+    pros::delay(400);
+    topMotor.move_voltage(7000);
+    pros::delay(400);
+    topMotor.move_voltage(5000);
+}
 
 void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
 {
@@ -207,3 +228,16 @@ void score_from_basket()
     intakeMotor.move(-12000);
 }
 */
+
+float low_power_steer_curve(int steer)
+{
+    if (std::abs(steer) < 3)
+        return 0;
+
+    float turnNorm = steer / 127.0f;
+
+    turnNorm = 0.9f * std::pow(turnNorm, 5)
+             + 0.1f * turnNorm;
+
+    return turnNorm * 127.0f;
+}
