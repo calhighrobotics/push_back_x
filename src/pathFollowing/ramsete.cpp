@@ -182,8 +182,8 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
         float right_actual_mps = rightMotors.get_actual_velocity() * rpm_to_mps_factor;
 
         DrivetrainVoltages output_voltages = controller.update(
-            v_desired_ramsete, 
-            w_desired_ramsete, 
+            vd, 
+            wd, 
             left_actual_mps, 
             right_actual_mps
         );

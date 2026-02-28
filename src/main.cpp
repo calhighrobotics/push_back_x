@@ -77,106 +77,291 @@ rd::Selector selector({
 rd::Console console;
 
 void initialize() {
+    // 1. Hardware & Warning Initialization
     chassis.calibrate();
     temp_warning();
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
-    console.focus();
-    //calibrate_vision();
     create_alliance_selector();
-    /*
-    chassis.setPose(-51.25, -18.5, 180);
-    MCL::StartMCL(-51.25, -18.5, 180);
-    pros::Task mcl_task(MCL::MonteCarlo);
-    */
-    chassis.setPose(-22 - longgoal_offset, 47.5, 180);
+    
+    // 2. Initial Pose Definition
+    // Adjust these coordinates to your actual starting tile
+    double start_x = -51.25;
+    double start_y = -18.5;
+    double start_theta = 180.0;
+
+    // 3. Start MCL Subsystem
+    chassis.setPose(start_x, start_y, start_theta); 
+    //MCL::StartMCL(start_x, start_y, start_theta);
+    
+    // Launch MCL as a background task (20ms loop internally)
+    //pros::Task mcl_task(MCL::MonteCarlo);
+
+    // 4. Console & UI Focus
     console.focus();
+
+    // 5. Comparison Monitoring Task
     pros::Task screen_task([&]() {
-        lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
-            pose = chassis.getPose();
+            
+            // Get standard LemLib Odometry Pose
+            lemlib::Pose odomPose = chassis.getPose();
+            
+            // --- LEMLIB ODOMETRY ---
+            console.printf("X: %.2f  Y: %.2f\n", odomPose.x, odomPose.y);
+            console.printf("Theta: %.2f\n\n", odomPose.theta);
+            
+            // --- MCL LOCALIZATION ---
+            /*
+            console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
+            console.printf("Theta: %.2f\n", MCL::global_Theta);
+            
+            // Display our new Confidence Metric (N_eff based)
+            console.printf("Conf: %.1f%%\n", MCL::global_Confidence * 100.0);
 
-            
-            //distancePose dpose = distanceReset(false, 1);
-            console.printf("X: %f\n", pose.x);
-            console.printf("Y: %f\n", pose.y);
-            console.printf("Theta: %f\n", pose.theta);
-            
-            /*
-            console.printf("D X: %f\n", dpose.x);
-            console.printf("D Y: %f\n", dpose.y);
-            console.printf("Using X: %d\n", dpose.using_odom_x);
-            console.printf("Using Y: %d\n", dpose.using_odom_y);
+            // --- ERROR DELTA ---
+            double error_dist = std::hypot(odomPose.x - MCL::global_X, odomPose.y - MCL::global_Y);
+            console.printf("Delta Dist: %.2f in\n", error_dist);
             */
-            /*
-            console.printf("MCL X: %f\n", MCL::global_X);
-            console.printf("MCL Y: %f\n", MCL::global_Y);
-            console.printf("MCL THETA %f\n", MCL::global_Theta);
-            */
-        
-            
-            
-            pros::delay(20);
+            pros::delay(50); // Lower refresh rate for the screen to prevent flickering
         }
     });
 }
 
 void disabled() {
+    console.focus();
 }
 
 void competition_initialize() {
+    selector.focus();
 }
 
 
 void distanceCalibration() {
+
+    std::cout << "\n==== DISTANCE SENSOR CALIBRATION START ====\n";
+
+    // IMPORTANT:
+    // Start robot flush against wall manually.
+    // Then this backs up known distance.
+
+    const double backUpInches = 5.0;
+
     chassis.setPose(0, 0, 0);
-    chassis.moveToPoint(0, -4, 2000, {.forwards = false});
+    chassis.moveToPoint(0, -backUpInches, 2000, {.forwards = false});
     chassis.waitUntilDone();
+    pros::delay(500);
 
     std::vector<pros::Distance*> sensors = {
-        &frontDistance, &leftDistance, &backDistance, &rightDistance
+        &frontDistance,
+        &leftDistance,
+        &backDistance,
+        &rightDistance,
+        &frontDistance2
     };
+
     std::vector<std::string> names = {
-        "Front", "Left", "Back", "Right"
+        "Front",
+        "Left",
+        "Back",
+        "Right",
+        "Front 2"
     };
 
     std::vector<int> sweepAngles = {0, 30, 45};
+    const int samplesPerAngle = 5;
 
     for (int s = 0; s < sensors.size(); s++) {
+
+        std::cout << "\n--- Calibrating " << names[s] << " Sensor ---\n";
+
         int baseHeading = s * 90;
+
+        chassis.turnToHeading(baseHeading, 1500);
+        chassis.waitUntilDone();
+        pros::delay(500);
+
+        for (int angle : sweepAngles) {
+
+            int target = baseHeading + angle;
+
+            chassis.turnToHeading(target, 1000);
+            chassis.waitUntilDone();
+            pros::delay(400);
+
+            double sum = 0;
+            int validCount = 0;
+
+            for (int i = 0; i < samplesPerAngle; i++) {
+
+                int reading = sensors[s]->get_distance();
+
+                if (reading > 30 && reading < 5000) {
+                    sum += reading;
+                    validCount++;
+                }
+
+                pros::delay(40);
+            }
+
+            if (validCount == 0) {
+                std::cout << names[s]
+                          << " @ +" << angle
+                          << " deg: INVALID\n";
+                continue;
+            }
+
+            double avg_mm = sum / validCount;
+            double avg_in = avg_mm / 25.4;
+
+            std::cout << names[s]
+                      << " @ +" << angle
+                      << " deg: "
+                      << avg_mm << " mm ("
+                      << avg_in << " in)"
+                      << std::endl;
+        }
 
         chassis.turnToHeading(baseHeading, 1000);
         chassis.waitUntilDone();
-        pros::delay(300);
-
-        for (int repeat = 0; repeat < 5; repeat++) {
-            for (int angle : sweepAngles) {
-                int target = baseHeading + angle;
-
-                chassis.turnToHeading(target, 700);
-                chassis.waitUntilDone();
-                pros::delay(200);
-
-                int dist = sensors[s]->get();
-                std::cout << names[s]
-                          << " @ +" << angle
-                          << " deg: "
-                          << dist << " mm"
-                          << std::endl;
-            }
-
-            chassis.turnToHeading(baseHeading, 700);
-            chassis.waitUntilDone();
-            pros::delay(400);
-        }
+        pros::delay(500);
     }
+
+    std::cout << "\n==== CALIBRATION COMPLETE ====\n";
 }
 
+void find_tracking_center(float turnVoltage, uint32_t time_ms) {
+    chassis.setPose(0, 0, 0);
+    std::vector<float> xs, ys, thetas;
+    uint32_t start = pros::millis();
+    while (pros::millis() - start < time_ms) {
+        leftMotors.move_voltage(turnVoltage * 1000);
+        rightMotors.move_voltage(-turnVoltage * 1000);
+
+        auto pose = chassis.getPose(false);  
+
+
+        xs.push_back(pose.x);
+        ys.push_back(pose.y);
+        thetas.push_back(pose.theta);
+
+        pros::delay(20);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+
+    std::cout << "X_0 = [";
+    for (size_t i = 0; i < xs.size(); i++) {
+        std::cout << "(" << xs[i] << "," << ys[i] << ")";
+        if (i + 1 < xs.size()) std::cout << ",";
+        pros::delay(7); 
+    }
+    std::cout << "]\n";
+
+    pros::delay(50);
+
+    std::cout << "θ_t = [";
+    for (size_t i = 0; i < thetas.size(); i++) {
+        std::cout << thetas[i];
+        if (i + 1 < thetas.size()) std::cout << ",";
+        pros::delay(7);
+    }
+    std::cout << "]\n";
+}
+
+
+class Vector2 {
+public:
+    Vector2(float x, float y) : x(x), y(y) {}
+    std::string latex() const {
+        std::ostringstream oss;
+        oss << "\\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\\right)";
+        return oss.str();
+    }
+
+    float x;
+    float y;
+};
+
+void collect_velocity_vs_voltage_data(bool turning = false) {
+    std::vector<float> inputs = {0.0f,  0.25f,  0.5f,  0.75f,  1.0f,  1.25f,  1.5f,  1.75f,  2.0f, 2.25f,
+                                 2.5f,  2.75f,  3.0f,  3.25f,  3.5f,  3.75f,  4.0f,  4.25f,  4.5f, 4.75f,
+                                 5.0f,  5.25f,  5.5f,  5.75f,  6.0f,  6.25f,  6.5f,  6.75f,  7.0f, 7.25f,
+                                 7.5f,  7.75f,  8.0f,  8.25f,  8.5f,  8.75f,  9.0f,  9.25f,  9.5f, 9.75f,
+                                 10.0f, 10.25f, 10.5f, 10.75f, 11.0f, 11.25f, 11.5f, 11.75f, 12.0f};
+   
+
+    std::vector<float> outputs = {0.f};
+    outputs.reserve(inputs.size());
+
+    float direction = 1;
+    for (auto &input : inputs) {
+        if (input == 0)
+            continue;
+
+        leftMotors.move_voltage(direction * input * 1000);
+        rightMotors.move_voltage(direction * input * 1000 * turning ? -1 : 1);
+
+        pros::delay(1000);
+        float v_sum = 0;
+        int n;
+        for (n = 0; n < 500; ++n) {
+            v_sum += (std::fabs(leftMotors.get_actual_velocity()*0.0032429f) + std::fabs(rightMotors.get_actual_velocity()*0.0032429f)) / 2;
+            pros::delay(10);
+        }
+        outputs.emplace_back( (v_sum / (float)n));
+        auto v = input * direction * 1000;
+        while (fabsf(v) > 0.5) {
+            v *= 0.9;
+
+            leftMotors.move_voltage(v);
+            rightMotors.move_voltage(v);
+            pros::delay(10);
+        }
+        direction = -direction;
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+
+    for (int i = 0; i < inputs.size(); ++i) {
+        std::cout << Vector2(inputs[i], outputs[i]).latex() << ",";
+    }
+    std::cout << "\b" << std::endl;
+}
+
+void collect_voltage_step_data(float step_input, unsigned int duration, bool turning = false) {
+    std::vector<float> outputs = {};
+    duration *= 100;
+    outputs.reserve(duration);
+
+    leftMotors.move_voltage(step_input * 1000);
+    rightMotors.move_voltage(step_input * 1000 * turning ? -1 : 1);
+
+    for (int i = 0; i < duration; ++i) {
+        auto speed = (std::fabs(leftMotors.get_actual_velocity()*0.0032429f) + std::fabs(rightMotors.get_actual_velocity()*0.0032429f)) / 2;
+        std::cout << Vector2((float)i / 100, speed).latex() << "," << std::flush;
+        pros::delay(10);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+    std::cout << "\b" << std::endl;
+}
+
+
+
+
+
 void autonomous() {
-    skills_auton();
-    //elim_auton();
-    //trapDoor.extend();
+    //distanceCalibration();
+    //find_tracking_center(5, 6000);
+    //collect_velocity_vs_voltage_data(false);
+    //collect_voltage_step_data(4000, 4, false);
+    //awp_auton();
+    elim_auton();
 }
 
 
@@ -184,6 +369,7 @@ void autonomous() {
 
 void opcontrol()
 {
+    midgoal_first = false;
     std::cout << allianceColor << std::endl;
     bool trapDoor_commanded = false;
     bool matchload_on = false;
@@ -234,6 +420,10 @@ void opcontrol()
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
             midgoal_first = true;
+            if(!trapDoor.is_extended())
+            {
+                trapDoor.extend();
+            }
         }
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
@@ -268,7 +458,7 @@ void opcontrol()
                 break;
 
             case ScoringMode::OUTTAKE:
-                outtake(9000);
+                outtake(8500);
                 if (intakeFunnel.is_extended())
                     intakeFunnel.retract();
                 low_ramp_down_time += 10;
@@ -306,13 +496,9 @@ void opcontrol()
         else
             blockBlocker.retract();
 
-        if (throttle < 5) {
-            chassis.arcade(throttle, (int)low_power_steer_curve(steer), true);
-        } else {
-            leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-            rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-            chassis.curvature(throttle, steer, false);
-        }
+        leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+        rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+        chassis.curvature(throttle, steer, false);
 
         pros::delay(10);
     }

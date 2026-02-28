@@ -18,6 +18,8 @@ void intake(int power = 12000)
 
 void outtake(int power = 12000)
 {
+    if(intakeFunnel.is_extended())
+        intakeFunnel.retract();
     topMotor.move_voltage(-12000);
     if(low_ramp_down_time >= 1000)
         intakeMotor.move_voltage( -12000);

@@ -10,8 +10,6 @@
 #include <algorithm>
 #include <iomanip>
 
-// --- Helper Class Implementations ---
-
 LTVPathFollower::Vector2::Vector2(float x, float y) : x(x), y(y) {}
 
 std::string LTVPathFollower::Vector2::latex() const {
@@ -43,7 +41,6 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           11.55f * INCH_TO_METER 
       ) {}
 
-
 void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
     if (is_running) {
         cancel();
@@ -66,75 +63,6 @@ void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& 
     pros::delay(10);
 }
 
-void LTVPathFollower::moveTo(float x, float y, float theta_deg, float timeout_ms, float max_speed, bool backwards) {
-    // 1. Safety: Stop existing tasks
-    if (is_running) {
-        cancel();
-        waitUntilDone();
-    }
-
-    // 2. Setup: Get current state
-    lemlib::Pose start = chassis.getPose();
-    
-    // 3. Math: Calculate Target Heading correctly
-    // LemLib uses "Degrees Clockwise from North" (0 = North, 90 = East)
-    // Math uses "Radians Counter-Clockwise from East" (0 = East, pi/2 = North)
-    float target_heading_lemlib = 0.0f;
-
-    if (theta_deg <= -990.0f) {
-        // Option A: Point towards the target
-        float dx = x - start.x;
-        float dy = y - start.y;
-        
-        // atan2 gives Math Angle (Rad CCW from East)
-        float math_angle_rad = std::atan2(dy, dx);
-        float math_angle_deg = lemlib::radToDeg(math_angle_rad);
-        
-        // Convert: LemLib = 90 - Math
-        target_heading_lemlib = 90.0f - math_angle_deg;
-    } else {
-        // Option B: User specified absolute orientation
-        target_heading_lemlib = theta_deg;
-    }
-
-    // 4. Create End Pose with CORRECT coordinate system
-    lemlib::Pose end(x, y, target_heading_lemlib); 
-
-    // 5. Config: Initialize properly to avoid garbage data
-    ltvConfig config; // Relies on defaults set in header now
-    config.backwards = backwards;
-    config.log = false;
-    // IMPORTANT: Explicitly disable turnFirst for moveTo, as we want spline movement
-    config.turnFirst = false; 
-    
-    if(max_speed > 0) config.max_velocity = max_speed * INCH_TO_METER; 
-    
-    // 6. Generate Path
-    std::vector<State> path = generateCurvedPath(start, end, config.max_velocity, config.max_acceleration, backwards);
-
-    if (path.empty()) {
-        std::cout << "[LTV] Error: Generated path is empty (start/end too close?)" << std::endl;
-        return;
-    }
-
-    // 7. Execute
-    is_running = true;
-    cancel_request = false;
-    distance_traveled_inches = 0.0f;
-
-    TaskParams* params = new TaskParams{this, "", config, path};
-    task = new pros::Task(task_trampoline, params, "LTVMoveTo");
-    
-    if (task == nullptr) {
-        delete params;
-        is_running = false;
-        std::cout << "[LTV] Failed to create task" << std::endl;
-        return;
-    }
-
-    // Give the task time to spin up
-    pros::delay(20);
-}
 double LTVPathFollower::getPathLength(const std::string& path_name) {
     std::vector<State> trajectory = prepare_trajectory(path_name);
     if (trajectory.empty()) return 0.0;
@@ -206,11 +134,8 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         return;
     }
 
-    // --- Initial Pose Setup ---
     if(l_config.test) {
-        // If testing, snap robot to start. If backwards, face the opposite way of path start.
         double start_theta = l_config.backwards ? trajectory[0].heading + M_PI : trajectory[0].heading;
-        // Convert math angle back to GPS angle (0 is North, CW)
         double gps_start_theta = M_PI_2 - start_theta;
         chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, lemlib::radToDeg(gps_start_theta));
     } else if(l_config.turnFirst) {
@@ -220,6 +145,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
     }
 
     std::vector<std::string> logs;
+    std::vector<std::string> logs_2;
     int trajectory_size = trajectory.size();
     u_int32_t start_time = pros::millis();
     uint32_t prev_time = pros::millis();
@@ -232,7 +158,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
     lemlib::Pose start_pose = chassis.getPose();
 
-    // Cache for DARE solution
     Eigen::MatrixXf cached_K(2, 3);
     cached_K.setZero();
     float last_solve_v = -9999.0f;
@@ -246,7 +171,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
         u_int32_t current_time = pros::millis();
         
-        // Use a minimum dt to prevent division by zero errors in logging
         double measured_dt = (current_time - prev_time) / 1000.0;
         if (measured_dt <= 0.002) measured_dt = 0.01;
         prev_time = current_time;
@@ -258,34 +182,28 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
         current_pose.x *= INCH_TO_METER;
         current_pose.y *= INCH_TO_METER;
-        
-        // --- Tuning Factors ---
+        /*
         double progress = (double)i / trajectory_size;
         double velocity_scale = 1.0;
         double q_gain_mult = 1.0;
         double r_vel_mult = 1.0;
         double q_x_boost = 1.0;
-        // Ramp down velocity at the end
         if (progress > 0.85) {
-            // 0.0 at 0.85, 1.0 at 1.0
             double end_phase = (progress - 0.85) / 0.15;
             
-            // Clamp to ensure we don't go out of bounds
             if (end_phase > 1.0) end_phase = 1.0; 
             
-            // Calculate the ramp down (1.0 to 0.0)
             double ramp = 1.0 - end_phase;
             velocity_scale *= ramp;
 
-            // Smoothly blend gains from 1.0 (normal) to target (stiff)
-            // Formula: current = start + (end - start) * percent
-            r_vel_mult = 1.0 + (1.0 * end_phase); // Blends 1.0 -> 2.0
-            q_gain_mult = 1.0 + (2.0 * end_phase); // Blends 1.0 -> 3.0
+            r_vel_mult = 1.0 + (1.0 * end_phase);
+            q_gain_mult = 1.0 + (2.0 * end_phase);
         }
+        
         if (std::abs(target_state.angular_vel) > 0.5) { 
             q_x_boost = 2; 
         }
-
+        */
         Eigen::Matrix3f Q_mat; 
         Q_mat << l_config.q_x * q_gain_mult * q_x_boost, 0, 0,
                  0, l_config.q_y * q_gain_mult, 0,
@@ -295,19 +213,10 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         R_mat << l_config.r_vel * r_vel_mult, 0,
                  0, l_config.r_ang;
 
-        // --- Coordinate Transformation Fix ---
-        
-        // 1. Get Robot Heading in Math Frame (Counter-Clockwise, 0 is East)
         double math_theta = M_PI_2 - current_pose.theta; 
         
-        // 2. Define "Virtual" Robot Heading
-        // If backing up, the "front" of our virtual robot is the physical rear.
-        // We add PI to the angle.
         double effective_theta = l_config.backwards ? math_theta + M_PI : math_theta;
         
-        // 3. Define Target Heading
-        // We do NOT flip the target heading. The path tangent points in the direction of motion.
-        // Our "Virtual Front" (physical rear) should align with this tangent.
         double target_heading = target_state.heading;
         
         double errorTheta = angleError(effective_theta, target_heading);
@@ -315,20 +224,14 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         Eigen::Vector3d global_error;
         global_error << target_state.x - current_pose.x, target_state.y - current_pose.y, errorTheta;
         
-        // 4. Rotation Matrix using EFFECTIVE theta
-        // This ensures X error is "distance along track" and Y error is "cross track"
-        // relative to the direction of motion.
         Eigen::Matrix3d rotation_matrix;
         rotation_matrix <<  std::cos(effective_theta), std::sin(effective_theta), 0, 
                            -std::sin(effective_theta), std::cos(effective_theta), 0, 
                             0, 0, 1;
         Eigen::Vector3d error = rotation_matrix * global_error;
 
-        // --- Solver Inputs ---
-        // We feed the solver Positive velocity. It calculates how to drive a robot "Forward" to fix errors.
         float v_ref = std::abs(target_state.linear_vel) * velocity_scale;
         
-        // Angular velocity direction is invariant to gear. A left turn is a left turn.
         float w_ref = target_state.angular_vel * velocity_scale;
 
         float lateral_coupling = std::clamp(v_ref, -1.0f, 1.0f);
@@ -348,7 +251,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
             std::abs(v_ref - last_solve_v) > 0.15f || 
             std::abs(w_ref - last_solve_w) > 0.25f) {
             
-            auto discAB = discretizeAB(A, B, measured_dt); //May need to change back to FIXED
+            auto discAB = discretizeAB(A, B, measured_dt);
             Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
             
             cached_K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
@@ -363,14 +266,11 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         float u_v = clamp(u(0), -l_config.max_lin_correction, l_config.max_lin_correction);
         float u_w = clamp(u(1), -l_config.max_ang_correction, l_config.max_ang_correction);
         
-        // Solver thinks we are driving forward. 
         float v_cmd = v_ref + u_v;
         float w_cmd = w_ref + u_w;
 
-        // --- Output Inversion ---
-        // If we are actually backing up, we must invert the Linear command.
-        // Angular command stays same (To move rear Left, we steer Left/CCW).
-        if (l_config.backwards) {
+
+        if(l_config.backwards) {
             v_cmd = -v_cmd;
         }
 
@@ -386,7 +286,8 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
         float left_actual_mps = leftMotors.get_actual_velocity() * rpm_to_mps_factor;
         float right_actual_mps = rightMotors.get_actual_velocity() * rpm_to_mps_factor;
-        
+
+
         DrivetrainVoltages output_voltages = controller.update(
             v_cmd, w_cmd, left_actual_mps, right_actual_mps
         );
@@ -399,8 +300,12 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         
         if(l_config.log) {
             std::ostringstream ss;
+            //std::ostringstream ss2;
+            //ss << Vector2((float)(current_time - start_time)/1000, leftMotors.get_actual_velocity()).latex() << ",";
+            //ss2 << Vector2((float)(current_time - start_time)/1000, rightMotors.get_actual_velocity()).latex() << ",";
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
             logs.push_back(ss.str());
+            //logs_2.push_back(ss2.str());
         }
         
         pros::Task::delay_until(&current_time, 10);
@@ -426,7 +331,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
             std::cout << line;
             pros::delay(10); 
         }
-        std::cout << "\n--- LOG END ---" << std::endl;
+        std::cout << "\n--- COORDINATE LOG END ---" << std::endl;
     }
 
     is_running = false;
@@ -570,13 +475,11 @@ std::vector<State> LTVPathFollower::generateCurvedPath(lemlib::Pose start, lemli
         if (!found) {
              interpolated.x = P3x;
              interpolated.y = P3y;
-             // Fix #5: Use discretized path tangent, not control point tangent
              interpolated.heading = geometry_points.back().heading;
         }
 
         interpolated.linear_vel = current_lin_vel;
         
-        // Fix #4: Prevent angular velocity spike at step 1
         if (i > 1) {
             float dtheta = interpolated.heading - path.back().heading;
             while (dtheta > M_PI) dtheta -= 2*M_PI;
@@ -674,8 +577,11 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
         else if (line.find("L =") != std::string::npos) L = parse_pairs(line.substr(line.find('[')));
         else if (line.find("A =") != std::string::npos) A = parse_pairs(line.substr(line.find('[')));
     }
-    size_t n = X.size();
+    
+    // FIX 1: Prevent Segfaults by grabbing the smallest array size
+    size_t n = std::min({X.size(), L.size(), A.size()});
     if (n == 0) return {};
+    
     std::vector<State> states(n);
     for (size_t i = 0; i < n; i++) {
         states[i].x = X[i].first;
@@ -683,10 +589,25 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
         states[i].linear_vel = L[i].second;
         states[i].angular_vel = A[i].second;
     }
-    if (n > 1) states[0].heading = atan2(states[1].y - states[0].y, states[1].x - states[0].x);
-    for (size_t i = 1; i < n - 1; i++) {
-        states[i].heading = atan2(states[i + 1].y - states[i - 1].y, states[i + 1].x - states[i - 1].x);
+    
+    // FIX 2: Safely calculate headings, ignoring duplicate points 
+    // that cause atan2(0,0) corruption
+    for (size_t i = 0; i < n; i++) {
+        size_t next_idx = i + 1;
+        
+        // Look ahead to find the next point that actually physically moves
+        while (next_idx < n && states[next_idx].x == states[i].x && states[next_idx].y == states[i].y) {
+            next_idx++;
+        }
+        
+        if (next_idx < n) {
+            states[i].heading = std::atan2(states[next_idx].y - states[i].y, states[next_idx].x - states[i].x);
+        } else if (i > 0) {
+            states[i].heading = states[i - 1].heading; // Copy previous heading if we are at the very end
+        } else {
+            states[i].heading = 0.0; // Ultimate fallback
+        }
     }
-    if (n > 1) states[n - 1].heading = atan2(states[n - 1].y - states[n - 2].y, states[n - 1].x - states[n - 2].x);
+    
     return states;
 }

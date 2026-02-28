@@ -32,41 +32,35 @@ public:
         float max_acceleration = 2.0f;
 
         // 1.36m/s max Speed tuned
-        float q_x = 1150.0f; 
+        /*
+        float q_x = 1200.0f; 
         float q_y = 90000.0f; 
         float q_theta = 9000.0f; 
-        float r_ang = 115.0f;
+        float r_ang = 130.0f;
         float r_vel = 190.0f;
+        */
+        /*
+        float q_x = 256.0f; 
+        float q_y = 256.0f * 2; 
+        float q_theta = 32.82f; 
+        float r_ang = 0.025f;
+        float r_vel = 1.0f;
+        */
+        
+        float q_x = 300.0f; 
+        float q_y = 300.0f * 2; 
+        float q_theta = 0.5f; 
+        float r_ang = 0.025f;
+        float r_vel = 1.0f;
     };
-
     LTVPathFollower(const VelocityControllerConfig& config);
     void followPath(const std::string& path_name, const ltvConfig& l_config);
 
-    /**
-     * @brief Move to a target pose using a non-linear Bezier curve.
-     * @param x Target X in inches
-     * @param y Target Y in inches
-     * @param theta_deg Target Heading in degrees. Set to -999 to ignore end heading (MoveToPoint).
-     * @param timeout_ms Timeout in milliseconds
-     * @param max_speed Max speed in m/s (optional, < 0 uses config default)
-     * @param backwards Whether to move backwards
-     */
-    void moveTo(float x, float y, float theta_deg, float timeout_ms, float max_speed = -1.0f, bool backwards = false);
-    
-    // Returns the total length of a path in inches
+
     double getPathLength(const std::string& path_name);
-
-    // --- Control & Task Management ---
-
     void waitUntilDone();
     void waitUntil(float dist_inches);
     
-    /**
-     * @brief Wait until the robot is within a certain radius of the target coordinates.
-     * @param x_inch Target X in inches
-     * @param y_inch Target Y in inches
-     * @param radius_inch Search radius (default 2.0 inches)
-     */
     void waitUntil(float x_inch, float y_inch, float radius_inch = 2.0f);
     
     void cancel();

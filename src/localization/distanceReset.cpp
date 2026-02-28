@@ -192,30 +192,22 @@ distancePose calculateGlobalPosition(
     return pose;
 }
 
+
 distancePose distanceReset(bool setPose = false) {
     double heading_deg = chassis.getPose().theta;
 
-    int averaged_distances[4];
-    pros::Distance* sensors[4] = {&frontDistance, &leftDistance, &rightDistance, &backDistance};
-    for (int i = 0; i < 4; i++) {
-        int sum = 0;
-        const int samples = 3;
-        for (int s = 0; s < samples; s++) {
-            sum += sensors[i]->get_distance();
-            pros::delay(30);
-        }
-        averaged_distances[i] = sum / samples;
-    }
-
-    const SensorReadings front_data = {(double)averaged_distances[0], frontDistance.get_object_size(), frontDistance.get_confidence()};
-    const SensorReadings left_data  = {(double)averaged_distances[1],  leftDistance.get_object_size(),  leftDistance.get_confidence()};
-    const SensorReadings right_data = {(double)averaged_distances[2], rightDistance.get_object_size(), rightDistance.get_confidence()};
-    const SensorReadings back_data  = {(double)averaged_distances[3],  backDistance.get_object_size(),  backDistance.get_confidence()};
+    // Direct readings instead of averaging
+    const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
+    const SensorReadings left_data  = {(double)leftDistance.get_distance(),  leftDistance.get_object_size(),  leftDistance.get_confidence()};
+    const SensorReadings right_data = {(double)rightDistance.get_distance(), rightDistance.get_object_size(), rightDistance.get_confidence()};
+    const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    if(setPose)
+    
+    if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
-    pros::delay(2);
+        pros::delay(2);
+    }
 
     std::cout << "Distance Reset Pose: " << pose.x << ", " << pose.y << ", using_odom_x: " << pose.using_odom_x << ", using_odom_y: " << pose.using_odom_y << std::endl;
     return pose;
@@ -227,37 +219,28 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
     const int invalid_dist_mm = 10000;
     const int invalid_confidence = 0; 
 
-    int averaged_distances[4];
-    pros::Distance* sensors[4] = {&frontDistance, &leftDistance, &rightDistance, &backDistance};
-    for (int i = 0; i < 4; i++) {
-        int sum = 0;
-        const int samples = 3;
-        for (int s = 0; s < samples; s++) {
-            sum += sensors[i]->get_distance();
-            pros::delay(30);
-        }
-        averaged_distances[i] = sum / samples;
-    }
-
+    // Direct readings based on boolean flags
     SensorReadings front_data = front_use
-        ? SensorReadings{(double)averaged_distances[0], frontDistance.get_object_size(), frontDistance.get_confidence()}
+        ? SensorReadings{(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
     
     SensorReadings left_data = left_use
-        ? SensorReadings{(double)averaged_distances[1], leftDistance.get_object_size(), leftDistance.get_confidence()}
+        ? SensorReadings{(double)leftDistance.get_distance(), leftDistance.get_object_size(), leftDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings right_data = right_use
-        ? SensorReadings{(double)averaged_distances[2], rightDistance.get_object_size(), rightDistance.get_confidence()}
+        ? SensorReadings{(double)rightDistance.get_distance(), rightDistance.get_object_size(), rightDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings back_data = back_use
-        ? SensorReadings{(double)averaged_distances[3], backDistance.get_object_size(), backDistance.get_confidence()}
+        ? SensorReadings{(double)backDistance.get_distance(), backDistance.get_object_size(), backDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
     
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    if(setPose)
+    
+    if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
+    }
 
     return pose;
 }

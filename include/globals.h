@@ -50,6 +50,7 @@ extern pros::Distance rightDistance;
 extern pros::Distance leftDistance;
 extern pros::Distance frontDistance;
 extern pros::Distance backDistance;
+extern pros::Distance frontDistance2;
 
 
 extern pros::adi::Pneumatics trapDoor;
@@ -63,6 +64,7 @@ extern pros::adi::Pneumatics blockBlocker;
 extern pros::Optical color_sensor;
 
 extern pros::Vision vision_sensor;
+
 
 extern Color allianceColor;
 extern bool color_sort_enable;

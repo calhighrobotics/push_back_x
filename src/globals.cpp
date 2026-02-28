@@ -22,41 +22,42 @@ lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
     11.55, 
-    lemlib::Omniwheel::NEW_325, 
+    3.25, 
     450, 
-    5);
+    8);
 
 pros::Imu imu(5);
 
 pros::Rotation horizontal_tracking_sensor(-13);
 pros::Rotation vertical_tracking_sensor(-12);
-
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, -6.26707246263, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, -0.091865514797,1);
+//-6.26707246263
+//-0.091865514797
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -7.20045963763, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.488048261926,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(11, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(16.5, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              40, // derivative gain (kD)
-                                              3, // anti windup
+                                              120, // derivative gain (kD)
+                                              4, // anti windup
                                               0.5, // small error range, in inches
-                                              50, // small error range timeout, in milliseconds
+                                              100, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              70, // large error range timeout, in milliseconds
-                                              35 // maximum acceleration (slew)
+                                              1000, // large error range timeout, in milliseconds
+                                              15 // maximum acceleration (slew)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
-                                              0.0015, // integral gain (kI)
-                                              24, // derivative gain (kD)
+lemlib::ControllerSettings angular_controller(3.2, // proportional gain (kP)
+                                              0.0, // integral gain (kI)
+                                              25, // derivative gain (kD)
                                                3, // anti windup
-                                              1, // small error range, in inches
-                                              25, // small error range timeout, in milliseconds
+                                              0.5, // small error range, in inches
+                                              50, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              50, // large error range timeout, in milliseconds
+                                              75, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
@@ -66,8 +67,8 @@ lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
 );
 
 lemlib::ExpoDriveCurve steer_curve(5,   // joystick deadband out of 127
-                                         10,   // minimum output where drivetrain will move out of 127
-                                         1.02 // expo curve gain
+                                        10,   // minimum output where drivetrain will move out of 127
+                                         1.015 // expo curve gain
 );
 
 
@@ -81,6 +82,7 @@ pros::Distance rightDistance(20);
 pros::Distance leftDistance(15);
 pros::Distance frontDistance(14);
 pros::Distance backDistance(16);
+pros::Distance frontDistance2(17);
 
 pros::adi::Pneumatics trapDoor('A', false);
 pros::adi::Pneumatics matchload('E', false);
