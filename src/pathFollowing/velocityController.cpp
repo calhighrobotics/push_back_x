@@ -13,23 +13,19 @@ VoltageController::VoltageController(double kv, double kaStraight, double kaTurn
 DrivetrainVoltages VoltageController::update(double targetLinearVelocity, double targetAngularVelocity, double measuredLeftVelocity,
                             double measuredRightVelocity) {
 
-    // Change in target angular velocity (angular acceleration)
     double deltaW = (targetAngularVelocity - prevAngularVelocity) / 0.01;
-    // Change in target linear velocity (linear acceleration)
+
     double deltaV = (targetLinearVelocity - prevLinearVelocity) / 0.01;
 
     prevAngularVelocity = targetAngularVelocity;
     prevLinearVelocity = targetLinearVelocity;
 
-    // Differential drive kinematics
     double leftVelocity = targetLinearVelocity - targetAngularVelocity * (trackWidth / 2.0);
     double rightVelocity = targetLinearVelocity + targetAngularVelocity * (trackWidth / 2.0);
 
-    // Velocity errors
     double leftError = leftVelocity - measuredLeftVelocity;
     double rightError = rightVelocity - measuredRightVelocity;
 
-    // Integrals
     if ((leftError < 0) != (prevLeftError < 0)) {
         leftIntegral = 0;
     }

@@ -1,3 +1,4 @@
+#include "pros/misc.hpp"
 #include "pros/rtos.hpp"
 #include "globals.h"
 
@@ -37,6 +38,15 @@ void temp_warning() {
                     is_overheating = true;
                     break; 
                 }
+            }
+            if(pros::battery::get_temperature() >= 45)
+            {
+                    controller.rumble(".-.");
+                    controller.clear_line(0);
+                    controller.print(0, 0, "Battery Overheat! %i", (int)pros::battery::get_temperature());
+                    pros::delay(1000); 
+                    controller.clear_line(0);
+                    is_overheating = true;
             }
             pros::delay(200);
             if(is_overheating) {

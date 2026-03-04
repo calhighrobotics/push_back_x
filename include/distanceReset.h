@@ -11,7 +11,7 @@ constexpr double FIELD_WIDTH = 3657.6 * MM_TO_IN;
 constexpr double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
 constexpr double HALF_WIDTH = FIELD_WIDTH / 2.0;
 constexpr double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
-constexpr double MAX_SENSOR_RANGE = 1800 * MM_TO_IN;
+constexpr double MAX_SENSOR_RANGE = 2100 * MM_TO_IN;
 constexpr double MIN_SENSOR_RANGE = 50 * MM_TO_IN;
 
 extern bool controller_screen_avilable;

@@ -5,11 +5,10 @@
 
 namespace MCL {
 
-    // --- Tunable Defaults --
     double PARAMS_ROT_NOISE_STD = 0.0751;    
     double PARAMS_TRANS_BASE = 0.05;      
     double PARAMS_TRANS_GAIN = 0.02;      
-    double PARAMS_SENSOR_SIGMA = 0.8; 
+    double PARAMS_SENSOR_SIGMA = 0.4; 
 
     double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0; 
     double map_min_x = -72.0, map_max_x = 72.0, map_min_y = -72.0, map_max_y = 72.0;
@@ -17,7 +16,6 @@ namespace MCL {
     pros::Mutex particle_mutex;
     std::mt19937 Random(std::random_device{}());
 
-    // --- Sensor Constructor with Trig Caching ---
     MCLDistanceSensor::MCLDistanceSensor(pros::Distance sensor_, double localX, double localY, double angleDeg) 
         : Sensor(sensor_), LocalX(localX), LocalY(localY), AngleDeg(angleDeg) {
         measurement = -1;
@@ -48,20 +46,17 @@ namespace MCL {
     static const int MAP_SEGMENT_COUNT = sizeof(MAP_SEGMENTS) / sizeof(Segment);
 
     std::vector<MCLDistanceSensor> Sensors = {
-        MCLDistanceSensor(frontDistance, -3.0,  10.5,   0),  
-        MCLDistanceSensor(leftDistance,  -6.4, -0.5,   -90), 
-        MCLDistanceSensor(rightDistance,  6.3, -0.5,    90), 
-        MCLDistanceSensor(backDistance,  -3.0, -10.5,  180), 
+    MCLDistanceSensor(frontDistance, -3.0, -0.75, 0),  
+    MCLDistanceSensor(leftDistance, 0.5, -7.2, 90), 
+    MCLDistanceSensor(rightDistance, -0.5, 6.3, -90), 
+    MCLDistanceSensor(backDistance, 3.0, -10.5, 180), 
     };
 
     std::vector<Particle> particles(NUM_PARTICLES);
     std::vector<Particle> resample_buffer(NUM_PARTICLES); 
 
-    // --- Helpers ---
     inline double degToRad(double deg) { return deg * M_PI / 180.0; }
     inline double radToDeg(double rad) { return rad * 180.0 / M_PI; }
-
-    // 🔥 FIX 1: Mathematically Robust Wrap for all inputs
     inline double wrapAngleDeg(double angle) {
         angle = std::fmod(angle + 180.0, 360.0);
         if (angle < 0) angle += 360.0;
@@ -72,14 +67,9 @@ namespace MCL {
         std::normal_distribution<double> dist(mean, stddev);
         return dist(Random);
     }
-
-    // 🔥 Optimization: Raycasting with Trig Addition Formulas (No new Sin/Cos calls)
     double getRaycastDistance(const Particle& p, const MCLDistanceSensor& sensor) {
         double sensX = p.x + (sensor.LocalY * p.sin_t + sensor.LocalX * p.cos_t);
         double sensY = p.y + (sensor.LocalY * p.cos_t - sensor.LocalX * p.sin_t);
-        
-        // Ray direction using: sin(A+B) = sinA cosB + cosA sinB
-        //                      cos(A+B) = cosA cosB - sinA sinB
         double dx = p.sin_t * sensor.cos_off + p.cos_t * sensor.sin_off;
         double dy = p.cos_t * sensor.cos_off - p.sin_t * sensor.sin_off;
 
@@ -106,8 +96,6 @@ namespace MCL {
 
     void StartMCL(double x, double y, double theta) {
         particle_mutex.take();
-        
-        // 🔥 FIX 2: Correct infinity-based reset for bounds accumulation
         map_min_x = map_min_y = std::numeric_limits<double>::infinity();
         map_max_x = map_max_y = -std::numeric_limits<double>::infinity();
 
@@ -154,8 +142,6 @@ namespace MCL {
 
                 p.x += dx_l * p.sin_t + dy_l * p.cos_t;
                 p.y += dx_l * p.cos_t - dy_l * p.sin_t;
-                
-                // 🔥 Optimization: Boundary clamping to keep particles in-bounds
                 p.x = std::clamp(p.x, map_min_x, map_max_x);
                 p.y = std::clamp(p.y, map_min_y, map_max_y);
                 

@@ -9,12 +9,10 @@
 
 namespace MCL {
 
-    // --- Configuration ---
     constexpr int NUM_PARTICLES = 500; 
     constexpr double SENSOR_MAX_RANGE_IN = 60.0; 
-    constexpr double RESAMPLE_THRESHOLD = 0.5; // Resample when Neff < 50%
+    constexpr double RESAMPLE_THRESHOLD = 0.5; 
 
-    // --- Tunable Parameters ---
     extern double PARAMS_ROT_NOISE_STD;   
     extern double PARAMS_TRANS_BASE;      
     extern double PARAMS_TRANS_GAIN;      
@@ -37,10 +35,9 @@ namespace MCL {
         
         pros::Distance Sensor;
         double measurement, LocalX, LocalY, AngleDeg; 
-        double cos_off, sin_off; // Precomputed sensor offsets
+        double cos_off, sin_off; 
     };
 
-    // --- Global Access ---
     extern double global_X;
     extern double global_Y;
     extern double global_Theta;

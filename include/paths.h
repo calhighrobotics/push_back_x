@@ -26,4 +26,4 @@ extern const std::string left_2;
 
 extern const std::string left_3;
 
-extern const std::string left_4;
+extern const std::string right_1;

@@ -19,7 +19,12 @@ void intake(int power = 12000)
 void outtake(int power = 12000)
 {
     if(intakeFunnel.is_extended())
+    {
         intakeFunnel.retract();
+        pros::delay(100);
+        intake(12000);
+        pros::delay(300);
+    }
     topMotor.move_voltage(-12000);
     if(low_ramp_down_time >= 1000)
         intakeMotor.move_voltage( -12000);
@@ -38,7 +43,6 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
         topMotor.move_voltage(-8000);
-        pros::delay(33);
         std::cout << "Color Rejected" << std::endl;
     }
     else
@@ -76,8 +80,7 @@ void score_midgoal(int power = 12000)
     }
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
-        topMotor.move_voltage(-10000);
-        pros::delay(33);
+        topMotor.move_voltage(-8000);
     }
     else {
         if (ramp_up_time >= 1200)
@@ -108,10 +111,32 @@ void score_midgoal(int power = 12000)
     
 }
 
-void score_midgoal_auton(int power = 12000)
+void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
 {
     intake(12000);
-    chassis.tank(-40, -40);
+    chassis.tank(-35, -35);
+    if(color_sort_enable)
+    {
+        blockBlocker.extend();
+    }
+    if(time != -1)
+    {
+        u_int32_t start_time = pros::millis();
+        while(pros::millis() - start_time < time)
+        {
+            if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
+            {
+                topMotor.move(-8000);
+            }
+            else {
+                topMotor.move(6500);
+            }
+        }
+    }
+    intake_stop();
+    if(blockBlocker.is_extended()) blockBlocker.retract();
+    if(scoringBand.is_extended()) scoringBand.retract();
+    /*
     topMotor.move_voltage(6000);
     pros::delay(250);
     topMotor.move_voltage(7000);
@@ -123,22 +148,45 @@ void score_midgoal_auton(int power = 12000)
     topMotor.move_voltage(7000);
     pros::delay(400);
     topMotor.move_voltage(5000);
+    */
 }
 
-void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
+void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
 {
     leftMotors.move(-50);
     rightMotors.move(-50);
-    score_longgoal(power, allianceColor);
+    u_int32_t startTime = pros::millis();
+    if(color_sort_enable)
+    {
+        blockBlocker.extend();
+        scoringBand.extend();
+    }
+    if(time != -1)
+    {
+        while(pros::millis() - startTime < time)
+        {
+            if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
+            {
+                topMotor.move_voltage(-8000);
+                intakeMotor.move_voltage(12000);      
+            }
+            else
+            {
+                topMotor.move_voltage(power);
+                intakeMotor.move_voltage(power);
+            }
+        }
+    }
+    intake_stop();
+    if(blockBlocker.is_extended()) blockBlocker.retract();
+    if(scoringBand.is_extended()) scoringBand.retract();
 }
 
 void intake_to_basket()
 {
     intake();
-    topMotor.move_voltage(-6000);
+    topMotor.move_voltage(-8000);
 }
-
-
 
 void resting_state(bool trapDoor_commanded = false)
 {
@@ -156,15 +204,6 @@ void matchload_state(bool state)
         matchload.retract();
 }
 
-void longgoal_prep()
-{
-
-}
-
-void reset_odometry()
-{
-
-}
 
 void matchload_wiggle(int time = 1000, int speed = 100)
 {
@@ -231,15 +270,28 @@ void score_from_basket()
 }
 */
 
-float low_power_steer_curve(int steer)
-{
-    if (std::abs(steer) < 3)
-        return 0;
 
-    float turnNorm = steer / 127.0f;
+void alignToGoal(double targetAngle) {
 
-    turnNorm = 0.9f * std::pow(turnNorm, 5)
-             + 0.1f * turnNorm;
+    pros::Task([=]() {
 
-    return turnNorm * 127.0f;
+        double currentTheta = chassis.getPose().theta;
+        double error = std::remainder(targetAngle - currentTheta, 360.0);
+        if (std::abs(error) > 5.0) {
+            std::cout << "Error big enough to activate alignment " << error << std::endl;
+            if (error > 0) {
+                leftMotors.move(-100);
+                rightMotors.move(0);
+            } else {
+                leftMotors.move(0);
+                rightMotors.move(-100);
+            }
+            pros::delay(std::clamp((int)error * 100, 300, 1000)); 
+        }
+
+        leftMotors.brake();
+        rightMotors.brake();
+        chassis.tank(0,0);
+        pros::Task::current().remove();
+    });
 }

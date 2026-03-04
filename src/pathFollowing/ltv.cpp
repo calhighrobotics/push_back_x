@@ -166,6 +166,12 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
     constexpr double FIXED_DT = 0.01; 
 
+    float active_q_x = l_config.backwards ? l_config.q_x_backward : l_config.q_x_forward;
+    float active_q_y = l_config.backwards ? l_config.q_y_backward : l_config.q_y_forward;
+    float active_q_theta = l_config.backwards ? l_config.q_theta_backward : l_config.q_theta_forward;
+    float active_r_vel = l_config.backwards ? l_config.r_vel_backward : l_config.r_vel_forward;
+    float active_r_ang = l_config.backwards ? l_config.r_ang_backward : l_config.r_ang_forward;
+
     for (int i = 0; i < trajectory_size; ++i) {
         if (cancel_request) break;
 
@@ -182,7 +188,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
         current_pose.x *= INCH_TO_METER;
         current_pose.y *= INCH_TO_METER;
-        /*
+        
         double progress = (double)i / trajectory_size;
         double velocity_scale = 1.0;
         double q_gain_mult = 1.0;
@@ -203,15 +209,15 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         if (std::abs(target_state.angular_vel) > 0.5) { 
             q_x_boost = 2; 
         }
-        */
+        
         Eigen::Matrix3f Q_mat; 
-        Q_mat << l_config.q_x * q_gain_mult * q_x_boost, 0, 0,
-                 0, l_config.q_y * q_gain_mult, 0,
-                 0, 0, l_config.q_theta * q_gain_mult;
+        Q_mat << active_q_x * q_gain_mult * q_x_boost, 0, 0,
+                 0, active_q_y * q_gain_mult, 0,
+                 0, 0, active_q_theta * q_gain_mult;
         
         Eigen::Matrix2f R_mat;
-        R_mat << l_config.r_vel * r_vel_mult, 0,
-                 0, l_config.r_ang;
+        R_mat << active_r_vel * r_vel_mult, 0,
+                 0, active_r_ang;
 
         double math_theta = M_PI_2 - current_pose.theta; 
         
@@ -246,7 +252,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         B << 1, 0,
              0, 0,
              0, 1;
-        
+
         if (!dare_solved_once || 
             std::abs(v_ref - last_solve_v) > 0.15f || 
             std::abs(w_ref - last_solve_w) > 0.25f) {
@@ -300,12 +306,8 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         
         if(l_config.log) {
             std::ostringstream ss;
-            //std::ostringstream ss2;
-            //ss << Vector2((float)(current_time - start_time)/1000, leftMotors.get_actual_velocity()).latex() << ",";
-            //ss2 << Vector2((float)(current_time - start_time)/1000, rightMotors.get_actual_velocity()).latex() << ",";
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
             logs.push_back(ss.str());
-            //logs_2.push_back(ss2.str());
         }
         
         pros::Task::delay_until(&current_time, 10);
@@ -337,163 +339,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
     is_running = false;
 }
 
-std::vector<State> LTVPathFollower::generateCurvedPath(lemlib::Pose start, lemlib::Pose end, float max_v, float max_a, bool backwards) {
-    float x0 = start.x * INCH_TO_METER;
-    float y0 = start.y * INCH_TO_METER;
-    float x3 = end.x * INCH_TO_METER;
-    float y3 = end.y * INCH_TO_METER;
-
-    float dx = x3 - x0;
-    float dy = y3 - y0;
-    float dist_euclidean = std::sqrt(dx*dx + dy*dy);
-
-    if (dist_euclidean < 0.01) return {};
-
-    float theta_start = M_PI_2 - lemlib::degToRad(start.theta);
-    float theta_end = M_PI_2 - lemlib::degToRad(end.theta);
-
-    if (backwards) {
-        theta_start += M_PI;
-        theta_end += M_PI;
-    }
-
-    float d = std::min(dist_euclidean * 0.35f, 0.75f); 
-
-    float P0x = x0;
-    float P0y = y0;
-    float P1x = P0x + d * std::cos(theta_start);
-    float P1y = P0y + d * std::sin(theta_start);
-    float P3x = x3;
-    float P3y = y3;
-    float P2x = P3x - d * std::cos(theta_end);
-    float P2y = P3y - d * std::sin(theta_end);
-
-    int samples = 100;
-    std::vector<State> geometry_points;
-    geometry_points.reserve(samples + 1);
-
-    double total_arc_length = 0;
-    float prev_x = P0x, prev_y = P0y;
-
-    for (int i = 0; i <= samples; ++i) {
-        float t = (float)i / samples;
-        float u = 1 - t;
-        float tt = t * t;
-        float uu = u * u;
-        float uuu = uu * u;
-        float ttt = tt * t;
-
-        float p_x = uuu * P0x + 3 * uu * t * P1x + 3 * u * tt * P2x + ttt * P3x;
-        float p_y = uuu * P0y + 3 * uu * t * P1y + 3 * u * tt * P2y + ttt * P3y;
-
-        float d_x = 3 * uu * (P1x - P0x) + 6 * u * t * (P2x - P1x) + 3 * tt * (P3x - P2x);
-        float d_y = 3 * uu * (P1y - P0y) + 6 * u * t * (P2y - P1y) + 3 * tt * (P3y - P2y);
-
-        float heading = std::atan2(d_y, d_x);
-
-        if (i > 0) {
-            total_arc_length += std::sqrt(std::pow(p_x - prev_x, 2) + std::pow(p_y - prev_y, 2));
-        }
-
-        State s;
-        s.x = p_x;
-        s.y = p_y;
-        s.heading = heading;
-        s.linear_vel = total_arc_length; 
-        geometry_points.push_back(s);
-
-        prev_x = p_x;
-        prev_y = p_y;
-    }
-
-    float t_accel = max_v / max_a;
-    float d_accel = 0.5f * max_a * t_accel * t_accel;
-    float t_cruise = 0.0f;
-    float d_cruise = 0.0f;
-
-    if (2 * d_accel > total_arc_length) {
-        d_accel = total_arc_length / 2.0f;
-        t_accel = std::sqrt(2.0f * d_accel / max_a);
-        max_v = max_a * t_accel; 
-    } else {
-        d_cruise = total_arc_length - 2 * d_accel;
-        t_cruise = d_cruise / max_v;
-    }
-
-    float t_total = 2 * t_accel + t_cruise;
-    float dt = 0.02f;
-    int time_steps = std::ceil(t_total / dt);
-    
-    std::vector<State> path;
-    path.reserve(time_steps + 5);
-
-    for (int i = 0; i <= time_steps; ++i) {
-        float t = i * dt;
-        float current_dist_on_arc = 0.0f;
-        float current_lin_vel = 0.0f;
-
-        if (t < t_accel) {
-            current_dist_on_arc = 0.5f * max_a * t * t;
-            current_lin_vel = max_a * t;
-        } else if (t < t_accel + t_cruise) {
-            float t_c = t - t_accel;
-            current_dist_on_arc = d_accel + max_v * t_c;
-            current_lin_vel = max_v;
-        } else if (t <= t_total) {
-            float t_d = t - (t_accel + t_cruise);
-            float dist_in_decel = max_v * t_d - 0.5f * max_a * t_d * t_d;
-            current_dist_on_arc = d_accel + d_cruise + dist_in_decel;
-            current_lin_vel = max_v - max_a * t_d;
-        } else {
-            current_dist_on_arc = total_arc_length;
-            current_lin_vel = 0;
-        }
-
-        State interpolated;
-        bool found = false;
-        
-        for(size_t j = 0; j < geometry_points.size() - 1; j++) {
-            float d1 = geometry_points[j].linear_vel; 
-            float d2 = geometry_points[j+1].linear_vel;
-            
-            if (current_dist_on_arc >= d1 && current_dist_on_arc <= d2) {
-                float ratio = (current_dist_on_arc - d1) / (d2 - d1);
-                interpolated.x = geometry_points[j].x + ratio * (geometry_points[j+1].x - geometry_points[j].x);
-                interpolated.y = geometry_points[j].y + ratio * (geometry_points[j+1].y - geometry_points[j].y);
-                
-                float h1 = geometry_points[j].heading;
-                float h2 = geometry_points[j+1].heading;
-                float dh = h2 - h1;
-                while (dh > M_PI) dh -= 2*M_PI;
-                while (dh < -M_PI) dh += 2*M_PI;
-                interpolated.heading = h1 + ratio * dh;
-
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-             interpolated.x = P3x;
-             interpolated.y = P3y;
-             interpolated.heading = geometry_points.back().heading;
-        }
-
-        interpolated.linear_vel = current_lin_vel;
-        
-        if (i > 1) {
-            float dtheta = interpolated.heading - path.back().heading;
-            while (dtheta > M_PI) dtheta -= 2*M_PI;
-            while (dtheta < -M_PI) dtheta += 2*M_PI;
-            interpolated.angular_vel = dtheta / dt;
-        } else {
-            interpolated.angular_vel = 0;
-        }
-
-        path.push_back(interpolated);
-    }
-    
-    return path;
-}
 
 Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
     Eigen::MatrixXf X = Q; 
