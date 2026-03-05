@@ -1,6 +1,7 @@
 #include "main.h"
 #include "crossBarrierDetection.h"
 #include "globals.h" 
+#include "lemlib/chassis/chassis.hpp"
 #include "liblvgl/core/lv_obj_pos.h"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
@@ -167,7 +168,7 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 }
 
 void autonomous() {
-    left_auton();
+    skills_auton();
 }
 
 void opcontrol()

@@ -30,8 +30,8 @@ pros::Imu imu(5);
 
 pros::Rotation horizontal_tracking_sensor(13);
 pros::Rotation vertical_tracking_sensor(-12);
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -7.3240560739, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.488048261926,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -6.95780365196, 1); //Units are in inches
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.0188794350939,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 

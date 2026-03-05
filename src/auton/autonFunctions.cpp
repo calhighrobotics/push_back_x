@@ -22,7 +22,7 @@ void outtake(int power = 12000)
     {
         intakeFunnel.retract();
         pros::delay(100);
-        intake(12000);
+        intakeMotor.move_voltage(12000);
         pros::delay(300);
     }
     topMotor.move_voltage(-12000);
@@ -115,28 +115,6 @@ void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, in
 {
     intake(12000);
     chassis.tank(-35, -35);
-    if(color_sort_enable)
-    {
-        blockBlocker.extend();
-    }
-    if(time != -1)
-    {
-        u_int32_t start_time = pros::millis();
-        while(pros::millis() - start_time < time)
-        {
-            if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
-            {
-                topMotor.move(-8000);
-            }
-            else {
-                topMotor.move(6500);
-            }
-        }
-    }
-    intake_stop();
-    if(blockBlocker.is_extended()) blockBlocker.retract();
-    if(scoringBand.is_extended()) scoringBand.retract();
-    /*
     topMotor.move_voltage(6000);
     pros::delay(250);
     topMotor.move_voltage(7000);
@@ -148,7 +126,8 @@ void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, in
     topMotor.move_voltage(7000);
     pros::delay(400);
     topMotor.move_voltage(5000);
-    */
+    pros::delay(500);
+    
 }
 
 void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
