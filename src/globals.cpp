@@ -28,16 +28,13 @@ lemlib::Drivetrain drivebase(
 
 pros::Imu imu(5);
 
-pros::Rotation horizontal_tracking_sensor(-13);
+pros::Rotation horizontal_tracking_sensor(13);
 pros::Rotation vertical_tracking_sensor(-12);
-//-6.26707246263
-//-0.091865514797
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -7.20045963763, 1); //Units are in inches
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -7.3240560739, 1); //Units are in inches
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.488048261926,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
-// lateral PID controller
 lemlib::ControllerSettings lateral_controller(16.5, // proportional gain (kP)
                                               0, // integral gain (kI)
                                               120, // derivative gain (kD)
@@ -49,7 +46,6 @@ lemlib::ControllerSettings lateral_controller(16.5, // proportional gain (kP)
                                               15 // maximum acceleration (slew)
 );
 
-// angular PID controller
 lemlib::ControllerSettings angular_controller(3.2, // proportional gain (kP)
                                               0.0, // integral gain (kI)
                                               25, // derivative gain (kD)
@@ -76,7 +72,6 @@ lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, senso
 
 pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
 pros::Motor topMotor(19, pros::v5::MotorGears::blue);
-
 
 pros::Distance rightDistance(20);
 pros::Distance leftDistance(15);

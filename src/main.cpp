@@ -88,17 +88,10 @@ void initialize() {
     double start_theta = 180.0;
     chassis.setPose(start_x, start_y, start_theta); 
 
-    if(pros::battery::get_capacity() <= 20)
-    {   
-        controller.rumble("..");
-        controller.print(0, 0, "Battery Low%i", (int)pros::battery::get_capacity());
-        pros::delay(1000);
-    }
-
     //MCL::StartMCL(start_x, start_y, start_theta);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
-
+    chassis.setPose(0,0,0);
     console.focus();
     color_sensor.set_led_pwm(100);
     pros::Task screen_task([&]() {
@@ -106,10 +99,10 @@ void initialize() {
             console.clear();
             
             lemlib::Pose odomPose = chassis.getPose();
-            distancePose pose = distanceReset(false);
+            //distancePose pose = distanceReset(false);
             console.printf("X: %.3f  Y: %.3f\n", odomPose.x, odomPose.y);
             console.printf("Theta: %.3f\n\n", odomPose.theta);
-            console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
+            //console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
             
             /*
             console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
@@ -133,8 +126,48 @@ void competition_initialize() {
     console.focus();
 }
 
+void find_tracking_center(float turnVoltage, uint32_t time_ms) {
+    chassis.setPose(0, 0, 0);
+    std::vector<float> xs, ys, thetas;
+    uint32_t start = pros::millis();
+    while (pros::millis() - start < time_ms) {
+        leftMotors.move_voltage(turnVoltage * 1000);
+        rightMotors.move_voltage(-turnVoltage * 1000);
+
+        auto pose = chassis.getPose(false);  
+
+
+        xs.push_back(pose.x);
+        ys.push_back(pose.y);
+        thetas.push_back(pose.theta);
+
+        pros::delay(20);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+
+    std::cout << "X_0 = [";
+    for (size_t i = 0; i < xs.size(); i++) {
+        std::cout << "(" << xs[i] << "," << ys[i] << ")";
+        if (i + 1 < xs.size()) std::cout << ",";
+        pros::delay(7); 
+    }
+    std::cout << "]\n";
+
+    pros::delay(50);
+
+    std::cout << "θ_t = [";
+    for (size_t i = 0; i < thetas.size(); i++) {
+        std::cout << thetas[i];
+        if (i + 1 < thetas.size()) std::cout << ",";
+        pros::delay(7);
+    }
+    std::cout << "]\n";
+}
+
 void autonomous() {
-    skills_auton();
+    left_auton();
 }
 
 void opcontrol()

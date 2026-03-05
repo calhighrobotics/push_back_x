@@ -36,11 +36,18 @@ public:
         float q_theta_forward = 32.82f;
         float r_ang_forward = 0.25f;
         float r_vel_forward = 1.0f;
-        float q_x_backward = 1300.0f; 
-        float q_y_backward = 90000.0f; 
-        float q_theta_backward = 10000.0f; 
-        float r_ang_backward = 135.0f;
-        float r_vel_backward = 190.0f;
+        /*
+        float q_x_backward_skills = 1300.0f; 
+        float q_y_backward_skills = 90000.0f; 
+        float q_theta_backward_skills = 10000.0f; 
+        float r_ang_backward_skills = 135.0f;
+        float r_vel_backward_skills = 190.0f;
+        */
+        float q_x_backward = 720.0f; 
+        float q_y_backward = 300.0f * 4; 
+        float q_theta_backward = 32.0f; 
+        float r_ang_backward = 0.03f;
+        float r_vel_backward = 1.5;
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);

@@ -165,7 +165,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
     bool dare_solved_once = false;
 
     constexpr double FIXED_DT = 0.01; 
-
+    
     float active_q_x = l_config.backwards ? l_config.q_x_backward : l_config.q_x_forward;
     float active_q_y = l_config.backwards ? l_config.q_y_backward : l_config.q_y_forward;
     float active_q_theta = l_config.backwards ? l_config.q_theta_backward : l_config.q_theta_forward;
