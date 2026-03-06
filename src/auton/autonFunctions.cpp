@@ -115,15 +115,15 @@ void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, in
 {
     intake(12000);
     chassis.tank(-35, -35);
-    topMotor.move_voltage(6000);
+    topMotor.move_voltage(5000);
     pros::delay(250);
-    topMotor.move_voltage(7000);
-    pros::delay(400);
     topMotor.move_voltage(6500);
     pros::delay(400);
     topMotor.move_voltage(6500);
     pros::delay(400);
-    topMotor.move_voltage(7000);
+    topMotor.move_voltage(6500);
+    pros::delay(400);
+    topMotor.move_voltage(6500);
     pros::delay(400);
     topMotor.move_voltage(5000);
     pros::delay(500);
