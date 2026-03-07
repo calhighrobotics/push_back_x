@@ -27,3 +27,5 @@ extern const std::string left_2;
 extern const std::string left_3;
 
 extern const std::string right_1;
+
+extern const std::string awp_1;

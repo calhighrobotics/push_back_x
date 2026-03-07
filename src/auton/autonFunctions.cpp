@@ -119,11 +119,11 @@ void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, in
     pros::delay(250);
     topMotor.move_voltage(6500);
     pros::delay(400);
-    topMotor.move_voltage(6500);
+    topMotor.move_voltage(6000);
     pros::delay(400);
-    topMotor.move_voltage(6500);
+    topMotor.move_voltage(5800);
     pros::delay(400);
-    topMotor.move_voltage(6500);
+    topMotor.move_voltage(5500);
     pros::delay(400);
     topMotor.move_voltage(5000);
     pros::delay(500);
@@ -157,6 +157,7 @@ void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, i
         }
     }
     intake_stop();
+    chassis.tank(0,0);
     if(blockBlocker.is_extended()) blockBlocker.retract();
     if(scoringBand.is_extended()) scoringBand.retract();
 }

@@ -13,12 +13,10 @@
 #include "warnings.h"
 #include <string>
 #include "MCL.h"
-#include "visionAlignment.h"
 #include "auton/autonFunctions.h"
 #include "distanceReset.h"
-#include "ltv.h"
-#include "paths.h"
-#include "ramsete.h"
+#include <atomic> // For std::atomic
+#include <memory> // For std::unique_ptr and std::make_unique
 
 
 static void update_alliance_btn(lv_obj_t* btn, Color newColor) {
@@ -95,6 +93,7 @@ void initialize() {
     chassis.setPose(0,0,0);
     console.focus();
     color_sensor.set_led_pwm(100);
+    chassis.setPose(-44.77, -12.31, 90);
     pros::Task screen_task([&]() {
         while (true) {
             console.clear();
@@ -142,7 +141,7 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
         ys.push_back(pose.y);
         thetas.push_back(pose.theta);
 
-        pros::delay(20);
+        pros::delay(10);
     }
 
     leftMotors.brake();
@@ -168,23 +167,29 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 }
 
 void autonomous() {
-    skills_auton();
+    //skills_auton();
+    //find_tracking_center(4, 5000);
+    //elim_auton();
+    //chassis.tank(50,50);
+    awp_auton();
 }
 
-void opcontrol()
-{
+
+void opcontrol() {
     midgoal_first = false;
     std::cout << allianceColor << std::endl;
     bool trapDoor_commanded = false;
     bool matchload_on = false;
 
+    std::unique_ptr<pros::Task> longgoalTask = nullptr;
+    int stall_timer = 0;
+    int task_run_time = 0;
+
+    static std::atomic<bool> macro_finished{false}; 
+    static std::atomic<bool> macro_abort{false}; 
+
     enum class ScoringMode {
-        NONE,
-        INTAKE,
-        OUTTAKE,
-        MIDGOAL,
-        LONGGOAL,
-        MANUAL_UP
+        NONE, INTAKE, OUTTAKE, MIDGOAL, LONGGOAL, MANUAL_UP
     };
 
     while (true) {
@@ -193,8 +198,7 @@ void opcontrol()
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
             trapDoor_commanded = !trapDoor_commanded;
-            if (trapDoor_commanded)
-                trapDoor.extend();
+            if (trapDoor_commanded) trapDoor.extend();
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
@@ -214,45 +218,118 @@ void opcontrol()
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
             basket.toggle();
-            if (!scoringBand.is_extended())
-                scoringBand.extend();
+            if (!scoringBand.is_extended()) scoringBand.extend();
         }
 
+
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) {
-            scoringBand.toggle();
+            
+            if (longgoalTask != nullptr) {
+                macro_abort = true;
+                chassis.cancelMotion(); 
+            }
+    
+            else {
+                stall_timer = 0;
+                task_run_time = 0;
+                macro_finished = false;
+                macro_abort = false; 
+
+                longgoalTask = std::make_unique<pros::Task>([] {
+                    distancePose pose = distanceReset(true);
+
+                    if (!pose.using_odom_x && !pose.using_odom_y &&
+                        std::abs(std::abs(pose.x) - (22 + longgoal_offset)) < 4 &&
+                        std::abs(std::abs(pose.y) - 47.5) < 4) {
+                        
+                        int x_mult = pose.x < 0 ? -1 : 1;
+                        int y_mult = pose.y < 0 ? -1 : 1;
+
+                        chassis.moveToPoint(49 * x_mult, 47.5 * y_mult, 3000, {.earlyExitRange = 2});
+                        if (macro_abort) { macro_finished = true; return; } 
+
+                        descore.retract();
+                        chassis.waitUntilDone();
+                        if (macro_abort) { macro_finished = true; return; }
+
+                        chassis.moveToPose((22 + longgoal_offset) * x_mult,
+                                        61 * y_mult, x_mult > 0 ? 90 : 270, 1500,
+                                        {.forwards = false, .lead = 0.2, .minSpeed = 20, .earlyExitRange = 8});
+                        if (macro_abort) { macro_finished = true; return; }
+
+                        chassis.moveToPose(-16 * x_mult,
+                                        60 * y_mult, x_mult > 0 ? 90 : 270, 1500,
+                                        {.forwards = false, .lead = 0.3});
+                    }
+                    
+                    macro_finished = true; 
+                });
+            }
         }
+        if (longgoalTask != nullptr) {
+            task_run_time += 10;
+
+    
+            if (macro_finished) {
+                longgoalTask = nullptr; 
+            }
+
+            else if (std::abs(throttle) > 15 || std::abs(steer) > 15) {
+                macro_abort = true;
+                chassis.cancelMotion();
+            }
+        
+            else if (task_run_time > 5000) {
+                macro_abort = true;
+                chassis.cancelMotion();
+                controller.rumble("-"); 
+            }
+    
+            else if (task_run_time > 500) {
+                double left_vel = std::abs(leftMotors.get_actual_velocity());
+                double right_vel = std::abs(rightMotors.get_actual_velocity());
+
+                if (left_vel < 10.0 && right_vel < 10.0) {
+                    stall_timer += 10;
+                } else {
+                    stall_timer = 0; 
+                }
+
+                if (stall_timer > 500) {
+                    macro_abort = true;
+                    chassis.cancelMotion();
+                    controller.rumble("- -"); 
+                }
+            }
+        } else {
+            stall_timer = 0;
+            task_run_time = 0;
+        }
+
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
             midgoal_first = true;
-            if(!trapDoor.is_extended())
-            {
+            if (!trapDoor.is_extended()) {
                 trapDoor.extend();
             }
         }
 
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
-        {
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
             descore.retract();        
-        }
-        else {
+        } else {
             descore.extend();
         }
 
         ScoringMode scoringMode = ScoringMode::NONE;
-
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
             scoringMode = ScoringMode::LONGGOAL;
-        }
-        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
             scoringMode = ScoringMode::MIDGOAL;
-        }
-        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)) {
+        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)) {
             scoringMode = ScoringMode::MANUAL_UP;
-        }
-        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
+        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
             scoringMode = ScoringMode::OUTTAKE;
-        }
-        else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+        } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
             scoringMode = ScoringMode::INTAKE;
         }
 
@@ -260,49 +337,43 @@ void opcontrol()
             case ScoringMode::INTAKE:
                 intake();
                 break;
-
             case ScoringMode::OUTTAKE:
                 outtake(8500);
-                if (intakeFunnel.is_extended())
-                    intakeFunnel.retract();
+                if (intakeFunnel.is_extended()) intakeFunnel.retract();
                 low_ramp_down_time += 10;
                 break;
-
             case ScoringMode::MIDGOAL:
                 score_midgoal();
                 ramp_up_time += 10;
                 break;
-
             case ScoringMode::LONGGOAL:
                 score_longgoal(12000, allianceColor);
                 break;
-
             case ScoringMode::MANUAL_UP:
                 topMotor.move(12000);
                 intakeMotor.move(-12000);
                 break;
-
             case ScoringMode::NONE:
                 ramp_up_time = 0;
                 resting_state(trapDoor_commanded);
                 midgoal_first = false;
                 intakeFunnel.extend();
                 low_ramp_down_time = 0;
-                if(!color_sort_enable && scoringBand.is_extended())
-                {
+                if (!color_sort_enable && scoringBand.is_extended()) {
                     scoringBand.retract();
                 }
                 break;
         }
 
-        if (color_sort_enable)
-            blockBlocker.extend();
-        else
-            blockBlocker.retract();
+        if (color_sort_enable) blockBlocker.extend();
+        else blockBlocker.retract();
 
         leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
         rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-        chassis.curvature(throttle, steer, false);
+        
+        if (longgoalTask == nullptr) {
+            chassis.curvature(throttle, steer, false);
+        }
 
         pros::delay(10);
     }

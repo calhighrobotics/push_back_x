@@ -16,21 +16,24 @@ Established terminal connection
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar  4 2026 20:35:20     Directory:                        
+Compiled:   Mar  6 2026 23:01:59     Directory:                        
 
 
-1
-[Error]	(2.850, +2850)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-[Error]	(2.850, +0)	 _lv_inv_area: detected modifying dirty areas in render 	(in lv_refr.c line #212)
-Distance Reset Pose: -49.5461, -0.76995, using_odom_x: 0, using_odom_y: 0
-Pose before midgoal: -13.1471, 14.7165, 321.387
+Distance Reset Pose: -48.3721, -0.633142, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -41.7269, 0.167361, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -41.7269, -2.91457, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -41.7269, 0.167361, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -41.7269, -2.71772, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -41.7269, 0.167361, using_odom_x: 0, using_odom_y: 0
+Pose before midgoal: -14.6315, 15.593, 319.977
+Distance Reset Pose: -45.9402, 44.7426, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -59.2752, 46.141, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: 37.2425, 63.8948, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: 32.1065, 47.6789, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: 32.2, 46.8034, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: 45.9714, -44.2414, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: 59.5116, -46.8058, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -38.6921, -62.6731, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -31.7145, -47.758, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -31.6421, -46.6496, using_odom_x: 0, using_odom_y: 0
+WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

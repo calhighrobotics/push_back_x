@@ -2,16 +2,21 @@
 #include <sys/types.h>
 #include <cmath>
 
-const double PITCH_CLIMB_THRESHOLD = 9;
-const double PITCH_LEVEL_THRESHOLD = 0.5;
-const double CROSSING_TIMEOUT = 3000;
+double PITCH_CLIMB_THRESHOLD = 8;
+double PITCH_LEVEL_THRESHOLD = 1;
+const double CROSSING_TIMEOUT = 1200;
 const double DRIVE_SPEED = 127;
-const double HEADING_KP = 7.0;
+const double HEADING_KP = 6.0;
 const int POST_LANDING_TIME = 200;
 
 void crossBarrier(int times = 2, bool reverse = false, bool fullyDrop = true) {
     double targetHeading = imu.get_heading();
     int dir = reverse ? -1 : 1;
+    if(reverse)
+    {
+        PITCH_CLIMB_THRESHOLD = 8.5;
+        PITCH_LEVEL_THRESHOLD = 0.5;
+    }
 
     for(int i = 0; i < times; i++) {
         bool hasClimbed = false;
@@ -53,6 +58,8 @@ void crossBarrier(int times = 2, bool reverse = false, bool fullyDrop = true) {
 
             // --- LANDING LOGIC ---
             if (hasClimbed && hasDropped) {
+                if(i == 1 && times > 1)
+                    matchload.retract();
 
                 // FULLY DROP MODE
                 if (fullyDrop && std::abs(currentPitch) < PITCH_LEVEL_THRESHOLD) {

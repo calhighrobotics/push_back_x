@@ -195,6 +195,7 @@ distancePose calculateGlobalPosition(
 
 distancePose distanceReset(bool setPose = false) {
     double heading_deg = chassis.getPose().theta;
+
     const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
     const SensorReadings left_data  = {(double)leftDistance.get_distance(),  leftDistance.get_object_size(),  leftDistance.get_confidence()};
     const SensorReadings right_data = {(double)rightDistance.get_distance(), rightDistance.get_object_size(), rightDistance.get_confidence()};

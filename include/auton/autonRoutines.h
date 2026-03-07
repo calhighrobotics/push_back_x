@@ -20,3 +20,4 @@ void carry_auton();
 void elim_auton(); 
 void awp_auton();
 void skills_auton();
+void test_auton();

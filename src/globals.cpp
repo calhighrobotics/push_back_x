@@ -27,10 +27,11 @@ lemlib::Drivetrain drivebase(
     8);
 
 pros::Imu imu(5);
-
 pros::Rotation horizontal_tracking_sensor(13);
 pros::Rotation vertical_tracking_sensor(-12);
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, -6.95780365196, 1); //Units are in inches
+//-6.95780365196
+//0.0188794350939
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-7.28684844735 , 1);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.0188794350939,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
@@ -43,7 +44,7 @@ lemlib::ControllerSettings lateral_controller(16.5, // proportional gain (kP)
                                               75, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
                                               200, // large error range timeout, in milliseconds
-                                              15 // maximum acceleration (slew)
+                                              25 // maximum acceleration (slew)
 );
 
 lemlib::ControllerSettings angular_controller(3.2, // proportional gain (kP)
@@ -57,12 +58,12 @@ lemlib::ControllerSettings angular_controller(3.2, // proportional gain (kP)
                                               0 // maximum acceleration (slew)
 );
 
-lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
+lemlib::ExpoDriveCurve throttle_curve(20,    // joystick deadband out of 127
                                             10,   // minimum output where drivetrain will move out of 127
                                             1.01 // expo curve gain
 );
 
-lemlib::ExpoDriveCurve steer_curve(5,   // joystick deadband out of 127
+lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
                                         10,   // minimum output where drivetrain will move out of 127
                                          1.015 // expo curve gain
 );
