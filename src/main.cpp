@@ -91,9 +91,9 @@ void initialize() {
 
     //pros::Task mcl_task(MCL::MonteCarlo);
     chassis.setPose(0,0,0);
-    console.focus();
+    selector.focus();
     color_sensor.set_led_pwm(100);
-    chassis.setPose(-44.77, -12.31, 90);
+    chassis.setPose(-50, 0, 270);
     pros::Task screen_task([&]() {
         while (true) {
             console.clear();
@@ -102,6 +102,7 @@ void initialize() {
             //distancePose pose = distanceReset(false);
             console.printf("X: %.3f  Y: %.3f\n", odomPose.x, odomPose.y);
             console.printf("Theta: %.3f\n\n", odomPose.theta);
+            //console.printf("Calculated Angle %.3f", calculateAngle(odomPose.theta));
             //console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
             
             /*
@@ -119,65 +120,20 @@ void initialize() {
 }
 
 void disabled() {
-    console.focus();
+    selector.focus();
 }
 
 void competition_initialize() {
-    console.focus();
-}
-
-void find_tracking_center(float turnVoltage, uint32_t time_ms) {
-    chassis.setPose(0, 0, 0);
-    std::vector<float> xs, ys, thetas;
-    uint32_t start = pros::millis();
-    while (pros::millis() - start < time_ms) {
-        leftMotors.move_voltage(turnVoltage * 1000);
-        rightMotors.move_voltage(-turnVoltage * 1000);
-
-        auto pose = chassis.getPose(false);  
-
-
-        xs.push_back(pose.x);
-        ys.push_back(pose.y);
-        thetas.push_back(pose.theta);
-
-        pros::delay(10);
-    }
-
-    leftMotors.brake();
-    rightMotors.brake();
-
-    std::cout << "X_0 = [";
-    for (size_t i = 0; i < xs.size(); i++) {
-        std::cout << "(" << xs[i] << "," << ys[i] << ")";
-        if (i + 1 < xs.size()) std::cout << ",";
-        pros::delay(7); 
-    }
-    std::cout << "]\n";
-
-    pros::delay(50);
-
-    std::cout << "θ_t = [";
-    for (size_t i = 0; i < thetas.size(); i++) {
-        std::cout << thetas[i];
-        if (i + 1 < thetas.size()) std::cout << ",";
-        pros::delay(7);
-    }
-    std::cout << "]\n";
+    selector.focus();
 }
 
 void autonomous() {
-    //skills_auton();
-    //find_tracking_center(4, 5000);
-    //elim_auton();
-    //chassis.tank(50,50);
-    awp_auton();
+    selector.run_auton();
 }
 
 
 void opcontrol() {
     midgoal_first = false;
-    std::cout << allianceColor << std::endl;
     bool trapDoor_commanded = false;
     bool matchload_on = false;
 
@@ -253,12 +209,12 @@ void opcontrol() {
                         if (macro_abort) { macro_finished = true; return; }
 
                         chassis.moveToPose((22 + longgoal_offset) * x_mult,
-                                        61 * y_mult, x_mult > 0 ? 90 : 270, 1500,
+                                        (47.5 * y_mult) + 13.5, x_mult > 0 ? 90 : 270, 1500,
                                         {.forwards = false, .lead = 0.2, .minSpeed = 20, .earlyExitRange = 8});
                         if (macro_abort) { macro_finished = true; return; }
 
                         chassis.moveToPose(-16 * x_mult,
-                                        60 * y_mult, x_mult > 0 ? 90 : 270, 1500,
+                                        (47.5 * y_mult) + 12.5, x_mult > 0 ? 90 : 270, 1500,
                                         {.forwards = false, .lead = 0.3});
                     }
                     
@@ -279,7 +235,7 @@ void opcontrol() {
                 chassis.cancelMotion();
             }
         
-            else if (task_run_time > 5000) {
+            else if (task_run_time > 3500) {
                 macro_abort = true;
                 chassis.cancelMotion();
                 controller.rumble("-"); 

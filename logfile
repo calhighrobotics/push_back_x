@@ -16,24 +16,272 @@ Established terminal connection
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar  6 2026 23:01:59     Directory:                        
+Compiled:   Mar  7 2026 19:17:50     Directory:                        
 
 
-Distance Reset Pose: -48.3721, -0.633142, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -41.7269, 0.167361, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -41.7269, -2.91457, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -41.7269, 0.167361, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -41.7269, -2.71772, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -41.7269, 0.167361, using_odom_x: 0, using_odom_y: 0
-Pose before midgoal: -14.6315, 15.593, 319.977
-Distance Reset Pose: -45.9402, 44.7426, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -59.2752, 46.141, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: 37.2425, 63.8948, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: 32.1065, 47.6789, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: 32.2, 46.8034, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: 45.9714, -44.2414, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: 59.5116, -46.8058, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -38.6921, -62.6731, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -31.7145, -47.758, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -31.6421, -46.6496, using_odom_x: 0, using_odom_y: 0
+Distance Reset Pose: -44.5029, 26.4761, using_odom_x: 0, using_odom_y: 0
+
+
+
+         _+=+_
+      .-`  .  `-.          8888888b.  8888888b.   .d88888b.   .d8888b.
+   _+`     "     `+_       888   Y88b 888   Y88b d88P" "Y88b d88P  Y88b
+  \\\sssssssssssss///      888    888 888    888 888     888 Y88b.
+     .ss\  *  /ss.         888   d88P 888   d88P 888     888  "Y888b.
+ .+bm  .s  *  s.  md+.     8888888P"  8888888P"  888     888     "Y88b.
+.hMMMMs .  *  . sMMMMh.    888        888 T88b   888     888       "888
+ `\hMMMb \ | / dMMMh:      888        888  T88b  Y88b. .d88P Y88b  d88P
+   -SNMNo  -  oNMNs-       888        888   T88b  "Y88888P"   "Y8888P"
+     `+dMh\./dMd/
+        `:yNy:`                      Powered by PROS for VEX V5
+           "                Copyright (c) Purdue University ACM SIGBots
+Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
+Compiled:   Mar  7 2026 19:17:50     Directory:                        
+
+
+1
+1
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+Color Accepted
+
+
+
+         _+=+_
+      .-`  .  `-.          8888888b.  8888888b.   .d88888b.   .d8888b.
+   _+`     "     `+_       888   Y88b 888   Y88b d88P" "Y88b d88P  Y88b
+  \\\sssssssssssss///      888    888 888    888 888     888 Y88b.
+     .ss\  *  /ss.         888   d88P 888   d88P 888     888  "Y888b.
+ .+bm  .s  *  s.  md+.     8888888P"  8888888P"  888     888     "Y88b.
+.hMMMMs .  *  . sMMMMh.    888        888 T88b   888     888       "888
+ `\hMMMb \ | / dMMMh:      888        888  T88b  Y88b. .d88P Y88b  d88P
+   -SNMNo  -  oNMNs-       888        888   T88b  "Y88888P"   "Y8888P"
+     `+dMh\./dMd/
+        `:yNy:`                      Powered by PROS for VEX V5
+           "                Copyright (c) Purdue University ACM SIGBots
+Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
+Compiled:   Mar  7 2026 19:17:50     Directory:                        
+
+
+1
+Distance Reset Pose: -57.974, -0.994474, using_odom_x: 0, using_odom_y: 0
+1
 WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

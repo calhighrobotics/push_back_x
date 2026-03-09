@@ -193,7 +193,7 @@ distancePose calculateGlobalPosition(
 }
 
 
-distancePose distanceReset(bool setPose = false) {
+distancePose distanceReset(bool setPose = false, bool filter = true) {
     double heading_deg = chassis.getPose().theta;
 
     const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
@@ -202,7 +202,20 @@ distancePose distanceReset(bool setPose = false) {
     const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    
+    if(filter)
+    {
+        if(std::abs(pose.x - chassis.getPose().x) > 3.5)
+        {
+            pose.x = chassis.getPose().x;
+            std::cout << "Filtered X" << std::endl;
+        }
+        if(std::abs(pose.y - chassis.getPose().y) > 3.5)
+        {
+            pose.x = chassis.getPose().y;
+            std::cout << "Filtered Y" << std::endl;
+        }
+        
+    }
     if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
         pros::delay(2);

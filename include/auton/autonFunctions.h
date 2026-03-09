@@ -38,3 +38,5 @@ void matchload_counter(int balls, int time_ms);
 void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1);
 
 void alignToGoal(double targetAngle);
+
+double calculateAngle(double robotHeading);

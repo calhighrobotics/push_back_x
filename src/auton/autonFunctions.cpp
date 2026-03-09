@@ -115,18 +115,18 @@ void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, in
 {
     intake(12000);
     chassis.tank(-35, -35);
-    topMotor.move_voltage(5000);
+    topMotor.move_velocity(330);
     pros::delay(250);
-    topMotor.move_voltage(6500);
+    topMotor.move_velocity(300);
     pros::delay(400);
-    topMotor.move_voltage(6000);
+    topMotor.move_velocity(300);
     pros::delay(400);
-    topMotor.move_voltage(5800);
+    topMotor.move_velocity(270);
+    pros::delay(550);
+    topMotor.move_velocity(270);
     pros::delay(400);
-    topMotor.move_voltage(5500);
-    pros::delay(400);
-    topMotor.move_voltage(5000);
-    pros::delay(500);
+    topMotor.move_velocity(240);
+    pros::delay(1400);
     
 }
 
@@ -146,7 +146,7 @@ void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, i
         {
             if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
             {
-                topMotor.move_voltage(-8000);
+                topMotor.move_voltage(-10000);
                 intakeMotor.move_voltage(12000);      
             }
             else
@@ -161,6 +161,8 @@ void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, i
     if(blockBlocker.is_extended()) blockBlocker.retract();
     if(scoringBand.is_extended()) scoringBand.retract();
 }
+
+
 
 void intake_to_basket()
 {
@@ -274,4 +276,27 @@ void alignToGoal(double targetAngle) {
         chassis.tank(0,0);
         pros::Task::current().remove();
     });
+}
+
+double calculateAngle(double robotHeading) {
+    double d1 = frontDistance.get();
+    double d2 = frontDistance2.get() + 10;
+
+    if (d1 > 1800 || d2 > 1800) return -1;
+    double wallAngleDeg = atan2((d1 - d2) * 0.0393701, 10.75) * 180.0 / M_PI;
+
+    if ((robotHeading >= 315 && robotHeading < 360) || (robotHeading >= 0 && robotHeading < 45)) {
+        return wallAngleDeg;
+    }
+    else if (robotHeading >= 45 && robotHeading < 135) {
+        return 90 + wallAngleDeg;
+    }
+    else if (robotHeading >= 135 && robotHeading < 225) {
+        return 180 + wallAngleDeg;
+    }
+    else if (robotHeading >= 225 && robotHeading < 315) {
+        return 270 + wallAngleDeg;
+    }
+
+    return -1;
 }
