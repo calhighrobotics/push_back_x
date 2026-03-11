@@ -9,18 +9,16 @@
 
 namespace MCL {
 
-    constexpr int NUM_PARTICLES = 500; 
-    constexpr double SENSOR_MAX_RANGE_IN = 60.0; 
+    constexpr int NUM_PARTICLES = 200; 
+    constexpr double SENSOR_MAX_RANGE_IN = 70.0; 
     constexpr double RESAMPLE_THRESHOLD = 0.5; 
 
-    extern double PARAMS_ROT_NOISE_STD;   
     extern double PARAMS_TRANS_BASE;      
     extern double PARAMS_TRANS_GAIN;      
     extern double PARAMS_SENSOR_SIGMA;    
 
     struct Particle {
-        double x, y, theta, weight;
-        double cos_t, sin_t; 
+        double x, y, weight;
     };
 
     struct Segment {
@@ -45,7 +43,7 @@ namespace MCL {
     
     extern std::vector<MCLDistanceSensor> Sensors;
 
-    void StartMCL(double x, double y, double theta);
+    void StartMCL(double x, double y);
     void MonteCarlo();
     bool isConfident(); 
 }

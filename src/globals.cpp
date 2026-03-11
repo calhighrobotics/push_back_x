@@ -2,6 +2,7 @@
 #include <string>
 #include "lemlib/chassis/trackingWheel.hpp"
 #include "pros/ai_vision.h"
+#include "pros/ai_vision.hpp"
 #include "pros/colors.hpp"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
