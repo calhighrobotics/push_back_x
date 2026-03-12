@@ -435,12 +435,8 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
         states[i].angular_vel = A[i].second;
     }
     
-    // FIX 2: Safely calculate headings, ignoring duplicate points 
-    // that cause atan2(0,0) corruption
     for (size_t i = 0; i < n; i++) {
         size_t next_idx = i + 1;
-        
-        // Look ahead to find the next point that actually physically moves
         while (next_idx < n && states[next_idx].x == states[i].x && states[next_idx].y == states[i].y) {
             next_idx++;
         }
@@ -448,9 +444,9 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
         if (next_idx < n) {
             states[i].heading = std::atan2(states[next_idx].y - states[i].y, states[next_idx].x - states[i].x);
         } else if (i > 0) {
-            states[i].heading = states[i - 1].heading; // Copy previous heading if we are at the very end
+            states[i].heading = states[i - 1].heading; 
         } else {
-            states[i].heading = 0.0; // Ultimate fallback
+            states[i].heading = 0.0;
         }
     }
     
