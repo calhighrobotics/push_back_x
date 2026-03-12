@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pros/ai_vision.hpp"
 #include "pros/distance.hpp"
 #include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
@@ -50,18 +51,24 @@ extern pros::Distance rightDistance;
 extern pros::Distance leftDistance;
 extern pros::Distance frontDistance;
 extern pros::Distance backDistance;
+extern pros::Distance frontDistance2;
 
 
 extern pros::adi::Pneumatics trapDoor;
 extern pros::adi::Pneumatics matchload;
 extern pros::adi::Pneumatics basket;
 extern pros::adi::Pneumatics descore;
+extern pros::adi::Pneumatics intakeFunnel;
+extern pros::adi::Pneumatics scoringBand;
+extern pros::adi::Pneumatics blockBlocker;
 
 extern pros::Optical color_sensor;
 
 extern pros::Vision vision_sensor;
 
+
 extern Color allianceColor;
 extern bool color_sort_enable;
 extern bool midgoal_first;
-
+extern int ramp_up_time;
+extern int low_ramp_down_time;

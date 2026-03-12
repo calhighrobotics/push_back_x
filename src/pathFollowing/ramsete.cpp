@@ -1,6 +1,13 @@
+/*
+Deprecated:
+LTV-LQR Path follower is easier to tune and more accurate (Although if MCL is seriously used Performance wise Ramsete might be better)
+*/
+
+
 #include "ramsete.h" 
 #include "lemlib/util.hpp"
 #include <cmath>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -98,7 +105,7 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
     }
 
     if(r_config.test) {
-        chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, M_PI_2 - trajectory[0].heading, true);
+        chassis.setPose(trajectory[0].x / INCH_TO_METER, trajectory[0].y / INCH_TO_METER, r_config.backwards ? M_PI_2 - trajectory[0].heading + M_PI : M_PI_2 - trajectory[0].heading, true);
     } else if(r_config.turnFirst) {
         double targetH = lemlib::radToDeg(M_PI_2 - trajectory[0].heading);
         chassis.turnToHeading(r_config.backwards ? targetH + 180 : targetH, 1000);
@@ -106,74 +113,39 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
 
     std::vector<std::string> logs;
     int trajectory_size = trajectory.size();
-    
-    const float min_k_sq_vel = 0.5f;
+    const float min_k_sq_vel = 0.0f;
     const int path_dt_ms = 10;
-    
-    const double success_tolerance_inches = 0.5;
-    const int max_settle_time_ms = 1500;
     
     lemlib::Pose start_pose = chassis.getPose();
     uint32_t global_start_time = pros::millis();
     
-    bool is_settling = false;
-    uint32_t settle_start_time = 0;
-
     while (!cancel_request) {
-        uint32_t now = pros::millis();
+        uint32_t now = pros::millis() - global_start_time;
         
         float t_elapsed_sec = (now - global_start_time) / 1000.0f;
         float exact_index = t_elapsed_sec / (path_dt_ms / 1000.0f);
         int idx = static_cast<int>(exact_index);
 
         State target_state;
-        float current_b = r_config.b; 
+        float current_b = r_config.b != -1 ? r_config.b : b; 
 
-        if (idx < trajectory_size - 1) {
-            float alpha = exact_index - idx;
-            const State& s0 = trajectory[idx];
-            const State& s1 = trajectory[idx+1];
-
-            target_state.x = s0.x + alpha * (s1.x - s0.x);
-            target_state.y = s0.y + alpha * (s1.y - s0.y);
-            target_state.linear_vel = s0.linear_vel + alpha * (s1.linear_vel - s0.linear_vel);
-            target_state.angular_vel = s0.angular_vel + alpha * (s1.angular_vel - s0.angular_vel);
-            
-            double dh = s1.heading - s0.heading;
-            while (dh > M_PI) dh -= 2 * M_PI;
-            while (dh < -M_PI) dh += 2 * M_PI;
-            target_state.heading = s0.heading + alpha * dh; 
-        } 
-        else {
-            if (!is_settling) {
-                is_settling = true;
-                settle_start_time = now;
-            }
-
-            lemlib::Pose p = chassis.getPose();
-            double p_x_m = p.x * INCH_TO_METER;
-            double p_y_m = p.y * INCH_TO_METER;
-
-            double dist_to_end_m = std::hypot(
-                trajectory.back().x - p_x_m,
-                trajectory.back().y - p_y_m
-            );
-            
-            double dist_to_end_in = dist_to_end_m / INCH_TO_METER;
-
-            if (dist_to_end_in < success_tolerance_inches) {
-                break;
-            }
-            if (now - settle_start_time > max_settle_time_ms) {
-                break;
-            }
-
-            target_state = trajectory.back();
-            target_state.linear_vel = 0;
-            target_state.angular_vel = 0;
-
-            current_b = r_config.b * 4.0; 
+        if (idx >= trajectory_size - 1) {
+            break; 
         }
+
+        float alpha = exact_index - idx;
+        const State& s0 = trajectory[idx];
+        const State& s1 = trajectory[idx+1];
+
+        target_state.x = s0.x + alpha * (s1.x - s0.x);
+        target_state.y = s0.y + alpha * (s1.y - s0.y);
+        target_state.linear_vel = s0.linear_vel + alpha * (s1.linear_vel - s0.linear_vel);
+        target_state.angular_vel = s0.angular_vel + alpha * (s1.angular_vel - s0.angular_vel);
+        
+        double dh = s1.heading - s0.heading;
+        while (dh > M_PI) dh -= 2 * M_PI;
+        while (dh < -M_PI) dh += 2 * M_PI;
+        target_state.heading = s0.heading + alpha * dh; 
 
         lemlib::Pose current_pose = chassis.getPose(true);
         distance_traveled = start_pose.distance(current_pose);
@@ -210,8 +182,8 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
         float right_actual_mps = rightMotors.get_actual_velocity() * rpm_to_mps_factor;
 
         DrivetrainVoltages output_voltages = controller.update(
-            v_desired_ramsete, 
-            w_desired_ramsete, 
+            vd, 
+            wd, 
             left_actual_mps, 
             right_actual_mps
         );
@@ -225,12 +197,13 @@ void RamsetePathFollower::followPathImpl(const std::string& path_name, const ram
             logs.push_back(ss.str());
         }
 
-        pros::delay(10);
+        pros::Task::delay_until(&now, path_dt_ms);
     }
 
     rightMotors.brake();
     leftMotors.brake();
     
+    // Standard cleanup and logging...
     if(!r_config.test && r_config.end_correction && !cancel_request) {
         chassis.moveToPose(
             trajectory.back().x / INCH_TO_METER, 

@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "lemlib/util.hpp"
+#include "pros/distance.hpp"
 #include <numeric>
 
 const double MM_TO_IN = 0.0393701;
@@ -7,8 +8,8 @@ const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
 const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
 const double HALF_WIDTH = FIELD_WIDTH / 2.0;
 const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
-const double MAX_SENSOR_RANGE = 1500 * MM_TO_IN;
-const double MIN_SENSOR_RANGE = 10 * MM_TO_IN;
+const double MAX_SENSOR_RANGE = 2000 * MM_TO_IN;
+const double MIN_SENSOR_RANGE = 0 * MM_TO_IN;
 
 bool controller_screen_avilable;
 
@@ -18,8 +19,13 @@ struct SensorConfig {
     double mounting_angle;
 };
 
+/*
+Front: \left(-6.19257613,4.55790433\right)
+Left: \left(2.75813795,-0.09347829\right)
+
+*/
 const SensorConfig front_sensor_cfg = {-0.75, -3, 0};   
-const SensorConfig left_sensor_cfg  = {-0.5, -6.4, 90};   
+const SensorConfig left_sensor_cfg  = {-0.5, -7.2, 90};   
 const SensorConfig right_sensor_cfg = {-0.5, 6.3, -90};  
 const SensorConfig back_sensor_cfg  = {-10.5, -3, 180}; 
 
@@ -186,7 +192,8 @@ distancePose calculateGlobalPosition(
     return pose;
 }
 
-distancePose distanceReset(bool setPose = false) {
+
+distancePose distanceReset(bool setPose = false, bool filter = true) {
     double heading_deg = chassis.getPose().theta;
 
     const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
@@ -195,8 +202,26 @@ distancePose distanceReset(bool setPose = false) {
     const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    if(setPose)
+    if(filter)
+    {
+        if(std::abs(pose.x - chassis.getPose().x) > 3.5)
+        {
+            pose.x = chassis.getPose().x;
+            std::cout << "Filtered X" << std::endl;
+        }
+        if(std::abs(pose.y - chassis.getPose().y) > 3.5)
+        {
+            pose.x = chassis.getPose().y;
+            std::cout << "Filtered Y" << std::endl;
+        }
+        
+    }
+    if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
+        pros::delay(2);
+    }
+
+    std::cout << "Distance Reset Pose: " << pose.x << ", " << pose.y << ", using_odom_x: " << pose.using_odom_x << ", using_odom_y: " << pose.using_odom_y << std::endl;
     return pose;
 }
 
@@ -206,6 +231,7 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
     const int invalid_dist_mm = 10000;
     const int invalid_confidence = 0; 
 
+    // Direct readings based on boolean flags
     SensorReadings front_data = front_use
         ? SensorReadings{(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
@@ -219,12 +245,14 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
 
     SensorReadings back_data = back_use
-        ? SensorReadings{(double)backDistance.get_distance() ,backDistance.get_object_size(), backDistance.get_confidence()}
+        ? SensorReadings{(double)backDistance.get_distance(), backDistance.get_object_size(), backDistance.get_confidence()}
         : SensorReadings{invalid_dist_mm, 0, invalid_confidence};
     
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
-    if(setPose)
+    
+    if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
+    }
 
     return pose;
 }

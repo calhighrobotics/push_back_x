@@ -3,7 +3,6 @@
 #include "pros/misc.h"
 #include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
-#include "MCL.h"
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include <cmath>
@@ -11,6 +10,7 @@
 
 void intake(int power = 12000)
 {
+    intakeFunnel.extend();
     intakeMotor.move_voltage(power);
     topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     topMotor.brake();
@@ -18,7 +18,18 @@ void intake(int power = 12000)
 
 void outtake(int power = 12000)
 {
-    intakeMotor.move_voltage(-power);
+    if(intakeFunnel.is_extended())
+    {
+        intakeFunnel.retract();
+        pros::delay(100);
+        intakeMotor.move_voltage(12000);
+        pros::delay(300);
+    }
+    topMotor.move_voltage(-12000);
+    if(low_ramp_down_time >= 1000)
+        intakeMotor.move_voltage( -12000);
+    else
+        intakeMotor.move_voltage(-power);
 }
 
 void score_bottomgoal(int power = 12000)
@@ -31,7 +42,7 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
     intake(power);
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
-        topMotor.move_voltage(-12000);
+        topMotor.move_voltage(-8000);
         std::cout << "Color Rejected" << std::endl;
     }
     else
@@ -39,7 +50,6 @@ void score_longgoal(int power = 12000, Color allianceColor = Color::RED)
         topMotor.move_voltage(power);
         std::cout << "Color Accepted" << std::endl;
     }
-    pros::delay(33);
 
 }
 
@@ -51,39 +61,114 @@ void intake_stop()
 
 void score_midgoal(int power = 12000)
 {
+    if(midgoal_first)
+    {
+        if(!color_sort_enable)
+        {
+            midgoal_first = false;
+            trapDoor.extend();
+            intakeMotor.move_voltage(12000);
+            topMotor.move_voltage(6000);
+        }
+        else if(color_sort_enable && get_color() == allianceColor)
+        {
+            midgoal_first = false;
+            trapDoor.extend();
+            intakeMotor.move_voltage(12000);
+            topMotor.move_voltage(6000);
+        }
+    }
     if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
     {
         topMotor.move_voltage(-8000);
     }
     else {
-        topMotor.move_voltage(12000);
+        if (ramp_up_time >= 1200)
+        {
+            topMotor.move_voltage(8000);
+            intakeMotor.move_voltage(12000);
+        }
+        if (ramp_up_time >= 800)
+        {
+            topMotor.move_voltage(5000); // Prev: 4000
+            intakeMotor.move_voltage(12000);
+        }
+        else if(ramp_up_time >= 400)
+        {
+            topMotor.move_voltage(6000);
+            intakeMotor.move_voltage(12000);
+        }
+        else {
+            topMotor.move_voltage(10000);
+            intakeMotor.move_voltage(12000);
+        }
     }
-    if(midgoal_first)
-    {
-        outtake(8000);
-        topMotor.move_voltage(-12000);
-        pros::delay(300);
-        midgoal_first = false;
-    }
-    intake(power);
-    topMotor.move_voltage(power);
-    if(!trapDoor.is_extended()) trapDoor.extend();
+    //if (ramp_up_time >= 1600)
+    //{
+    //    topMotor.move_voltage(4000);
+    //}
+    //topMotor.move_voltage(10000);
+    
 }
 
-void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED)
+void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
 {
-    leftMotors.move(-20);
-    rightMotors.move(-20);
-    score_longgoal(power, allianceColor);
+    intake(12000);
+    chassis.tank(-35, -35);
+    topMotor.move_velocity(330);
+    pros::delay(250);
+    topMotor.move_velocity(300);
+    pros::delay(400);
+    topMotor.move_velocity(300);
+    pros::delay(400);
+    topMotor.move_velocity(270);
+    pros::delay(550);
+    topMotor.move_velocity(270);
+    pros::delay(400);
+    topMotor.move_velocity(240);
+    pros::delay(1400);
+    
 }
+
+void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
+{
+    leftMotors.move(-50);
+    rightMotors.move(-50);
+    u_int32_t startTime = pros::millis();
+    if(color_sort_enable)
+    {
+        blockBlocker.extend();
+        scoringBand.extend();
+    }
+    if(time != -1)
+    {
+        while(pros::millis() - startTime < time)
+        {
+            if(get_color() != allianceColor && get_color() != Color::NONE && color_sort_enable)
+            {
+                topMotor.move_voltage(-10000);
+                intakeMotor.move_voltage(12000);      
+            }
+            else
+            {
+                topMotor.move_voltage(power);
+                intakeMotor.move_voltage(power);
+            }
+        }
+    }
+    intake_stop();
+    chassis.tank(0,0);
+    if(blockBlocker.is_extended()) blockBlocker.retract();
+    if(scoringBand.is_extended()) scoringBand.retract();
+}
+
+
 
 void intake_to_basket()
 {
     intake();
-    topMotor.move_voltage(-6000);
+    topMotor.move_voltage(-8000);
 }
-
-
 
 void resting_state(bool trapDoor_commanded = false)
 {
@@ -91,95 +176,43 @@ void resting_state(bool trapDoor_commanded = false)
     if(!trapDoor_commanded)
         trapDoor.retract();
     topMotor.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-    descore.extend();
 }
 
 void matchload_state(bool state)
 {
-    if(state && !matchload.is_extended())
-    {
+    if(state)
         matchload.extend();
-    }
-    else if(matchload.is_extended())
-    {
+    else if(!state)
         matchload.retract();
-    }
-    else {
-        std::cout << "Matchload state unchanged\n" << std::endl;
-    }
 }
 
-void longgoal_prep()
-{
-
-}
-
-void reset_odometry()
-{
-
-}
 
 void matchload_wiggle(int time = 1000, int speed = 100)
 {
-    u_int32_t start_time = pros::millis();
-    int sign = 1;
-   while(pros::millis() - start_time < time)
-   {
-        leftMotors.move_voltage(3000 * sign);
-        rightMotors.move_voltage(3000 * sign);
-        sign *= -1;
-        pros::delay(speed);
-   }
-   leftMotors.brake();
-   rightMotors.brake();
-}
+    uint32_t startTime = pros::millis();
+    double initialHeading = chassis.getPose().theta;
+    double targetHeading = std::round(initialHeading / 90.0) * 90.0;
+    bool flip = false;
 
-void MCL_reset(bool x = true, bool y = true)
-{
-    MCL::particle_mutex.take();
-    float X = x ? MCL::X : chassis.getPose().x;
-    float Y = y ? MCL::Y : chassis.getPose().y;
-    MCL::particle_mutex.give();
-    chassis.setPose(X, Y, chassis.getPose().theta);
-}
-
-pros::Task* fusionTask = nullptr;
-
-void fusion_loop_fn(void* ignore) {
-    const uint32_t LOOP_DELAY_MS = 10;
-    uint32_t start_time = pros::millis();
-
-    const float MCL_GAIN = 0.05f; 
-
-    while (true) {
-        lemlib::Pose odomPose = chassis.getPose(true);
-        
-        MCL::particle_mutex.take();
-        float target_x = MCL::X;
-        float target_y = MCL::Y;
-        MCL::particle_mutex.give();
-
-        float new_x = odomPose.x + (target_x - odomPose.x) * MCL_GAIN;
-        float new_y = odomPose.y + (target_y - odomPose.y) * MCL_GAIN;
-        chassis.setPose(new_x, new_y, odomPose.theta);
-
-        pros::Task::delay_until(&start_time, LOOP_DELAY_MS);
-    }
-}
-
-void enable_fused_odometry(bool enable) {
-    if (enable) {
-        if (fusionTask == nullptr) {
-            fusionTask = new pros::Task(fusion_loop_fn, NULL, "MCL_Fusion");
+    while ((pros::millis() - startTime) < time) {
+        if (flip) {
+            leftMotors.move(-speed);
+            rightMotors.move(speed);
+        } else {
+            leftMotors.move(speed);
+            rightMotors.move(-speed);
         }
-    } else {
-        if (fusionTask != nullptr) {
-            fusionTask->remove(); 
-            delete fusionTask;  
-            fusionTask = nullptr; 
-        }
+        flip = !flip;
+        pros::delay(100);
     }
+
+    leftMotors.brake();
+    rightMotors.brake();
+    pros::delay(50);
+    chassis.turnToHeading(targetHeading, 800);
 }
+
+
 
 void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true, float earlyExit = 0)
 {
@@ -210,6 +243,60 @@ void matchload_counter(int balls, int time_ms)
         pros::Task::current().remove();
     });
 }
+/*
+void score_from_basket()
+{
+    color_sort_enable = false;
+    topMotor.move(12000);     
+    intakeMotor.move(-12000);
+}
+*/
 
 
+void alignToGoal(double targetAngle) {
 
+    pros::Task([=]() {
+
+        double currentTheta = chassis.getPose().theta;
+        double error = std::remainder(targetAngle - currentTheta, 360.0);
+        if (std::abs(error) > 5.0) {
+            std::cout << "Error big enough to activate alignment " << error << std::endl;
+            if (error > 0) {
+                leftMotors.move(-100);
+                rightMotors.move(0);
+            } else {
+                leftMotors.move(0);
+                rightMotors.move(-100);
+            }
+            pros::delay(std::clamp((int)error * 100, 300, 1000)); 
+        }
+
+        leftMotors.brake();
+        rightMotors.brake();
+        chassis.tank(0,0);
+        pros::Task::current().remove();
+    });
+}
+
+double calculateAngle(double robotHeading) {
+    double d1 = frontDistance.get();
+    double d2 = frontDistance2.get() + 10;
+
+    if (d1 > 1800 || d2 > 1800) return -1;
+    double wallAngleDeg = atan2((d1 - d2) * 0.0393701, 10.75) * 180.0 / M_PI;
+
+    if ((robotHeading >= 315 && robotHeading < 360) || (robotHeading >= 0 && robotHeading < 45)) {
+        return wallAngleDeg;
+    }
+    else if (robotHeading >= 45 && robotHeading < 135) {
+        return 90 + wallAngleDeg;
+    }
+    else if (robotHeading >= 135 && robotHeading < 225) {
+        return 180 + wallAngleDeg;
+    }
+    else if (robotHeading >= 225 && robotHeading < 315) {
+        return 270 + wallAngleDeg;
+    }
+
+    return -1;
+}
