@@ -121,6 +121,7 @@ void initialize() {
 
 void disabled() {
     selector.focus();
+    
 }
 
 void competition_initialize() {
