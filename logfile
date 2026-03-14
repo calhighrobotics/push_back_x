@@ -16,252 +16,9 @@ Established terminal connection
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar  7 2026 19:17:50     Directory:                        
+Compiled:   Mar 13 2026 19:57:22     Directory:                        
 
 
-Distance Reset Pose: -44.5029, 26.4761, using_odom_x: 0, using_odom_y: 0
-
-
-
-         _+=+_
-      .-`  .  `-.          8888888b.  8888888b.   .d88888b.   .d8888b.
-   _+`     "     `+_       888   Y88b 888   Y88b d88P" "Y88b d88P  Y88b
-  \\\sssssssssssss///      888    888 888    888 888     888 Y88b.
-     .ss\  *  /ss.         888   d88P 888   d88P 888     888  "Y888b.
- .+bm  .s  *  s.  md+.     8888888P"  8888888P"  888     888     "Y88b.
-.hMMMMs .  *  . sMMMMh.    888        888 T88b   888     888       "888
- `\hMMMb \ | / dMMMh:      888        888  T88b  Y88b. .d88P Y88b  d88P
-   -SNMNo  -  oNMNs-       888        888   T88b  "Y88888P"   "Y8888P"
-     `+dMh\./dMd/
-        `:yNy:`                      Powered by PROS for VEX V5
-           "                Copyright (c) Purdue University ACM SIGBots
-Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar  7 2026 19:17:50     Directory:                        
-
-
-1
-1
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
-Color Accepted
 
 
 
@@ -278,10 +35,78 @@ Color Accepted
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar  7 2026 19:17:50     Directory:                        
+Compiled:   Mar 13 2026 19:57:22     Directory:                        
 
 
-1
-Distance Reset Pose: -57.974, -0.994474, using_odom_x: 0, using_odom_y: 0
-1
+Odom: -1.83, -24.00 | MCL: -1.14, -23.93 | Exec: 6.11 ms
+Odom: -3.53, -24.03 | MCL: -2.26, -23.96 | Exec: 4.45 ms
+Odom: -5.42, -24.07 | MCL: -3.55, -24.00 | Exec: 4.44 ms
+Odom: -7.23, -24.10 | MCL: -4.87, -24.01 | Exec: 4.44 ms
+Odom: -9.01, -24.10 | MCL: -6.23, -24.04 | Exec: 4.44 ms
+Odom: -10.62, -24.07 | MCL: -7.47, -24.03 | Exec: 4.43 ms
+Odom: -12.05, -24.01 | MCL: -8.61, -23.99 | Exec: 4.43 ms
+Odom: -13.21, -23.90 | MCL: -9.60, -23.90 | Exec: 6.11 ms
+Odom: -14.28, -23.73 | MCL: -10.55, -23.77 | Exec: 4.44 ms
+Odom: -15.39, -23.48 | MCL: -11.53, -23.55 | Exec: 4.44 ms
+Odom: -16.66, -23.14 | MCL: -12.60, -23.32 | Exec: 4.44 ms
+Odom: -18.18, -22.71 | MCL: -13.86, -23.02 | Exec: 4.43 ms
+Odom: -19.68, -22.26 | MCL: -17.43, -22.75 | Exec: 11.47 ms
+Odom: -21.33, -21.83 | MCL: -20.68, -22.58 | Exec: 8.41 ms
+Odom: -22.70, -21.44 | MCL: -22.59, -22.16 | Exec: 8.99 ms
+Odom: -23.76, -21.04 | MCL: -24.38, -21.70 | Exec: 11.50 ms
+Odom: -24.69, -20.59 | MCL: -25.74, -21.32 | Exec: 7.49 ms
+Odom: -25.95, -19.91 | MCL: -26.46, -20.83 | Exec: 7.50 ms
+Odom: -27.04, -19.29 | MCL: -27.62, -20.37 | Exec: 11.55 ms
+Odom: -28.08, -18.67 | MCL: -28.89, -19.99 | Exec: 7.49 ms
+Odom: -28.84, -18.17 | MCL: -30.41, -19.30 | Exec: 7.50 ms
+Odom: -29.53, -17.64 | MCL: -31.95, -18.67 | Exec: 10.07 ms
+Odom: -30.15, -17.11 | MCL: -33.06, -18.34 | Exec: 11.54 ms
+Odom: -30.83, -16.54 | MCL: -33.13, -17.86 | Exec: 7.51 ms
+Odom: -31.41, -15.94 | MCL: -33.95, -17.53 | Exec: 7.50 ms
+Odom: -32.01, -15.37 | MCL: -34.99, -17.27 | Exec: 11.53 ms
+Odom: -32.51, -15.00 | MCL: -34.91, -16.57 | Exec: 4.37 ms
+Odom: -33.14, -14.60 | MCL: -35.29, -16.03 | Exec: 4.36 ms
+Odom: -33.68, -14.22 | MCL: -35.59, -15.50 | Exec: 4.36 ms
+Odom: -34.13, -13.84 | MCL: -35.80, -14.98 | Exec: 4.38 ms
+Odom: -34.52, -13.42 | MCL: -35.99, -14.54 | Exec: 4.48 ms
+Odom: -34.86, -12.99 | MCL: -36.11, -14.17 | Exec: 4.47 ms
+Odom: -35.15, -12.55 | MCL: -36.22, -13.83 | Exec: 4.48 ms
+Odom: -35.39, -12.08 | MCL: -36.30, -13.43 | Exec: 4.47 ms
+Odom: -35.59, -11.63 | MCL: -36.38, -13.02 | Exec: 4.47 ms
+Odom: -35.76, -11.15 | MCL: -36.43, -12.62 | Exec: 6.44 ms
+Odom: -35.89, -10.68 | MCL: -36.46, -12.21 | Exec: 4.47 ms
+Odom: -35.99, -10.17 | MCL: -36.49, -11.76 | Exec: 4.48 ms
+Odom: -36.07, -9.63 | MCL: -36.50, -11.31 | Exec: 4.47 ms
+Odom: -36.13, -9.12 | MCL: -36.52, -10.88 | Exec: 4.48 ms
+Odom: -36.16, -8.55 | MCL: -36.50, -10.41 | Exec: 4.47 ms
+Odom: -36.18, -7.96 | MCL: -36.50, -9.92 | Exec: 4.47 ms
+Odom: -36.17, -7.27 | MCL: -36.46, -9.32 | Exec: 6.43 ms
+Odom: -36.17, -6.85 | MCL: -36.43, -8.93 | Exec: 4.48 ms
+Odom: -36.16, -6.15 | MCL: -36.40, -8.39 | Exec: 4.48 ms
+Odom: -36.16, -5.30 | MCL: -36.39, -7.72 | Exec: 4.47 ms
+Odom: -36.19, -4.49 | MCL: -36.39, -6.99 | Exec: 4.48 ms
+Odom: -36.21, -3.78 | MCL: -36.36, -6.36 | Exec: 4.48 ms
+Odom: -36.23, -3.24 | MCL: -36.35, -5.82 | Exec: 4.47 ms
+Odom: -36.24, -2.80 | MCL: -36.35, -5.35 | Exec: 6.43 ms
+Odom: -36.26, -2.46 | MCL: -36.35, -4.97 | Exec: 4.49 ms
+Odom: -36.27, -2.22 | MCL: -36.35, -4.64 | Exec: 4.49 ms
+Odom: -36.28, -2.07 | MCL: -36.33, -4.38 | Exec: 4.47 ms
+Odom: -36.28, -1.96 | MCL: -36.31, -4.14 | Exec: 4.47 ms
+Odom: -36.29, -1.86 | MCL: -36.31, -3.94 | Exec: 4.47 ms
+Odom: -36.29, -1.78 | MCL: -36.31, -3.75 | Exec: 4.47 ms
+Odom: -36.30, -1.70 | MCL: -36.31, -3.55 | Exec: 6.43 ms
+Odom: -36.30, -1.65 | MCL: -36.31, -3.41 | Exec: 4.48 ms
+Odom: -36.30, -1.64 | MCL: -36.29, -3.29 | Exec: 4.47 ms
+Odom: -36.30, -1.62 | MCL: -36.29, -3.19 | Exec: 4.49 ms
+Odom: -36.30, -1.58 | MCL: -36.30, -3.07 | Exec: 4.47 ms
+Odom: -36.30, -1.53 | MCL: -36.30, -2.95 | Exec: 4.47 ms
+Odom: -36.30, -1.45 | MCL: -36.31, -2.83 | Exec: 4.48 ms
+Odom: -36.30, -1.38 | MCL: -36.31, -2.68 | Exec: 6.43 ms
+Odom: -36.30, -1.31 | MCL: -36.30, -2.55 | Exec: 4.48 ms
+Odom: -36.31, -1.25 | MCL: -36.31, -2.45 | Exec: 4.47 ms
+Odom: -36.31, -1.19 | MCL: -36.32, -2.34 | Exec: 4.46 ms
+Odom: -36.31, -1.10 | MCL: -36.33, -2.23 | Exec: 4.47 ms
+Odom: -36.31, -1.04 | MCL: -36.34, -2.17 | Exec: 4.48 ms
+Odom: -36.31, -1.00 | MCL: -36.34, -2.11 | Exec: 4.47 ms
+pros mu
 WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

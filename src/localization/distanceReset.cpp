@@ -24,10 +24,10 @@ Front: \left(-6.19257613,4.55790433\right)
 Left: \left(2.75813795,-0.09347829\right)
 
 */
-const SensorConfig front_sensor_cfg = {-0.75, -3, 0};   
-const SensorConfig left_sensor_cfg  = {-0.5, -7.2, 90};   
-const SensorConfig right_sensor_cfg = {-0.5, 6.3, -90};  
-const SensorConfig back_sensor_cfg  = {-10.5, -3, 180}; 
+const SensorConfig front_sensor_cfg = {3.3, -2.5, 0};   
+const SensorConfig left_sensor_cfg  = {-4.6, -6.2, 90};   
+const SensorConfig right_sensor_cfg = {4.6, 6.2, -90};  
+const SensorConfig back_sensor_cfg  = {-0.6, -1.5, 180}; 
 
 struct SensorReadings {
     double dist_mm;
@@ -218,10 +218,8 @@ distancePose distanceReset(bool setPose = false, bool filter = true) {
     }
     if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
-        pros::delay(2);
+        std::cout << "Distance Reset Pose: " << pose.x << ", " << pose.y << ", using_odom_x: " << pose.using_odom_x << ", using_odom_y: " << pose.using_odom_y << std::endl;
     }
-
-    std::cout << "Distance Reset Pose: " << pose.x << ", " << pose.y << ", using_odom_x: " << pose.using_odom_x << ", using_odom_y: " << pose.using_odom_y << std::endl;
     return pose;
 }
 
@@ -252,6 +250,7 @@ distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool b
     
     if(setPose) {
         chassis.setPose(pose.x, pose.y, chassis.getPose().theta);
+        std::cout << "Distance Reset Pose: " << pose.x << ", " << pose.y << ", using_odom_x: " << pose.using_odom_x << ", using_odom_y: " << pose.using_odom_y << std::endl;
     }
 
     return pose;

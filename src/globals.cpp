@@ -12,50 +12,44 @@
 #include "pros/motors.h"
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
-#include "colorSort.h"
+
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({-8,10,9}, pros::MotorGears::blue);
-pros::MotorGroup leftMotors({1,-3,-2,}, pros::MotorGears::blue);
+pros::MotorGroup rightMotors({17, 16, -10}, pros::MotorGears::green);
+pros::MotorGroup leftMotors({-14, -15, 6}, pros::MotorGears::green);
 
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
-    11.55, 
-    3.25, 
-    450, 
-    8);
+    10.1, 
+    4.052, 
+    160, 
+    5);
 
-pros::Imu imu(5);
-pros::Rotation horizontal_tracking_sensor(13);
-pros::Rotation vertical_tracking_sensor(-12);
-//-6.95780365196
-//0.0188794350939
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-7.28684844735 , 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.0188794350939,1);
+pros::Imu imu(11);
 
-lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
+lemlib::OdomSensors sensors(nullptr, nullptr, nullptr, nullptr, &imu);
 
-lemlib::ControllerSettings lateral_controller(16.5, // proportional gain (kP)
+lemlib::ControllerSettings lateral_controller(100, // proportional gain (kP)
                                               0, // integral gain (kI)
-                                              120, // derivative gain (kD)
+                                              200, // derivative gain (kD)
                                               4, // anti windup
-                                              0.5, // small error range, in inches
-                                              75, // small error range timeout, in milliseconds
+                                              0.2, // small error range, in inches
+                                              100, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              200, // large error range timeout, in milliseconds
-                                              25 // maximum acceleration (slew)
+                                              1000, // large error range timeout, in milliseconds
+                                              0 // maximum acceleration (slew)
 );
 
-lemlib::ControllerSettings angular_controller(3.2, // proportional gain (kP)
+lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
                                               0.0, // integral gain (kI)
-                                              25, // derivative gain (kD)
-                                               3, // anti windup
-                                              0.5, // small error range, in inches
-                                              50, // small error range timeout, in milliseconds
+                                              14, // derivative gain (kD)
+                                               4, // anti windup
+                                              0.3, // small error range, in inches
+                                              200, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
-                                              75, // large error range timeout, in milliseconds
+                                              1000, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
@@ -72,29 +66,10 @@ lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
-pros::Motor topMotor(19, pros::v5::MotorGears::blue);
 
-pros::Distance rightDistance(20);
-pros::Distance leftDistance(15);
-pros::Distance frontDistance(14);
-pros::Distance backDistance(16);
-pros::Distance frontDistance2(17);
+pros::Distance rightDistance(4);
+pros::Distance leftDistance(3);
+pros::Distance frontDistance(1);
+pros::Distance backDistance(5);
+pros::Distance frontDistance2(2);
 
-pros::adi::Pneumatics trapDoor('A', false);
-pros::adi::Pneumatics matchload('E', false);
-pros::adi::Pneumatics basket('F', false);
-pros::adi::Pneumatics descore('D', false);
-pros::adi::Pneumatics intakeFunnel('B', true);
-pros::adi::Pneumatics scoringBand('C', false);
-pros::adi::Pneumatics blockBlocker('G', false);
-
-pros::Optical color_sensor(7);
-
-pros::Vision vision_sensor(16);
-
-Color allianceColor = Color::RED;
-bool color_sort_enable = false;
-bool midgoal_first = false;
-int ramp_up_time = 0;
-int low_ramp_down_time = 0;

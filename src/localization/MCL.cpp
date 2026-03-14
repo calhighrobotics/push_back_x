@@ -3,20 +3,155 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <optional>
 
 namespace MCL {
-
-    double PARAMS_TRANS_BASE = 0.2;      
-    double PARAMS_TRANS_GAIN = 0.02;      
-    double PARAMS_SENSOR_SIGMA = 2; 
-    double PARAMS_REL_SIGMA = 5.0; 
+    // Filter tuning params for Motor Encoders
+    double PARAMS_TRANS_BASE = 0.5;      
+    double PARAMS_TRANS_GAIN = 0.09;      
 
     double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0; 
-    double map_min_x = -72.0, map_max_x = 72.0, map_min_y = -72.0, map_max_y = 72.0;
     
-    pros::Mutex particle_mutex;
-    std::mt19937 Random(std::random_device{}());
+    // Official VEX Competition Field Constants
+    constexpr float FIELD_SIZE = 140.42f;
+    constexpr float HALF_SIZE = 0.5f * FIELD_SIZE;
+    constexpr float FIELD_MIN = -HALF_SIZE;
+    constexpr float FIELD_MAX = HALF_SIZE;
 
+    // --- Obstacle definitions for pre-filtering (Low-Sensor Setup) ---
+    constexpr float LOADER_X = 47.0f;
+    constexpr float LOADER_RADIUS = 3.0f;
+    constexpr float LOADER_PADDING = 0.5f;
+    constexpr float LOADER_WIDTH = LOADER_RADIUS * 2.0f + LOADER_PADDING * 2.0f;
+    constexpr float LOADER_LENGTH = LOADER_RADIUS * 2.0f + LOADER_PADDING;
+
+    constexpr std::pair<float, float> LOADERS[4] = {
+      {-LOADER_X, -(FIELD_SIZE / 2.0f) + LOADER_RADIUS + LOADER_PADDING / 2.0f},
+      {-LOADER_X,  (FIELD_SIZE / 2.0f) - LOADER_RADIUS - LOADER_PADDING / 2.0f},
+      { LOADER_X,  (FIELD_SIZE / 2.0f) - LOADER_RADIUS - LOADER_PADDING / 2.0f},
+      { LOADER_X, -(FIELD_SIZE / 2.0f) + LOADER_RADIUS + LOADER_PADDING / 2.0f}
+    };
+
+    // The posts holding up the long goals (Updated to 3x3 for low sensors)
+    constexpr float GOAL_POST_X = 48.0f;
+    constexpr float GOAL_POST_Y = 23.0f;
+    constexpr float GOAL_POST_PADDING = 1.0f; // 1-inch safety buffer
+    constexpr float GOAL_POST_WIDTH = 3.0f + GOAL_POST_PADDING * 2.0f;
+    constexpr float GOAL_POST_LENGTH = 3.0f + GOAL_POST_PADDING * 2.0f;
+
+    constexpr std::pair<float, float> GOAL_POSTS[4] = {
+      {-GOAL_POST_X, -GOAL_POST_Y}, {-GOAL_POST_X,  GOAL_POST_Y},
+      { GOAL_POST_X,  GOAL_POST_Y}, { GOAL_POST_X, -GOAL_POST_Y}
+    };
+
+    // The middle goal / center elevation structure (Updated to 5x5 for low sensors)
+    constexpr float MIDDLE_PADDING = 1.0f; 
+    constexpr float MIDDLE_WIDTH = 5.0f + MIDDLE_PADDING * 2.0f;
+    constexpr float MIDDLE_LENGTH = 5.0f + MIDDLE_PADDING * 2.0f;
+    constexpr std::pair<float, float> MIDDLE_GOAL = {0.0f, 0.0f};
+
+    pros::Mutex particle_mutex;
+
+    // --- Blazingly Fast RNG ---
+    struct XorShift32 {
+        uint32_t state;
+        inline XorShift32(uint32_t seed = pros::micros()) : state(seed == 0 ? 0x12345678 : seed) {}
+        inline uint32_t next_u32() {
+            uint32_t x = state;
+            x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+            state = x; return x;
+        }
+        inline float next_f32() { return (next_u32() >> 8) * (1.0f / (1u << 24)); }
+        inline float range_f32(float min, float max) { return min + (max - min) * next_f32(); }
+        inline float gaussian(float std_dev) {
+            float u1 = std::max(next_f32(), 1e-12f);
+            float u2 = next_f32();
+            float r = std::sqrt(-2.0f * std::log(u1));
+            float theta = 2.0f * M_PI * u2;
+            return r * std::cos(theta) * std_dev;
+        }
+    };
+    XorShift32 rng;
+
+    struct Point { float x, y; };
+
+    struct Line {
+        Point start;
+        Point end;
+        
+        // ==========================================
+        // Robust Slab Method Raycaster
+        // Handles both inside-out (walls) and outside-in (obstacles) perfectly.
+        // ==========================================
+        inline std::optional<float> square_intersect_distance(float center_x, float center_y, float width, float height) const {
+            float half_w = width * 0.5f;
+            float half_h = height * 0.5f;
+            float min_x = center_x - half_w;
+            float max_x = center_x + half_w;
+            float min_y = center_y - half_h;
+            float max_y = center_y + half_h;
+
+            float dx = end.x - start.x;
+            float dy = end.y - start.y;
+
+            float tmin = -std::numeric_limits<float>::infinity();
+            float tmax = std::numeric_limits<float>::infinity();
+
+            if (std::abs(dx) < 1e-6f) {
+                if (start.x < min_x || start.x > max_x) return std::nullopt;
+            } else {
+                float inv_dx = 1.0f / dx;
+                float t1 = (min_x - start.x) * inv_dx;
+                float t2 = (max_x - start.x) * inv_dx;
+                if (t1 > t2) std::swap(t1, t2);
+                tmin = std::max(tmin, t1);
+                tmax = std::min(tmax, t2);
+            }
+
+            if (std::abs(dy) < 1e-6f) {
+                if (start.y < min_y || start.y > max_y) return std::nullopt;
+            } else {
+                float inv_dy = 1.0f / dy;
+                float t1 = (min_y - start.y) * inv_dy;
+                float t2 = (max_y - start.y) * inv_dy;
+                if (t1 > t2) std::swap(t1, t2);
+                tmin = std::max(tmin, t1);
+                tmax = std::min(tmax, t2);
+            }
+
+            if (tmin > tmax || tmax < 0.0f) return std::nullopt;
+
+            float t = (tmin < 0.0f) ? tmax : tmin;
+            return t * std::hypot(dx, dy);
+        }
+    };
+
+    struct Reading {
+        float recorded;
+        float inv_var;
+        Point relative_pos;
+        Point proj_relative;
+
+        Reading(float recorded, float std_dev, Point relative_pos, Point proj_relative)
+            : recorded(recorded), inv_var(-0.5f / (std_dev * std_dev)), relative_pos(relative_pos), proj_relative(proj_relative) {}
+        
+        inline std::optional<float> predict(Point particle_pos) const {
+            return Line{
+                Point{relative_pos.x + particle_pos.x, relative_pos.y + particle_pos.y}, 
+                Point{proj_relative.x + particle_pos.x, proj_relative.y + particle_pos.y}
+            }.square_intersect_distance(0.0f, 0.0f, FIELD_SIZE, FIELD_SIZE);
+        }
+    };
+
+    // --- Structure of Arrays (SoA) Particle State ---
+    float particle_x[NUM_PARTICLES];
+    float particle_y[NUM_PARTICLES];
+    float particle_weights[NUM_PARTICLES];
+    float temp_x[NUM_PARTICLES];
+    float temp_y[NUM_PARTICLES];
+    float temp_weights[NUM_PARTICLES];
+
+    // --- Sensors ---
     MCLDistanceSensor::MCLDistanceSensor(pros::Distance sensor_, double localX, double localY, double angleDeg) 
         : Sensor(sensor_), LocalX(localX), LocalY(localY), AngleDeg(angleDeg) {
         measurement = -1;
@@ -32,309 +167,274 @@ namespace MCL {
             measurement = -1.0;
         }
     }
-
-    static const Segment MAP_SEGMENTS[] = {
-        {72, 72, 72, -72}, {72, -72, -72, -72}, {-72, -72, -72, 72}, {-72, 72, 72, 72},
-        {20.9, 46.25, 24.4, 46.25}, {24.4, 46.25, 24.4, 49.75}, {24.4, 49.75, 20.9, 49.75}, {20.9, 49.75, 20.9, 46.25},
-        {-24.4, 46.25, -20.9, 46.25}, {-20.9, 46.25, -20.9, 49.75}, {-20.9, 49.75, -24.4, 49.75}, {-24.4, 49.75, -24.4, 46.25},
-        {20.9, -49.75, 24.4, -49.75}, {24.4, -49.75, 24.4, -46.25}, {24.4, -46.25, 20.9, -46.25}, {20.9, -46.25, 20.9, -49.75},
-        {-24.4, -49.75, -20.9, -49.75}, {-20.9, -49.75, -20.9, -46.25}, {-20.9, -46.25, -24.4, -46.25}, {-24.4, -46.25, -24.4, -49.75},
-        {-72, 45.5, -67, 45.5}, {-67, 45.5, -67, 50.5}, {-67, 50.5, -72, 50.5}, {-72, 50.5, -72, 45.5},
-        {67, 45.5, 72, 45.5}, {72, 45.5, 72, 50.5}, {72, 50.5, 67, 50.5}, {67, 50.5, 67, 45.5},
-        {-72, -50.5, -67, -50.5}, {-67, -50.5, -67, -45.5}, {-67, -45.5, -72, -45.5}, {-72, -45.5, -72, -50.5},
-        {67, -50.5, 72, -50.5}, {72, -50.5, 72, -45.5}, {72, -45.5, 67, -45.5}, {67, -45.5, 67, -50.5},
-    };
-    static const int MAP_SEGMENT_COUNT = sizeof(MAP_SEGMENTS) / sizeof(Segment);
-
-    struct OptSegment { double x0, y0, x1, y1, dx, dy, nx, ny; };
-    OptSegment opt_segments[MAP_SEGMENT_COUNT];
-
-    struct AABB { double min_x, max_x, min_y, max_y; };
-    AABB map_aabbs[MAP_SEGMENT_COUNT];
-
+    
+    // Updated with your new sensor offsets
     std::vector<MCLDistanceSensor> Sensors = {
-        MCLDistanceSensor(frontDistance, -3.0, -0.75, 0),  
-        MCLDistanceSensor(leftDistance, 0.5, -7.2, 90), 
-        MCLDistanceSensor(rightDistance, -0.5, 6.3, -90), 
-        MCLDistanceSensor(backDistance, 3.0, -10.5, 180), 
+        MCLDistanceSensor(frontDistance, -2.5, 3.3, 0),  
+        MCLDistanceSensor(leftDistance, -6.2, -4.6, 90), 
+        MCLDistanceSensor(rightDistance, 6.2, 4.6, -90), 
+        MCLDistanceSensor(backDistance, -1.5, -0.6, 180), 
     };
-
-    std::vector<Particle> particles(NUM_PARTICLES);
-    std::vector<Particle> resample_buffer(NUM_PARTICLES); 
-
-    struct ValidMeas { double pred; double meas; double weight; };
-    struct RayHit { double dist; double weight; };
 
     inline double degToRad(double deg) { return deg * M_PI / 180.0; }
-    inline double radToDeg(double rad) { return rad * 180.0 / M_PI; }
     inline double wrapAngleDeg(double angle) {
         angle = std::fmod(angle + 180.0, 360.0);
         if (angle < 0) angle += 360.0;
         return angle - 180.0;
     }
 
-    double gaussian_sample(double mean, double stddev) {
-        std::normal_distribution<double> dist(mean, stddev);
-        return dist(Random);
-    }
-
-    RayHit getRaycastDistance(double sensX, double sensY, double dx, double dy) {
-        double minDist = 10000.0; 
-        double bestWeight = 1.0; 
-
-        double ray_end_x = sensX + dx * SENSOR_MAX_RANGE_IN;
-        double ray_end_y = sensY + dy * SENSOR_MAX_RANGE_IN;
-        double r_min_x = std::min(sensX, ray_end_x);
-        double r_max_x = std::max(sensX, ray_end_x);
-        double r_min_y = std::min(sensY, ray_end_y);
-        double r_max_y = std::max(sensY, ray_end_y);
-
-        for (int i = 0; i < MAP_SEGMENT_COUNT; ++i) {
-            const AABB& box = map_aabbs[i];
-            if (r_max_x < box.min_x || r_min_x > box.max_x || 
-                r_max_y < box.min_y || r_min_y > box.max_y) continue;
-
-            const OptSegment& seg = opt_segments[i];
-            double r_px = seg.x0 - sensX;
-            double r_py = seg.y0 - sensY;
-            double r_cross_s = dx * seg.dy - dy * seg.dx; 
-            
-            if (std::abs(r_cross_s) < 1e-4) continue; 
-            
-            double t = (r_px * seg.dy - r_py * seg.dx) / r_cross_s;
-            double u = (r_px * dy - r_py * dx) / r_cross_s;
-            
-            if (u >= 0.0 && u <= 1.0 && t > 0.0) {
-                if (t < minDist) {
-                    minDist = t;
-                    bestWeight = 0.5 + 0.5 * std::abs(dx * seg.nx + dy * seg.ny);
-                }
-            }
-        }
-        
-        if (minDist <= 0 || minDist > SENSOR_MAX_RANGE_IN) return {-1.0, 1.0};
-        return {minDist, bestWeight};
-    }
-
     void StartMCL(double x, double y) {
         particle_mutex.take();
-        map_min_x = map_min_y = std::numeric_limits<double>::infinity();
-        map_max_x = map_max_y = -std::numeric_limits<double>::infinity();
-
-        for (int i = 0; i < MAP_SEGMENT_COUNT; ++i) {
-            map_min_x = std::min({map_min_x, MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1});
-            map_max_x = std::max({map_max_x, MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1});
-            map_min_y = std::min({map_min_y, MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1});
-            map_max_y = std::max({map_max_y, MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1});
-            
-            map_aabbs[i] = {
-                std::min(MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1),
-                std::max(MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1),
-                std::min(MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1),
-                std::max(MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1)
-            };
-
-            opt_segments[i].x0 = MAP_SEGMENTS[i].x0;
-            opt_segments[i].y0 = MAP_SEGMENTS[i].y0;
-            opt_segments[i].x1 = MAP_SEGMENTS[i].x1;
-            opt_segments[i].y1 = MAP_SEGMENTS[i].y1;
-            opt_segments[i].dx = MAP_SEGMENTS[i].x1 - MAP_SEGMENTS[i].x0;
-            opt_segments[i].dy = MAP_SEGMENTS[i].y1 - MAP_SEGMENTS[i].y0;
-            double len = std::hypot(opt_segments[i].dx, opt_segments[i].dy);
-            if (len > 1e-6) {
-                opt_segments[i].nx = -opt_segments[i].dy / len;
-                opt_segments[i].ny = opt_segments[i].dx / len;
-            } else {
-                opt_segments[i].nx = 0;
-                opt_segments[i].ny = 0;
-            }
-        }
-
-        for (auto& p : particles) {
-            p.x = gaussian_sample(x, 2.0);
-            p.y = gaussian_sample(y, 2.0);
-            p.weight = 1.0 / NUM_PARTICLES;
+        rng = XorShift32(pros::micros());
+        for (int i = 0; i < NUM_PARTICLES; ++i) {
+            particle_x[i] = std::clamp((float)x + rng.gaussian(4.0f), FIELD_MIN, FIELD_MAX);
+            particle_y[i] = std::clamp((float)y + rng.gaussian(4.0f), FIELD_MIN, FIELD_MAX);
+            particle_weights[i] = 1.0f / NUM_PARTICLES;
         }
         particle_mutex.give();
     }
 
     void MonteCarlo() {
         lemlib::Pose prevOdom = chassis.getPose();
+        uint32_t now = pros::millis(); 
+        double last_exec_ms = 0.0; 
         
         while (true) {
+            uint32_t loop_start_micros = pros::micros(); 
+            
+            // 1. Grab odometry at the START of the calculations
             lemlib::Pose currOdom = chassis.getPose();
+
+            // Use GLOBAL deltas to preserve Lemlib's curved arc tracking perfectly
             double dX_global = currOdom.x - prevOdom.x;
             double dY_global = currOdom.y - prevOdom.y;
             double dTheta = wrapAngleDeg(currOdom.theta - prevOdom.theta);
 
-            // Pre-calculate the current absolute robot heading for translations
             double robot_rad = degToRad(currOdom.theta);
             double robot_cos = std::cos(robot_rad);
             double robot_sin = std::sin(robot_rad);
 
-            double cosP = std::cos(degToRad(prevOdom.theta));
-            double sinP = std::sin(degToRad(prevOdom.theta));
-            double dF = dX_global * sinP + dY_global * cosP;
-            double dS = dX_global * cosP - dY_global * sinP;
-
             particle_mutex.take();
 
-            for (auto& p : particles) {
-                double dist = std::hypot(dF, dS);
-                // Keep dTheta here to account for translation noise induced during heavy turning
-                double transStd = PARAMS_TRANS_BASE + 0.08 * dist + 0.03 * std::abs(dTheta);
+            if (std::abs(dX_global) < 0.05 && std::abs(dY_global) < 0.05 && std::abs(dTheta) < 0.5) {
+                global_Theta = currOdom.theta; 
+                prevOdom = currOdom;
                 
-                double dx_l = dF + gaussian_sample(0, transStd);
-                double dy_l = dS + gaussian_sample(0, transStd);
-
-                p.x += dx_l * robot_sin + dy_l * robot_cos;
-                p.y += dx_l * robot_cos - dy_l * robot_sin;
+                particle_mutex.give(); 
+                pros::Task::delay_until(&now, 30);
+                continue; 
             }
-            prevOdom = currOdom;
+            
+            // ================== 1. ADAPTIVE PREDICT ==================
+            double dist = std::hypot(dX_global, dY_global);
+            double c = 1.0 - global_Confidence;
+            
+            double dynamic_base = PARAMS_TRANS_BASE + c * c * 0.9;
+            double dynamic_gain = PARAMS_TRANS_GAIN + c * c * 0.06;
+            
+            // Increased dTheta multiplier to 0.15 for Motor Encoders!
+            double transStd = dynamic_base + dynamic_gain * dist + 0.15 * std::abs(dTheta);
 
-            std::vector<MCLDistanceSensor*> active;
-            for (auto& s : Sensors) { s.Measure(); if (s.measurement > 0) active.push_back(&s); }
+            for (int i = 0; i < NUM_PARTICLES; i++) {
+                // Generate noise locally
+                float noise_F = rng.gaussian(transStd);
+                float noise_S = rng.gaussian(transStd);
 
-            if (!active.empty()) {
-                double max_log = -1e9;
-                std::vector<double> logs(NUM_PARTICLES);
+                // Rotate noise to global frame
+                float noise_X = noise_F * robot_sin + noise_S * robot_cos;
+                float noise_Y = noise_F * robot_cos - noise_S * robot_sin;
 
-                // PERFORMANCE BOOST: Pre-compute sensor offsets and ray vectors globally
-                struct SensorPrecomp {
-                    MCLDistanceSensor* s;
-                    double dx, dy, offsetX, offsetY;
-                };
-                
-                std::vector<SensorPrecomp> precomps;
-                for (auto* s : active) {
-                    SensorPrecomp sc;
-                    sc.s = s;
-                    sc.dx = robot_sin * s->cos_off + robot_cos * s->sin_off;
-                    sc.dy = robot_cos * s->cos_off - robot_sin * s->sin_off;
-                    sc.offsetX = s->LocalY * robot_sin + s->LocalX * robot_cos;
-                    sc.offsetY = s->LocalY * robot_cos - s->LocalX * robot_sin;
-                    precomps.push_back(sc);
-                }
+                // Add Lemlib's precise global delta + the generated noise
+                particle_x[i] += dX_global + noise_X;
+                particle_y[i] += dY_global + noise_Y;
 
-                for (int i = 0; i < NUM_PARTICLES; ++i) {
-                    double logL = 0.0;
+                particle_x[i] = std::clamp(particle_x[i], FIELD_MIN, FIELD_MAX);
+                particle_y[i] = std::clamp(particle_y[i], FIELD_MIN, FIELD_MAX);
+            }
+
+            // ================== 2. SENSOR PRE-FILTERING ==================
+            std::vector<Reading> readings;
+            for (auto& s : Sensors) {
+                s.Measure();
+                if (s.measurement > 0) {
+                    float offsetX = s.LocalY * robot_sin + s.LocalX * robot_cos;
+                    float offsetY = s.LocalY * robot_cos - s.LocalX * robot_sin;
+                    Point rel_pos = {offsetX, offsetY};
+
+                    float dirX = robot_sin * s.cos_off + robot_cos * s.sin_off;
+                    float dirY = robot_cos * s.cos_off - robot_sin * s.sin_off;
+                    Point ray_pt = {offsetX + dirX, offsetY + dirY};
+
+                    Line ray{Point{(float)currOdom.x + offsetX, (float)currOdom.y + offsetY}, 
+                             Point{(float)currOdom.x + offsetX + dirX, (float)currOdom.y + offsetY + dirY}};
+
+                    bool hits_obstacle = false;
                     
-                    ValidMeas valid_measurements[4];
-                    int valid_count = 0;
-
-                    for (const auto& sc : precomps) {
-                        double sensX = particles[i].x + sc.offsetX;
-                        double sensY = particles[i].y + sc.offsetY;
-
-                        RayHit hit = getRaycastDistance(sensX, sensY, sc.dx, sc.dy);
-                        
-                        if (hit.dist < 0) continue; 
-                        double err = sc.s->measurement - hit.dist;
-
-                        if (std::abs(err) > 18.0) continue;  
-
-                        valid_measurements[valid_count++] = {hit.dist, sc.s->measurement, hit.weight};
-
-                        double gaussian_prob = std::exp(-(err * err) / (2 * PARAMS_SENSOR_SIGMA * PARAMS_SENSOR_SIGMA));
-                        
-                        double p_abs = gaussian_prob * hit.weight;
-                        logL += std::log(std::max(p_abs, 1e-6));
+                    for(auto& loader : LOADERS) {
+                        if (ray.square_intersect_distance(loader.first, loader.second, LOADER_WIDTH, LOADER_LENGTH)) hits_obstacle = true;
                     }
-
-                    if (valid_count > 1) {
-                        for (int a = 0; a < valid_count; ++a) {
-                            for (int b = a + 1; b < valid_count; ++b) {
-                                double predDiff = valid_measurements[a].pred - valid_measurements[b].pred;
-                                double measDiff = valid_measurements[a].meas - valid_measurements[b].meas;
-                                double diffErr = measDiff - predDiff;
-
-                                double w = std::min(valid_measurements[a].weight, valid_measurements[b].weight);
-                                double rel_prob = std::exp(-(diffErr * diffErr) / (2 * PARAMS_REL_SIGMA * PARAMS_REL_SIGMA));
-                                
-                                logL += std::log(std::max(rel_prob * w, 1e-6));
-                            }
+                    for(auto& post : GOAL_POSTS) {
+                        if (ray.square_intersect_distance(post.first, post.second, GOAL_POST_WIDTH, GOAL_POST_LENGTH)) hits_obstacle = true;
+                    }
+                    if (ray.square_intersect_distance(MIDDLE_GOAL.first, MIDDLE_GOAL.second, MIDDLE_WIDTH, MIDDLE_LENGTH)) hits_obstacle = true;
+                    
+                    if (!hits_obstacle) {
+                        auto expected_wall_dist = ray.square_intersect_distance(0.0f, 0.0f, FIELD_SIZE, FIELD_SIZE);
+                        
+                        float rejection_threshold = 4.0f + (1.0f - global_Confidence) * 12.0f; 
+                        
+                        if (expected_wall_dist.has_value() && std::abs(expected_wall_dist.value() - s.measurement) > rejection_threshold) {
+                            hits_obstacle = true; 
                         }
                     }
 
-                    logs[i] = logL;
-                    if (logL > max_log) max_log = logL;
-                }
+                    if (!hits_obstacle) {
+                        float d = s.measurement;
+                        float bound = d < 7.874015f ? 0.590551f : 0.05f * d;
+                        float dynamic_k = 1.0f + global_Confidence * 4.0f;
+                        float std_dev = std::max(bound / dynamic_k, 0.5f);
 
-                double sumW = 0;
-                for (int i = 0; i < NUM_PARTICLES; ++i) {
-                    particles[i].weight = std::exp(logs[i] - max_log);
-                    
-                    if (particles[i].x < map_min_x || particles[i].x > map_max_x || 
-                        particles[i].y < map_min_y || particles[i].y > map_max_y) {
-                        particles[i].weight *= 0.01;
+                        readings.emplace_back(d, std_dev, rel_pos, ray_pt);
                     }
-                    sumW += particles[i].weight;
                 }
-                for (auto& p : particles) p.weight /= (sumW > 1e-9 ? sumW : 1.0);
             }
 
-            double mX = 0, mY = 0, neff_s = 0;
-            for (const auto& p : particles) {
-                mX += p.x * p.weight; 
-                mY += p.y * p.weight;
-                neff_s += p.weight * p.weight;
+            // ================== 3. UPDATE ==================
+            if (!readings.empty()) {
+                float max_weight = 0.0f;
+                
+                for (int i = 0; i < NUM_PARTICLES; i++) {
+                    float weight = particle_weights[i]; 
+                    
+                    for (const auto& reading : readings) {
+                        auto predicted = reading.predict(Point{particle_x[i], particle_y[i]});
+                        if (predicted.has_value()) {
+                            float error = reading.recorded - predicted.value();
+                            float likelihood = std::exp(reading.inv_var * error * error) + 0.05f;
+                            weight *= likelihood;
+                            
+                            if (weight <= 0.0f) break;
+                        } else {
+                            weight = 0.0f;
+                            break;
+                        }
+                    }
+
+                    if (!std::isfinite(weight) || weight < 0.0f) weight = 0.0f;
+                    particle_weights[i] = weight;
+                    if (weight > max_weight) max_weight = weight;
+                }
+
+                float weight_sum = 0.0f;
+                if (max_weight > 0.0f) {
+                    for (int i = 0; i < NUM_PARTICLES; i++) {
+                        particle_weights[i] /= max_weight;
+                        weight_sum += particle_weights[i];
+                    }
+                }
+
+                if (weight_sum <= 0.0f) {
+                    float uniform_weight = 1.0f / NUM_PARTICLES;
+                    for (int i = 0; i < NUM_PARTICLES; i++) particle_weights[i] = uniform_weight;
+                } else {
+                    float inv_weight_sum = 1.0f / weight_sum;
+                    for (int i = 0; i < NUM_PARTICLES; i++) particle_weights[i] *= inv_weight_sum;
+                }
+            }
+
+            // ================== 4. ESTIMATE ==================
+            float mX = 0, mY = 0, neff_s = 0;
+            for (int i = 0; i < NUM_PARTICLES; i++) {
+                mX += particle_x[i] * particle_weights[i];
+                mY += particle_y[i] * particle_weights[i];
+                neff_s += particle_weights[i] * particle_weights[i];
             }
             
-            // IMU serves as the source of truth for heading
             global_X = mX; 
             global_Y = mY; 
             global_Theta = currOdom.theta; 
             
-            double neff = (neff_s > 0) ? (1.0 / neff_s) : 0;
-            global_Confidence = std::clamp(neff / NUM_PARTICLES, 0.0, 1.0);
+            float neff = (neff_s > 0) ? (1.0f / neff_s) : 0;
+            global_Confidence = std::clamp((double)(neff / NUM_PARTICLES), 0.0, 1.0);
 
-            if (global_Confidence < RESAMPLE_THRESHOLD && (!active.empty() || global_Confidence < 0.15)) {
-                double injectP = 0.02 + (1.0 - global_Confidence) * 0.15;
-                if (global_Confidence < 0.2) injectP = 0.3; 
+            // ================== 5. RESAMPLE & RECOVERY ==================
+            if (global_Confidence < RESAMPLE_THRESHOLD && (!readings.empty() || global_Confidence < 0.15)) {
+                float injectP = 0.02f + (1.0f - global_Confidence) * 0.15f;
+                if (global_Confidence < 0.2f) injectP = 0.3f; 
 
-                int keep = NUM_PARTICLES * (1.0 - injectP);
-                double r = std::uniform_real_distribution<double>(0, 1.0 / keep)(Random), c = particles[0].weight;
-                int idx = 0;
-                
-                for (int i = 0; i < keep; ++i) {
-                    double U = r + (double)i / keep;
-                    while (U > c && idx < NUM_PARTICLES - 1) c += particles[++idx].weight;
-                    
-                    resample_buffer[i] = particles[idx];
-                    resample_buffer[i].weight = 1.0 / NUM_PARTICLES;
-                    
-                    resample_buffer[i].x += gaussian_sample(0, 0.2);
-                    resample_buffer[i].y += gaussian_sample(0, 0.2);
+                int keep = NUM_PARTICLES * (1.0f - injectP);
+                float inv_keep = 1.0f / keep;
+                float offset = rng.next_f32() * inv_keep;
+
+                float cumulative_weight = particle_weights[0];
+                size_t idx = 0;
+
+                for (int i = 0; i < keep; i++) {
+                    float sample = offset + i * inv_keep;
+                    while (sample > cumulative_weight && idx < NUM_PARTICLES - 1) {
+                        idx++;
+                        cumulative_weight += particle_weights[idx];
+                    }
+                    temp_x[i] = particle_x[idx] + rng.gaussian(0.2f);
+                    temp_y[i] = particle_y[idx] + rng.gaussian(0.2f);
+                    temp_weights[i] = 1.0f / NUM_PARTICLES;
                 }
-                
-                std::normal_distribution<double> fX(currOdom.x, 10.0);
-                std::normal_distribution<double> fY(currOdom.y, 10.0);
-                
-                for (int i = keep; i < NUM_PARTICLES; ++i) {
-                    double newX = std::clamp(fX(Random), map_min_x, map_max_x);
-                    double newY = std::clamp(fY(Random), map_min_y, map_max_y);
-                    resample_buffer[i] = {newX, newY, 1.0/NUM_PARTICLES};
+
+                float spread = 10.0f + (1.0f - global_Confidence) * 15.0f;
+                for (int i = keep; i < NUM_PARTICLES; i++) {
+                    temp_x[i] = std::clamp((float)currOdom.x + rng.gaussian(spread), FIELD_MIN, FIELD_MAX);
+                    temp_y[i] = std::clamp((float)currOdom.y + rng.gaussian(spread), FIELD_MIN, FIELD_MAX);
+                    temp_weights[i] = 1.0f / NUM_PARTICLES;
                 }
-                particles = resample_buffer;
+
+                std::copy(temp_x, temp_x + NUM_PARTICLES, particle_x);
+                std::copy(temp_y, temp_y + NUM_PARTICLES, particle_y);
+                std::copy(temp_weights, temp_weights + NUM_PARTICLES, particle_weights);
             }
 
-            static uint32_t last_print = pros::millis();
-            if (pros::millis() - last_print > 500) { 
-                last_print = pros::millis();
-                
-                printf("Odom = (%.2f, %.2f, %.2f)\n", currOdom.x, currOdom.y, currOdom.theta);
-                printf("MCL = (%.2f, %.2f)\n", global_X, global_Y);
-                
-                printf("P = [");
-                for (int i = 0; i < NUM_PARTICLES; ++i) {
-                    printf("(%.2f, %.2f)", particles[i].x, particles[i].y);
-                    if (i != NUM_PARTICLES - 1) printf(", ");
-                }
-                printf("]\n\n");
+            // ================== 6. APPLY CORRECTION SAFELY ==================
+            constexpr float ALPHA_MAX = 0.05f; 
+            float alpha = ALPHA_MAX * (global_Confidence * global_Confidence);
+
+            // Calculate error based on the odometry from the START of the math
+            float error_x = global_X - currOdom.x;
+            float error_y = global_Y - currOdom.y;
+
+            // Fetch the FRESHEST odometry (since the robot moved during the math)
+            lemlib::Pose latestOdom = chassis.getPose();
+
+            // Apply the blend to the LATEST odometry so we don't erase travel distance
+            float blended_x = latestOdom.x + (alpha * error_x);
+            float blended_y = latestOdom.y + (alpha * error_y);
+
+            // Calculate how far we are actually shifting the robot right now
+            float correction_dist = std::hypot(alpha * error_x, alpha * error_y);
+
+            // DEADBAND: Only update Lemlib if the shift is larger than 0.05 inches.
+            if (correction_dist > 0.05f) {
+                chassis.setPose(blended_x, blended_y, latestOdom.theta);
+                prevOdom.x = blended_x;
+                prevOdom.y = blended_y;
+                prevOdom.theta = latestOdom.theta; 
+            } else {
+                // If we didn't update, just track the latest odom for the next loop's delta
+                prevOdom = latestOdom; 
             }
-            particle_mutex.give(); 
             
-            pros::delay(5); 
+            // Calculate exact execution time
+            last_exec_ms = (pros::micros() - loop_start_micros) / 1000.0;
+
+            // ================== LOGGING & TIMING ==================
+            static uint32_t last_log = pros::millis();
+            if (pros::millis() - last_log > 50) { 
+                last_log = pros::millis();
+                printf("Odom: %.2f, %.2f | MCL: %.2f, %.2f | Exec: %.2f ms\n", 
+                        latestOdom.x, latestOdom.y, global_X, global_Y, last_exec_ms);
+                fflush(stdout); 
+            }
+
+            particle_mutex.give(); 
+            pros::Task::delay_until(&now, 30); 
         }
     }
 }
