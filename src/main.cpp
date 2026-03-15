@@ -6,6 +6,8 @@
 #include "pros/misc.h"
 #include "pros/misc.hpp"
 #include "pros/motors.h"
+#include "pros/optical.hpp"
+#include "pros/rotation.hpp"
 #include "robodash/views/selector.hpp"
 #include <string>
 #include "MCL.h"

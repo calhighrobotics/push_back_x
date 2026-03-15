@@ -10,6 +10,7 @@
 #include "pros/adi.h"
 #include "pros/adi.hpp"
 #include "pros/motors.h"
+#include "pros/optical.h"
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
 
@@ -18,6 +19,7 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
 pros::MotorGroup rightMotors({17, 16, -10}, pros::MotorGears::green);
 pros::MotorGroup leftMotors({-14, -15, 6}, pros::MotorGears::green);
+
 
 lemlib::Drivetrain drivebase(
     &leftMotors, 

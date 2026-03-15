@@ -20,9 +20,10 @@ namespace MCL {
     constexpr float HALF_SIZE = 0.5f * FIELD_SIZE;
     constexpr float FIELD_MIN = -HALF_SIZE;
     constexpr float FIELD_MAX = HALF_SIZE;
+    
     constexpr float LOADER_X = 47.0f;
-    constexpr float LOADER_RADIUS = 3.0f;
-    constexpr float LOADER_PADDING = 0.5f;
+    constexpr float LOADER_RADIUS = 2.0f; 
+    constexpr float LOADER_PADDING = 0.0f; 
     constexpr float LOADER_WIDTH = LOADER_RADIUS * 2.0f + LOADER_PADDING * 2.0f;
     constexpr float LOADER_LENGTH = LOADER_RADIUS * 2.0f + LOADER_PADDING;
 
@@ -44,9 +45,9 @@ namespace MCL {
       { GOAL_POST_X,  GOAL_POST_Y}, { GOAL_POST_X, -GOAL_POST_Y}
     };
 
-    constexpr float MIDDLE_PADDING = 1.0f; 
-    constexpr float MIDDLE_WIDTH = 5.0f + MIDDLE_PADDING * 2.0f;
-    constexpr float MIDDLE_LENGTH = 5.0f + MIDDLE_PADDING * 2.0f;
+    constexpr float MIDDLE_PADDING = 0.0f; 
+    constexpr float MIDDLE_WIDTH = 2.0f + MIDDLE_PADDING * 2.0f;
+    constexpr float MIDDLE_LENGTH = 2.0f + MIDDLE_PADDING * 2.0f;
     constexpr std::pair<float, float> MIDDLE_GOAL = {0.0f, 0.0f};
 
     pros::Mutex particle_mutex;
