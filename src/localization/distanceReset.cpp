@@ -4,8 +4,8 @@
 #include <numeric>
 
 const double MM_TO_IN = 0.0393701;
-const double FIELD_WIDTH = 3657.6 * MM_TO_IN;
-const double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
+const double FIELD_WIDTH = 140.42;
+const double FIELD_HEIGHT = 140.42;
 const double HALF_WIDTH = FIELD_WIDTH / 2.0;
 const double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
 const double MAX_SENSOR_RANGE = 2000 * MM_TO_IN;
@@ -25,8 +25,8 @@ Left: \left(2.75813795,-0.09347829\right)
 
 */
 const SensorConfig front_sensor_cfg = {3.3, -2.5, 0};   
-const SensorConfig left_sensor_cfg  = {-4.6, -6.2, 90};   
-const SensorConfig right_sensor_cfg = {4.6, 6.2, -90};  
+const SensorConfig left_sensor_cfg  = {-4.6, -5, 90};   
+const SensorConfig right_sensor_cfg = {4.6, 5, -90};  
 const SensorConfig back_sensor_cfg  = {-0.6, -1.5, 180}; 
 
 struct SensorReadings {
