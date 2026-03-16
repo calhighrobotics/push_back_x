@@ -8,6 +8,7 @@
 #include "pros/motors.h"
 #include "pros/optical.hpp"
 #include "pros/rotation.hpp"
+#include "pros/vision.hpp"
 #include "robodash/views/selector.hpp"
 #include <string>
 #include "MCL.h"
@@ -87,7 +88,7 @@ void AutoTuneSensorOffsets(pros::Distance& sensor, std::string sensor_name, doub
 
     printf("Spinning 90 degrees and collecting data...\n");
 
-    while (std::abs(current_heading - start_heading) < 60 && (pros::millis() - start_time < 4000)) {
+    while (std::abs(current_heading - start_heading) < 90 && (pros::millis() - start_time < 4000)) {
         current_heading = chassis.getPose().theta;
         int dist_mm = sensor.get_distance();
         

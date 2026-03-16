@@ -68,10 +68,10 @@ lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-
 pros::Distance rightDistance(4);
 pros::Distance leftDistance(3);
 pros::Distance frontDistance(1);
 pros::Distance backDistance(5);
 pros::Distance frontDistance2(2);
+
 

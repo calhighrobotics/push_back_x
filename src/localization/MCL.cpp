@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include <optional>
 #include <limits>
+#include <queue>
+#include "Eigen/Dense"
 
 namespace MCL {
     double PARAMS_TRANS_BASE = 0.25;      
@@ -12,7 +13,8 @@ namespace MCL {
 
     double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0; 
     
-    float w_slow = 0.0f, w_fast = 0;
+    float w_slow = 0.0f;
+    float w_fast = 0.0f;
     constexpr float ALPHA_SLOW = 0.001f; 
     constexpr float ALPHA_FAST = 0.1f;   
 
@@ -20,19 +22,17 @@ namespace MCL {
     constexpr float HALF_SIZE = 0.5f * FIELD_SIZE;
     constexpr float FIELD_MIN = -HALF_SIZE;
     constexpr float FIELD_MAX = HALF_SIZE;
-    
+
+    constexpr int GRID_RES = 1; 
+    constexpr int GRID_SIZE = 141; 
+    float distance_map[GRID_SIZE][GRID_SIZE];
+    bool map_initialized = false;
+
     constexpr float LOADER_X = 47.0f;
-    constexpr float LOADER_RADIUS = 2.0f; 
-    constexpr float LOADER_PADDING = 0.0f; 
+    constexpr float LOADER_RADIUS = 3.0f;
+    constexpr float LOADER_PADDING = 0.5f;
     constexpr float LOADER_WIDTH = LOADER_RADIUS * 2.0f + LOADER_PADDING * 2.0f;
     constexpr float LOADER_LENGTH = LOADER_RADIUS * 2.0f + LOADER_PADDING;
-
-    constexpr std::pair<float, float> LOADERS[4] = {
-      {-LOADER_X, -(FIELD_SIZE / 2.0f) + LOADER_RADIUS + LOADER_PADDING / 2.0f},
-      {-LOADER_X,  (FIELD_SIZE / 2.0f) - LOADER_RADIUS - LOADER_PADDING / 2.0f},
-      { LOADER_X,  (FIELD_SIZE / 2.0f) - LOADER_RADIUS - LOADER_PADDING / 2.0f},
-      { LOADER_X, -(FIELD_SIZE / 2.0f) + LOADER_RADIUS + LOADER_PADDING / 2.0f}
-    };
 
     constexpr float GOAL_POST_X = 48.0f;
     constexpr float GOAL_POST_Y = 23.0f;
@@ -40,15 +40,23 @@ namespace MCL {
     constexpr float GOAL_POST_WIDTH = 3.0f + GOAL_POST_PADDING * 2.0f;
     constexpr float GOAL_POST_LENGTH = 3.0f + GOAL_POST_PADDING * 2.0f;
 
-    constexpr std::pair<float, float> GOAL_POSTS[4] = {
-      {-GOAL_POST_X, -GOAL_POST_Y}, {-GOAL_POST_X,  GOAL_POST_Y},
-      { GOAL_POST_X,  GOAL_POST_Y}, { GOAL_POST_X, -GOAL_POST_Y}
-    };
-
-    constexpr float MIDDLE_PADDING = 0.0f; 
-    constexpr float MIDDLE_WIDTH = 2.0f + MIDDLE_PADDING * 2.0f;
-    constexpr float MIDDLE_LENGTH = 2.0f + MIDDLE_PADDING * 2.0f;
+    constexpr float MIDDLE_PADDING = 1.0f; 
+    constexpr float MIDDLE_WIDTH = 5.0f + MIDDLE_PADDING * 2.0f;
+    constexpr float MIDDLE_LENGTH = 5.0f + MIDDLE_PADDING * 2.0f;
     constexpr std::pair<float, float> MIDDLE_GOAL = {0.0f, 0.0f};
+
+    struct Obstacle { float cx, cy, hw, hh; };
+    constexpr Obstacle FIELD_OBSTACLES[9] = {
+        {-LOADER_X, -(FIELD_SIZE / 2.0f) + LOADER_RADIUS + LOADER_PADDING / 2.0f, LOADER_WIDTH * 0.5f, LOADER_LENGTH * 0.5f},
+        {-LOADER_X,  (FIELD_SIZE / 2.0f) - LOADER_RADIUS - LOADER_PADDING / 2.0f, LOADER_WIDTH * 0.5f, LOADER_LENGTH * 0.5f},
+        { LOADER_X,  (FIELD_SIZE / 2.0f) - LOADER_RADIUS - LOADER_PADDING / 2.0f, LOADER_WIDTH * 0.5f, LOADER_LENGTH * 0.5f},
+        { LOADER_X, -(FIELD_SIZE / 2.0f) + LOADER_RADIUS + LOADER_PADDING / 2.0f, LOADER_WIDTH * 0.5f, LOADER_LENGTH * 0.5f},
+        {-GOAL_POST_X, -GOAL_POST_Y, GOAL_POST_WIDTH * 0.5f, GOAL_POST_LENGTH * 0.5f},
+        {-GOAL_POST_X,  GOAL_POST_Y, GOAL_POST_WIDTH * 0.5f, GOAL_POST_LENGTH * 0.5f},
+        { GOAL_POST_X,  GOAL_POST_Y, GOAL_POST_WIDTH * 0.5f, GOAL_POST_LENGTH * 0.5f},
+        { GOAL_POST_X, -GOAL_POST_Y, GOAL_POST_WIDTH * 0.5f, GOAL_POST_LENGTH * 0.5f},
+        {MIDDLE_GOAL.first, MIDDLE_GOAL.second, MIDDLE_WIDTH * 0.5f, MIDDLE_LENGTH * 0.5f}
+    };
 
     pros::Mutex particle_mutex;
 
@@ -72,94 +80,75 @@ namespace MCL {
     };
     XorShift32 rng;
 
-    struct Intersect {
-        float dist;
-        bool is_vertical;
-    };
+    void init_distance_map() {
+        if (map_initialized) return;
+        
+        std::queue<std::pair<int, int>> q;
 
-    inline std::optional<Intersect> check_bbox(float sx, float sy, float idx, float idy, float cx, float cy, float w, float h) {
-        float hw = w * 0.5f, hh = h * 0.5f;
-        float t1 = (cx - hw - sx) * idx;
-        float t2 = (cx + hw - sx) * idx;
-        float tmin_x = std::min(t1, t2);
-        float tmax_x = std::max(t1, t2);
-        
-        float t3 = (cy - hh - sy) * idy;
-        float t4 = (cy + hh - sy) * idy;
-        float tmin_y = std::min(t3, t4);
-        float tmax_y = std::max(t3, t4);
-        
-        float tmin = std::max(tmin_x, tmin_y);
-        float tmax = std::min(tmax_x, tmax_y);
-        
-        if (tmax < 0.0f || tmin > tmax) return std::nullopt;
-        float t;
-        bool is_vert;
-        if (tmin < 0.0f) {
-            t = tmax;
-            is_vert = (tmax_x < tmax_y);
-        } else {
-            t = tmin;
-            is_vert = (tmin_x > tmin_y);
-        }
-        
-        return Intersect{t, is_vert};
-    }
+        for (int x = 0; x < GRID_SIZE; x++) {
+            for (int y = 0; y < GRID_SIZE; y++) {
+                distance_map[x][y] = 999.0f;
+                
+                float world_x = (x * GRID_RES) - HALF_SIZE;
+                float world_y = (y * GRID_RES) - HALF_SIZE;
 
-    inline std::optional<Intersect> get_map_intersect(float sx, float sy, float idx, float idy) {
-        float min_t = 100.0f;
-        bool hit = false;
-        bool is_vert = false;
-        
-        auto check = [&](float cx, float cy, float w, float h) {
-            auto res = check_bbox(sx, sy, idx, idy, cx, cy, w, h);
-            if (res && res->dist < min_t) {
-                min_t = res->dist;
-                is_vert = res->is_vertical;
-                hit = true;
+                bool is_obstacle = false;
+                
+                if (world_x <= FIELD_MIN + 1.0f || world_x >= FIELD_MAX - 1.0f ||
+                    world_y <= FIELD_MIN + 1.0f || world_y >= FIELD_MAX - 1.0f) {
+                    is_obstacle = true;
+                } else {
+                    for (int i = 0; i < 9; i++) {
+                        const auto& obs = FIELD_OBSTACLES[i];
+                        if (std::abs(world_x - obs.cx) <= obs.hw && 
+                            std::abs(world_y - obs.cy) <= obs.hh) {
+                            is_obstacle = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (is_obstacle) {
+                    distance_map[x][y] = 0.0f;
+                    q.push({x, y});
+                }
             }
-        };
-        
-        check(0.0f, 0.0f, FIELD_SIZE, FIELD_SIZE);
-        for (const auto& l : LOADERS) check(l.first, l.second, LOADER_WIDTH, LOADER_LENGTH);
-        for (const auto& p : GOAL_POSTS) check(p.first, p.second, GOAL_POST_WIDTH, GOAL_POST_LENGTH);
-        check(MIDDLE_GOAL.first, MIDDLE_GOAL.second, MIDDLE_WIDTH, MIDDLE_LENGTH);
-        
-        if (hit) return Intersect{min_t, is_vert};
-        return std::nullopt;
+        }
+
+        int dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
+        int dy[] = {0, 0, -1, 1, -1, 1, -1, 1};
+        float cost[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.414f, 1.414f, 1.414f, 1.414f}; 
+
+        while (!q.empty()) {
+            auto [cx, cy] = q.front();
+            q.pop();
+
+            float current_dist = distance_map[cx][cy];
+
+            for (int i = 0; i < 8; i++) {
+                int nx = cx + dx[i];
+                int ny = cy + dy[i];
+
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                    float new_dist = current_dist + cost[i] * GRID_RES;
+                    if (new_dist < distance_map[nx][ny]) {
+                        distance_map[nx][ny] = new_dist;
+                        q.push({nx, ny});
+                    }
+                }
+            }
+        }
+        map_initialized = true;
     }
 
-    struct Reading {
-        float recorded;
-        float inv_var;
-        float std_dev;
-        float rel_x, rel_y;
-        float dir_x, dir_y;
-        float idx, idy;
-
-        Reading(float rec, float sdev, float rx, float ry, float dx, float dy, float ix, float iy)
-            : recorded(rec), inv_var(-0.5f / (sdev * sdev)), std_dev(sdev), 
-              rel_x(rx), rel_y(ry), dir_x(dx), dir_y(dy), idx(ix), idy(iy) {}
-        
-        inline float calculate_likelihood(const Intersect& inter) const {
-            float error = recorded - inter.dist;
-            float p_hit = std::exp(inv_var * error * error); 
-            float cos_weight = inter.is_vertical ? std::abs(dir_x) : std::abs(dir_y);
-            p_hit *= std::max(cos_weight, 0.05f); 
-            
-            constexpr float Z_HIT = 0.985f;
-            constexpr float Z_RAND = 0.015f;
-            constexpr float P_RAND = 1.0f / 140.0f; 
-            
-            return (Z_HIT * p_hit) + (Z_RAND * P_RAND);
-        }
-    };
-
-    float particle_x[NUM_PARTICLES];
-    float particle_y[NUM_PARTICLES];
-    float particle_weights[NUM_PARTICLES];
-    float temp_x[NUM_PARTICLES];
-    float temp_y[NUM_PARTICLES];
+    Eigen::ArrayXf particle_x(NUM_PARTICLES);
+    Eigen::ArrayXf particle_y(NUM_PARTICLES);
+    Eigen::ArrayXf particle_weights(NUM_PARTICLES);
+    Eigen::ArrayXf temp_x(NUM_PARTICLES);
+    Eigen::ArrayXf temp_y(NUM_PARTICLES);
+    Eigen::ArrayXf log_weights(NUM_PARTICLES); 
+    Eigen::ArrayXf noise_X(NUM_PARTICLES);     
+    Eigen::ArrayXf noise_Y(NUM_PARTICLES);
 
     MCLDistanceSensor::MCLDistanceSensor(pros::Distance sensor_, double localX, double localY, double angleDeg) 
         : Sensor(sensor_), LocalX(localX), LocalY(localY), AngleDeg(angleDeg) {
@@ -192,13 +181,15 @@ namespace MCL {
     }
 
     void StartMCL(double x, double y) {
+        init_distance_map(); 
+
         particle_mutex.take();
         rng = XorShift32(pros::micros());
         for (int i = 0; i < NUM_PARTICLES; ++i) {
             particle_x[i] = std::clamp((float)x + rng.gaussian(2.0f), FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
             particle_y[i] = std::clamp((float)y + rng.gaussian(2.0f), FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
-            particle_weights[i] = 1.0f / NUM_PARTICLES;
         }
+        particle_weights.fill(1.0f / NUM_PARTICLES); 
         w_slow = 1.0f / NUM_PARTICLES;
         w_fast = 1.0f / NUM_PARTICLES;
         particle_mutex.give();
@@ -210,7 +201,6 @@ namespace MCL {
         float Neff = NUM_PARTICLES;
         
         while (true) {
-            uint32_t loop_start_micros = pros::micros(); 
             lemlib::Pose currOdom = chassis.getPose();
 
             double dX_global = currOdom.x - prevOdom.x;
@@ -231,6 +221,10 @@ namespace MCL {
                 continue; 
             }
             
+            constexpr int MIN_PARTICLES = 150;
+            int current_particles = MIN_PARTICLES + (int)((1.0f - global_Confidence) * (NUM_PARTICLES - MIN_PARTICLES));
+            current_particles = std::clamp(current_particles, MIN_PARTICLES, NUM_PARTICLES);
+
             double dist = std::hypot(dX_global, dY_global);
             double c = 1.0 - global_Confidence;
             
@@ -238,115 +232,94 @@ namespace MCL {
             double dynamic_gain = PARAMS_TRANS_GAIN + c * 0.04f;
             double transStd = dynamic_base + dynamic_gain * dist + 0.15 * std::abs(dTheta);
 
-            for (int i = 0; i < NUM_PARTICLES; i++) {
+            for (int i = 0; i < current_particles; i++) {
                 float noise_F = rng.gaussian(transStd);
                 float noise_S = rng.gaussian(transStd);
-
-                float noise_X = noise_F * robot_cos - noise_S * robot_sin;
-                float noise_Y = noise_F * robot_sin + noise_S * robot_cos;
-
-                particle_x[i] += dX_global + noise_X;
-                particle_y[i] += dY_global + noise_Y;
-
-                particle_x[i] = std::clamp(particle_x[i], FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
-                particle_y[i] = std::clamp(particle_y[i], FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
+                noise_X[i] = noise_F * robot_cos - noise_S * robot_sin;
+                noise_Y[i] = noise_F * robot_sin + noise_S * robot_cos;
             }
 
-            std::vector<Reading> readings;
+            particle_x.head(current_particles) = (particle_x.head(current_particles) + dX_global + noise_X.head(current_particles)).cwiseMax(FIELD_MIN + 0.1f).cwiseMin(FIELD_MAX - 0.1f);
+            particle_y.head(current_particles) = (particle_y.head(current_particles) + dY_global + noise_Y.head(current_particles)).cwiseMax(FIELD_MIN + 0.1f).cwiseMin(FIELD_MAX - 0.1f);
+
+            bool took_measurements = false;
+
             for (auto& s : Sensors) {
                 s.Measure();
-                if (s.measurement > 0.0f && s.measurement < 100.0f) { 
+                if (s.measurement > 0.0f && s.measurement < FIELD_SIZE) { 
+                    took_measurements = true;
                     
-                    float rel_x = s.LocalX * robot_cos - s.LocalY * robot_sin;
-                    float rel_y = s.LocalX * robot_sin + s.LocalY * robot_cos;
-
+                    float rel_x = robot_cos * s.LocalX - robot_sin * s.LocalY;
+                    float rel_y = robot_sin * s.LocalX + robot_cos * s.LocalY;
                     float dir_x = robot_cos * s.cos_off - robot_sin * s.sin_off;
                     float dir_y = robot_sin * s.cos_off + robot_cos * s.sin_off;
-                    float mag = std::hypot(dir_x, dir_y);
-                    dir_x /= mag;
-                    dir_y /= mag;
-                    float idx = (std::abs(dir_x) < 1e-6f) ? ((dir_x < 0) ? -1e6f : 1e6f) : (1.0f / dir_x);
-                    float idy = (std::abs(dir_y) < 1e-6f) ? ((dir_y < 0) ? -1e6f : 1e6f) : (1.0f / dir_y);
+
                     float d = s.measurement;
                     float bound = d < 7.874015f ? 0.590551f : 0.05f * d;
-                    float dynamic_k = 1.0f + global_Confidence * 4.0f;          
+                    float dynamic_k = 1.0f + global_Confidence * 4.0f;
                     float std_dev = std::max(bound / dynamic_k, 0.4f + 0.015f * d + 0.0004f * d * d);
-                    auto odom_inter = get_map_intersect(currOdom.x + rel_x, currOdom.y + rel_y, idx, idy);
-                    if (odom_inter) {
-                        float error = std::abs(odom_inter->dist - d);
-                        float gate = std::max(4.0f * std_dev, 10.0f + 20.0f * (1.0f - (float)global_Confidence));
-                        if (error > gate) continue; 
-                    } else {
-                        continue; 
-                    }
+                    float variance2 = 2.0f * (std_dev * std_dev);
 
-                    readings.emplace_back(d, std_dev, rel_x, rel_y, dir_x, dir_y, idx, idy);
+                    constexpr float Z_HIT = 0.95f; 
+                    constexpr float Z_RAND = 0.05f;
+                    constexpr float P_RAND = 1.0f / 140.0f; 
+
+                    for (int i = 0; i < current_particles; i++) {
+                        float end_x = particle_x[i] + rel_x + (dir_x * d);
+                        float end_y = particle_y[i] + rel_y + (dir_y * d);
+
+                        int gx = std::clamp((int)((end_x + HALF_SIZE) / GRID_RES), 0, GRID_SIZE - 1);
+                        int gy = std::clamp((int)((end_y + HALF_SIZE) / GRID_RES), 0, GRID_SIZE - 1);
+
+                        float dist_to_wall = distance_map[gx][gy];
+                        float p_hit = std::exp(-(dist_to_wall * dist_to_wall) / variance2);
+                        
+                        float prob = (Z_HIT * p_hit) + (Z_RAND * P_RAND);
+                        
+                        if (i == 0) log_weights[i] = std::log(prob); 
+                        else log_weights[i] += std::log(prob);
+                    }
                 }
             }
 
-            if (!readings.empty()) {
-                float max_log_weight = -std::numeric_limits<float>::infinity();
-                float log_weights[NUM_PARTICLES];
+            if (took_measurements) {
+                float max_log_weight = log_weights.head(current_particles).maxCoeff();
+                particle_weights.head(current_particles) = (log_weights.head(current_particles) - max_log_weight).cwiseMax(-80.0f).exp();
                 
-                for (int i = 0; i < NUM_PARTICLES; i++) {
-                    float log_weight = 0.0f; 
-                    float px = particle_x[i];
-                    float py = particle_y[i];
-                    
-                    for (const auto& r : readings) {
-                        auto predicted = get_map_intersect(px + r.rel_x, py + r.rel_y, r.idx, r.idy);
-                        if (predicted) {
-                            log_weight += std::log(r.calculate_likelihood(predicted.value()));
-                        } else {
-                            log_weight += std::log(0.001f); 
-                        }
-                    }
-                    
-                    log_weights[i] = log_weight;
-                    if (log_weight > max_log_weight) max_log_weight = log_weight;
-                }
-
-                float weight_sum = 0.0f;
-                for (int i = 0; i < NUM_PARTICLES; i++) {
-                    particle_weights[i] = std::exp(log_weights[i] - max_log_weight);
-                    weight_sum += particle_weights[i];
-                }
-
+                float weight_sum = particle_weights.head(current_particles).sum();
                 float avg_weight = 0.0f;
+
                 if (weight_sum > 0.0f) {
-                    avg_weight = weight_sum / NUM_PARTICLES;
-                    float inv_weight_sum = 1.0f / weight_sum;
-                    for (int i = 0; i < NUM_PARTICLES; i++) particle_weights[i] *= inv_weight_sum;
+                    avg_weight = weight_sum / current_particles;
+                    particle_weights.head(current_particles) /= weight_sum; 
                 } else {
-                    float uniform_weight = 1.0f / NUM_PARTICLES;
-                    for (int i = 0; i < NUM_PARTICLES; i++) particle_weights[i] = uniform_weight;
+                    float uniform_weight = 1.0f / current_particles;
+                    particle_weights.head(current_particles).fill(uniform_weight); 
                     avg_weight = uniform_weight;
                 }
 
                 w_slow += ALPHA_SLOW * (avg_weight - w_slow);
                 w_fast += ALPHA_FAST * (avg_weight - w_fast);
+            } else {
+                particle_weights.head(current_particles).fill(1.0f / current_particles);
             }
-            float mX = 0, mY = 0;
-            float neff_sum = 0.0f;
 
-            for (int i = 0; i < NUM_PARTICLES; i++) {
-                mX += particle_x[i] * particle_weights[i];
-                mY += particle_y[i] * particle_weights[i];
-                neff_sum += particle_weights[i] * particle_weights[i];
-            }
+            float mX = (particle_x.head(current_particles) * particle_weights.head(current_particles)).sum();
+            float mY = (particle_y.head(current_particles) * particle_weights.head(current_particles)).sum();
+            float neff_sum = (particle_weights.head(current_particles) * particle_weights.head(current_particles)).sum();
             
             global_X = mX; 
             global_Y = mY; 
             global_Theta = currOdom.theta; 
             
             Neff = (neff_sum > 0.0f) ? (1.0f / neff_sum) : 0.0f;
-            global_Confidence = std::clamp(Neff / NUM_PARTICLES, 0.0f, 1.0f); 
+            global_Confidence = std::clamp(Neff / current_particles, 0.0f, 1.0f); 
 
-            if (Neff < 0.5f * NUM_PARTICLES) {
+            if (Neff < 0.5f * current_particles) {
                 float injectP = std::max(0.0f, 1.0f - (w_fast / std::max(w_slow, 1e-6f)));
                 injectP = std::clamp(injectP, 0.0f, 0.30f); 
 
-                int keep_count = NUM_PARTICLES * (1.0f - injectP);
+                int keep_count = current_particles * (1.0f - injectP);
                 if (keep_count > 0) {
                     float r = rng.next_f32() * (1.0f / keep_count);
                     float c = particle_weights[0];
@@ -356,7 +329,7 @@ namespace MCL {
                     
                     for (int m = 0; m < keep_count; m++) {
                         float U = r + m * (1.0f / keep_count);
-                        while (U > c && i < NUM_PARTICLES - 1) {
+                        while (U > c && i < current_particles - 1) {
                             i++;
                             c += particle_weights[i];
                         }
@@ -365,16 +338,16 @@ namespace MCL {
                     }
                 }
 
-                float spread = 10.0f + (1.0f - global_Confidence) * 15.0f;
-                for (int m = keep_count; m < NUM_PARTICLES; m++) {
-                    temp_x[m] = std::clamp((float)currOdom.x + rng.gaussian(spread), FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
-                    temp_y[m] = std::clamp((float)currOdom.y + rng.gaussian(spread), FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
+                for (int m = keep_count; m < current_particles; m++) {
+                    temp_x[m] = rng.range_f32(FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
+                    temp_y[m] = rng.range_f32(FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
                 }
-                std::copy(temp_x, temp_x + NUM_PARTICLES, particle_x);
-                std::copy(temp_y, temp_y + NUM_PARTICLES, particle_y);
-                float uniform = 1.0f / NUM_PARTICLES;
-                for (int m=0; m<NUM_PARTICLES; m++) particle_weights[m] = uniform;
+
+                particle_x.head(current_particles) = temp_x.head(current_particles);
+                particle_y.head(current_particles) = temp_y.head(current_particles);
+                particle_weights.head(current_particles).fill(1.0f / current_particles);
             }
+
             constexpr float ALPHA_MAX = 0.12f; 
             float alpha = ALPHA_MAX * (global_Confidence * global_Confidence);
 
