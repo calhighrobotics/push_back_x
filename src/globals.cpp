@@ -1,102 +1,141 @@
-#include <sstream>
-#include <string>
-#include "lemlib/chassis/trackingWheel.hpp"
-#include "pros/colors.hpp"
-#include "pros/distance.hpp"
-#include "pros/misc.h"
-#include "lemlib/chassis/chassis.hpp"
-#include "pros/adi.h"
-#include "pros/adi.hpp"
+#include "api.h"
+#include "lemlib/api.hpp"
 #include "pros/motors.h"
-#include "pros/optical.hpp"
-#include "pros/vision.hpp"
-#include "colorSort.h"
 
+
+
+
+//Initialize the controller variable with the primary controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup rightMotors({8,-9,10}, pros::MotorGears::blue);
-pros::MotorGroup leftMotors({-1,2,-3}, pros::MotorGears::blue);
 
-lemlib::Drivetrain drivebase(
-    &leftMotors, 
-    &rightMotors, 
-    11.5, 
-    lemlib::Omniwheel::NEW_325, 
-    450, 
-    5);
+signed char LEFT_BACK = -1;
+signed char LEFT_MID = 2;
+signed char LEFT_FRONT = -7;
 
-pros::Imu imu(19);
 
-pros::Rotation horizontal_tracking_sensor(20);
-pros::Rotation vertical_tracking_sensor(-16);
+signed char RIGHT_BACK = 10;
+signed char RIGHT_MID = -9;
+signed char RIGHT_FRONT = 8;
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, lemlib::Omniwheel::NEW_2, -6.37728606611, 1); //Units are in inches
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, lemlib::Omniwheel::NEW_2, 0.110912828986,1);
+signed char intake_port = 5;
+signed char hood_port = 4;
 
-lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
+pros::Motor intake_motor(intake_port);
+pros::Motor hood_motor(hood_port);
 
-// lateral PID controller
-lemlib::ControllerSettings lateral_controller(11, // proportional gain (kP)
-                                              0, // integral gain (kI)
-                                              40, // derivative gain (kD)
-                                              3, // anti windup
-                                              0.5, // small error range, in inches
-                                              50, // small error range timeout, in milliseconds
-                                              3, // large error range, in inches
-                                              200, // large error range timeout, in milliseconds
-                                              35 // maximum acceleration (slew)
+
+pros::Motor left_back (LEFT_BACK, pros::v5::MotorGears::blue);
+pros::Motor left_mid (LEFT_MID, pros::v5::MotorGears::blue);
+pros::Motor left_front (LEFT_FRONT, pros::v5::MotorGears::blue);
+
+pros::Motor right_back (RIGHT_BACK, pros::v5::MotorGears::blue);
+pros::Motor right_mid (RIGHT_MID, pros::v5::MotorGears::blue);
+pros::Motor right_front (RIGHT_FRONT, pros::v5::MotorGears::blue);
+
+
+//Initialize the motor group for the left motors with ports 1, 2, and 3, denoting the blue gear cartrige
+pros::MotorGroup leftMotors({LEFT_BACK,LEFT_MID, LEFT_FRONT}, pros::v5::MotorGears::blue);
+
+//Initialize the motor group for the right motors with ports 4, 5, and 6, denoting the blue cartidge
+//The negative sign for the ports indicate the motors will run in reverse, as one side always must
+pros::MotorGroup rightMotors({RIGHT_BACK, RIGHT_MID, RIGHT_FRONT}, pros::v5::MotorGears::blue);
+
+//Rotation sensor ports
+uint8_t rot_sensor_horiz = -19;
+uint8_t rot_sensor_vert = 20;
+
+//Horizontal sensor
+pros::Rotation rotation_horiz(rot_sensor_horiz);
+lemlib::TrackingWheel horizontalTracking(&rotation_horiz, 2.0f, 0.68);
+
+//Vertical sensor
+pros::Rotation rotation_vert(rot_sensor_vert);
+lemlib::TrackingWheel verticalTracking(&rotation_vert, 2.0f, 0.95);
+
+
+#define FRONT_DISTANCE_PORT 12
+pros::Distance front_sensor(FRONT_DISTANCE_PORT);
+
+#define LEFT_DISTANCE_PORT 18
+pros::Distance left_sensor(LEFT_DISTANCE_PORT);
+
+#define RIGHT_DISTANCE_PORT 16
+pros::Distance right_sensor(RIGHT_DISTANCE_PORT);
+
+#define BACK_DISTANCE_PORT 17
+pros::Distance back_sensor(BACK_DISTANCE_PORT);
+
+#define MATCH_LOADER_PORT 'B'
+#define ODOM_LIFTER_PORT 'C'
+#define WING_PORT 'A'
+#define INDEXER_PORT 'D'
+#define EXTENDER_PORT 'E'
+
+pros::adi::DigitalOut mloader (MATCH_LOADER_PORT);
+pros::adi::DigitalOut odom_lifter (ODOM_LIFTER_PORT);
+pros::adi::DigitalOut chicken_wing (WING_PORT);
+pros::adi::DigitalOut indexer (INDEXER_PORT);
+pros::adi::DigitalOut extender (EXTENDER_PORT);
+
+
+
+lemlib::Drivetrain drivetrain(
+    &leftMotors, // the left motor group
+    &rightMotors, // the right motor group
+    12.75, //25 inch track width
+    3.25, //Wheel size
+    450, // our drivetrain RPM
+    2 // optimal drift value for all-omni drivetrain
 );
 
-// angular PID controller
-lemlib::ControllerSettings angular_controller(3, // proportional gain (kP)
-                                              0.0015, // integral gain (kI)
-                                              24, // derivative gain (kD)
-                                               3, // anti windup
-                                              1, // small error range, in inches
-                                              25, // small error range timeout, in milliseconds
-                                              3, // large error range, in inches
-                                              100, // large error range timeout, in milliseconds
-                                              0 // maximum acceleration (slew)
+lemlib::OdomSensors sensors(&verticalTracking, // vertical tracking wheel
+                            nullptr, // vertical tracking wheel 2, DNE
+                            &horizontalTracking, // horizontal tracking wheel
+                            nullptr, // horizontal tracking wheel 2, DNE
+                            nullptr // inertial sensor
 );
 
-lemlib::ExpoDriveCurve throttle_curve(5,    // joystick deadband out of 127
-                                            10,   // minimum output where drivetrain will move out of 127
-                                            1.01 // expo curve gain
+// Lateral (forward/backward)
+lemlib::ControllerSettings lateralPID(      15, // proportional gain (kP)
+                                            0, // integral gain (kI)
+                                            120, // derivative gain (kD)
+                                            0, // anti windup
+                                            0, // small error range, in inches
+                                            0, // small error range timeout, in milliseconds
+                                            0, // large error range, in inches
+                                            0, // large error range timeout, in milliseconds
+                                            0 // maximum acceleration (slew)
 );
 
-lemlib::ExpoDriveCurve steer_curve(5,   // joystick deadband out of 127
-                                         10,   // minimum output where drivetrain will move out of 127
-                                         1.02 // expo curve gain
+// Angular (turning)
+lemlib::ControllerSettings angularPID(7, // proportional gain (kP)
+                                        0, // integral gain (kI)
+                                        47, // derivative gain (kD)
+                                        0, // anti windup
+                                        0, // small error range, in inches
+                                        0, // small error range timeout, in milliseconds
+                                        0, // large error range, in inches
+                                        0, // large error range timeout, in milliseconds
+                                        0 // maximum acceleration (slew)
 );
 
 
-lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
-
-pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
-pros::Motor topMotor(7, pros::v5::MotorGears::blue);
 
 
-pros::Distance rightDistance(6);
-pros::Distance leftDistance(12);
-pros::Distance frontDistance(13);
-pros::Distance backDistance(11);
+lemlib::ExpoDriveCurve throttleCurve(5, 12, 1.019); // deadband, minOutput, curve
+lemlib::ExpoDriveCurve steerCurve(5, 8, 1.05); // deadband, minOutput, curve
 
-pros::adi::Pneumatics trapDoor('A', false);
-pros::adi::Pneumatics matchload('B', false);
-pros::adi::Pneumatics basket('C', false);
-pros::adi::Pneumatics descore('D', false);
+lemlib::Chassis chassis(
+    drivetrain,
+    lateralPID,     // lateral PID settings
+    angularPID,     // angular PID settings
+    sensors,
+    &throttleCurve,
+    &steerCurve
+);
 
-pros::Optical color_sensor(5);
+// Note: do not run executable code at namespace scope. Set the chassis
+// during runtime initialization (e.g., in initialize()).
 
-pros::Vision vision_sensor(16);
-
-Color allianceColor = Color::RED;
-bool color_sort_enable = false;
-bool midgoal_first = false;
-
-
-
-
-
-
-
+pros::AIVision ai_vision(15);

@@ -1,67 +1,76 @@
 #pragma once
 
-#include "pros/distance.hpp"
-#include "pros/misc.h"
-#include "lemlib/chassis/chassis.hpp"
-#include "pros/adi.h"
-#include "pros/adi.hpp"
+#include "api.h"
+#include "lemlib/api.hpp"
+#include "pros/ai_vision.hpp"
 #include "pros/motors.h"
-#include "pros/optical.hpp"
-#include "pros/vision.hpp"
-#include "colorSort.h"
-
-
-struct State {
-    float x, y, heading, linear_vel, angular_vel;
-} ;
 
 
 
 
+// Controller
 extern pros::Controller controller;
 
-extern pros::MotorGroup rightMotors;
+// Motor ports
+extern signed char LEFT_BACK;
+extern signed char LEFT_MID;
+extern signed char LEFT_FRONT;
+
+extern signed char RIGHT_BACK;
+extern signed char RIGHT_MID;
+extern signed char RIGHT_FRONT;
+
+extern pros::Motor left_back;
+extern pros::Motor left_mid;
+extern pros::Motor left_front;
+
+extern pros::Motor right_back;
+extern pros::Motor right_mid;
+extern pros::Motor right_front;
+
+// Motors
+extern pros::Motor flywheel_motor;
+extern pros::Motor intake_motor;
+
+extern pros::Motor flywheel_motor;
+extern pros::Motor hood_motor;
+
+// Motor groups
 extern pros::MotorGroup leftMotors;
+extern pros::MotorGroup rightMotors;
 
-extern lemlib::Drivetrain drivebase;
+//pneumatics
+extern pros::adi::DigitalOut chicken_wing;
+extern pros::adi::DigitalOut mloader;
+extern pros::adi::DigitalOut odom_lifter;
+extern pros::adi::DigitalOut indexer;
+extern pros::adi::DigitalOut extender;
 
-extern pros::IMU imu;
-extern pros::Rotation horizontal_tracking_sensor;
-extern pros::Rotation vertical_tracking_sensor;
+// Drivetrain
+extern lemlib::Drivetrain drivetrain;
 
-extern lemlib::TrackingWheel horizontal_tracking_wheel;
-extern lemlib::TrackingWheel vertical_tracking_wheel;
-
+// Odometry / Sensors
+extern pros::Rotation rotation_horiz;
+extern pros::Rotation rotation_vert;
+extern pros::Imu imu;
 extern lemlib::OdomSensors sensors;
 
-extern lemlib::ControllerSettings lateral_controller;
-extern lemlib::ControllerSettings angular_controller;
+extern pros::Distance front_sensor;
+extern pros::Distance left_sensor;
+extern pros::Distance right_sensor;
+extern pros::Distance back_sensor;
 
-extern lemlib::ExpoDriveCurve throttle_curve;
-extern lemlib::ExpoDriveCurve steer_curve;
+// PID Controllers
+extern lemlib::ControllerSettings lateralPID;
+extern lemlib::ControllerSettings angularPID;
 
+// Drive curve
+extern lemlib::ExpoDriveCurve throttleCurve;
+extern lemlib::ExpoDriveCurve steerCurve;
+
+// Chassis
 extern lemlib::Chassis chassis;
-extern pros::Motor intakeMotor;
-extern pros::Motor topMotor;
 
+extern pros::AIVision ai_vision;
 
-
-extern pros::Distance rightDistance;
-extern pros::Distance leftDistance;
-extern pros::Distance frontDistance;
-extern pros::Distance backDistance;
-
-
-extern pros::adi::Pneumatics trapDoor;
-extern pros::adi::Pneumatics matchload;
-extern pros::adi::Pneumatics basket;
-extern pros::adi::Pneumatics descore;
-
-extern pros::Optical color_sensor;
-
-extern pros::Vision vision_sensor;
-
-extern Color allianceColor;
-extern bool color_sort_enable;
-extern bool midgoal_first;
 
