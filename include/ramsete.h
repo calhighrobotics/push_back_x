@@ -15,8 +15,8 @@ public:
         bool backwards = false;
         bool log = false;
         int path_index  = -1;
-        float b = 2.0f;
-        float zeta = 0.7f;
+        float b = 2.5;
+        float zeta = 0.9f;
         bool test = false;
         bool turnFirst = false;
         bool end_correction = false;
@@ -25,27 +25,21 @@ public:
 
     RamsetePathFollower(const VelocityControllerConfig& config, float b_, float zeta_);
 
-    // --- Main Methods ---
-    // Now launches a task and returns immediately
     void followPath(const std::string& path_name, const ramseteConfig& r_config);
-    
-    // Blocks until the movement is complete
+
     void waitUntilDone();
 
-    // Blocks until the robot has traveled 'dist_inches' along the path
     void waitUntil(float dist_inches);
     
-    // Stops the current movement immediately
     void cancel();
 
-    // Returns true if the robot is currently following a path
     bool isRunning();
 
     void precompute_paths(const std::vector<std::string>& path_names);
 
 private:
     static constexpr float INCH_TO_METER = 0.0254f;
-    static constexpr float TRACK_WIDTH = 12.8f;
+    static constexpr float TRACK_WIDTH = 11.55f;
     static constexpr float wheel_circumference = (float)lemlib::Omniwheel::NEW_325 * M_PI * INCH_TO_METER;
     static constexpr float gear_ratio = 4.0f / 3.0f;
     static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
