@@ -16,7 +16,74 @@ Established terminal connection
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar 13 2026 19:57:22     Directory:                        
+Compiled:   Mar 17 2026 14:59:14     Directory:                        
+
+
+Odom:(-44.8, -12.3) MCL:(-44.8, -12.3) Conf:1.00 | Raw Sensors: F:-1.0 B:23.6 L:80.4 R:53.6
+Odom:(-44.7, -12.3) MCL:(-44.7, -12.3) Conf:1.00 | Raw Sensors: F:-1.0 B:23.6 L:80.6 R:53.7
+Odom:(-44.7, -12.3) MCL:(-44.7, -12.3) Conf:1.00 | Raw Sensors: F:-1.0 B:23.6 L:80.4 R:53.9
+Odom:(-33.0, -12.8) MCL:(-24.2, -15.0) Conf:0.68 | Raw Sensors: F:-1.0 B:31.2 L:80.3 R:53.9
+Odom:(-23.8, -10.0) MCL:(-22.4, -8.7) Conf:0.83 | Raw Sensors: F:-1.0 B:39.2 L:-1.0 R:53.5
+Odom:(-23.7, -9.7) MCL:(-21.1, -10.2) Conf:0.41 | Raw Sensors: F:-1.0 B:34.3 L:81.1 R:53.3
+Odom:(-24.6, -10.5) MCL:(-20.1, -13.3) Conf:0.02 | Raw Sensors: F:82.4 B:57.7 L:27.1 R:-1.0
+Odom:(-19.6, -12.9) MCL:(-14.6, -14.2) Conf:0.65 | Raw Sensors: F:82.7 B:57.6 L:27.8 R:-1.0
+Odom:(-19.6, -12.9) MCL:(-14.0, -14.5) Conf:0.54 | Raw Sensors: F:82.8 B:57.6 L:28.0 R:-1.0
+Odom:(-13.9, -14.6) MCL:(-12.4, -14.9) Conf:0.59 | Raw Sensors: F:85.0 B:58.8 L:29.1 R:-1.0
+Odom:(-16.6, -2.5) MCL:(-9.6, -13.5) Conf:0.26 | Raw Sensors: F:74.1 B:70.0 L:26.7 R:36.9
+Odom:(-21.7, 16.0) MCL:(-11.8, -14.5) Conf:0.67 | Raw Sensors: F:56.5 B:-1.0 L:21.5 R:-1.0
+Odom:(-17.4, 4.3) MCL:(-17.2, 3.5) Conf:1.00 | Raw Sensors: F:36.2 B:-1.0 L:15.6 R:-1.0
+Odom:(-23.0, 21.5) MCL:(-23.0, 21.5) Conf:1.00 | Raw Sensors: F:17.3 B:-1.0 L:5.4 R:-1.0
+Odom:(-26.7, 36.3) MCL:(-28.0, 40.7) Conf:0.38 | Raw Sensors: F:14.2 B:8.2 L:4.6 R:-1.0
+Odom:(-24.2, 36.9) MCL:(-22.0, 40.7) Conf:1.00 | Raw Sensors: F:-1.0 B:17.7 L:16.6 R:11.9
+Odom:(-5.1, 31.2) MCL:(-4.3, 31.6) Conf:0.50 | Raw Sensors: F:-1.0 B:33.9 L:29.8 R:33.0
+Odom:(4.7, 26.1) MCL:(-10.7, 35.2) Conf:0.45 | Raw Sensors: F:-1.0 B:40.7 L:33.0 R:-1.0
+Odom:(14.7, 24.2) MCL:(-12.8, 45.5) Conf:0.43 | Raw Sensors: F:-1.0 B:47.2 L:33.9 R:-1.0
+Odom:(-5.1, 44.4) MCL:(-7.0, 45.9) Conf:1.00 | Raw Sensors: F:85.0 B:54.3 L:10.9 R:-1.0
+Odom:(-0.2, 44.9) MCL:(-12.4, 50.8) Conf:0.55 | Raw Sensors: F:79.9 B:60.1 L:34.9 R:-1.0
+Odom:(-4.2, 48.7) MCL:(-12.6, 51.5) Conf:0.55 | Raw Sensors: F:74.7 B:65.1 L:35.0 R:-1.0
+Odom:(-3.2, 49.8) MCL:(-13.2, 51.8) Conf:0.70 | Raw Sensors: F:68.9 B:70.7 L:35.1 R:-1.0
+Odom:(-5.2, 51.0) MCL:(-12.8, 52.0) Conf:0.48 | Raw Sensors: F:63.6 B:76.4 L:35.2 R:25.7
+Odom:(-5.1, 51.6) MCL:(-13.1, 52.3) Conf:0.59 | Raw Sensors: F:57.5 B:82.5 L:35.2 R:28.1
+Odom:(-5.7, 51.7) MCL:(-13.4, 51.7) Conf:0.60 | Raw Sensors: F:52.1 B:-1.0 L:35.3 R:-1.0
+Odom:(-5.6, 51.6) MCL:(-13.5, 51.5) Conf:0.65 | Raw Sensors: F:46.2 B:-1.0 L:35.5 R:-1.0
+Odom:(-8.0, 51.5) MCL:(-11.8, 51.4) Conf:0.08 | Raw Sensors: F:40.5 B:-1.0 L:35.4 R:-1.0
+Odom:(-6.0, 51.5) MCL:(-13.3, 51.7) Conf:0.57 | Raw Sensors: F:35.0 B:-1.0 L:35.6 R:-1.0
+Odom:(-6.1, 51.8) MCL:(-13.3, 52.1) Conf:0.59 | Raw Sensors: F:29.1 B:-1.0 L:35.6 R:-1.0
+Odom:(-4.4, 52.0) MCL:(-13.6, 52.3) Conf:0.61 | Raw Sensors: F:23.6 B:-1.0 L:35.8 R:-1.0
+Odom:(-2.9, 52.1) MCL:(-13.8, 54.1) Conf:0.66 | Raw Sensors: F:17.9 B:-1.0 L:35.8 R:-1.0
+Odom:(2.2, 52.1) MCL:(-15.2, 57.8) Conf:0.40 | Raw Sensors: F:12.9 B:-1.0 L:35.9 R:-1.0
+Odom:(8.0, 52.0) MCL:(-10.5, 65.4) Conf:0.59 | Raw Sensors: F:7.5 B:-1.0 L:36.5 R:-1.0
+Odom:(-0.2, 55.0) MCL:(-14.9, 67.5) Conf:0.38 | Raw Sensors: F:9.9 B:-1.0 L:9.5 R:-1.0
+Odom:(5.3, 45.9) MCL:(-9.9, 68.3) Conf:0.65 | Raw Sensors: F:11.3 B:-1.0 L:7.4 R:-1.0
+Odom:(-8.0, 66.9) MCL:(-9.7, 69.7) Conf:0.83 | Raw Sensors: F:12.8 B:-1.0 L:6.1 R:-1.0
+Odom:(-9.6, 70.1) MCL:(-8.2, 70.5) Conf:0.96 | Raw Sensors: F:12.2 B:-1.0 L:6.6 R:-1.0
+Odom:(-0.3, 69.5) MCL:(4.1, 68.9) Conf:0.23 | Raw Sensors: F:15.6 B:60.3 L:5.1 R:-1.0
+Odom:(6.8, 69.8) MCL:(7.5, 69.9) Conf:0.70 | Raw Sensors: F:-1.0 B:60.0 L:4.1 R:-1.0
+Odom:(6.9, 69.8) MCL:(8.1, 69.9) Conf:0.63 | Raw Sensors: F:-1.0 B:59.7 L:4.1 R:-1.0
+Odom:(6.9, 69.8) MCL:(8.3, 69.8) Conf:0.65 | Raw Sensors: F:-1.0 B:60.1 L:4.1 R:-1.0
+Odom:(6.9, 69.8) MCL:(8.6, 69.8) Conf:0.64 | Raw Sensors: F:-1.0 B:60.1 L:4.1 R:-1.0
+
+
+
+         _+=+_
+      .-`  .  `-.          8888888b.  8888888b.   .d88888b.   .d8888b.
+WARNING - pros.serial.devices.vex.v5_user_device:read - Could not decode bytes: 58736f757420201b5b313b33336d205f2b602020202020222020202020602b5f201b5b306d2020202020203838382020205938386220383838202020593838622064383850222022593838622064383850202006736f75740a - pros-cli version:3.5.6
+
+
+         _+=+_
+      .-`  .  `-.          8888888b.  8888888b.   .d88888b.   .d8888b.
+   _+`     "     `+_       888   Y88b 888   Y88b d88P" "Y88b d88P  Y88b
+  \\\sssssssssssss///      888    888 888    888 888     888 Y88b.
+     .ss\  *  /ss.         888   d88P 888   d88P 888     888  "Y888b.
+ .+bm  .s  *  s.  md+.     8888888P"  8888888P"  888     888     "Y88b.
+.hMMMMs .  *  . sMMMMh.    888        888 T88b   888     888       "888
+ `\hMMMb \ | / dMMMh:      888        888  T88b  Y88b. .d88P Y88b  d88P
+   -SNMNo  -  oNMNs-       888        888   T88b  "Y88888P"   "Y8888P"
+     `+dMh\./dMd/
+        `:yNy:`                      Powered by PROS for VEX V5
+           "                Copyright (c) Purdue University ACM SIGBots
+Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
+Compiled:   Mar 17 2026 14:59:14     Directory:                        
 
 
 
@@ -35,78 +102,36 @@ Compiled:   Mar 13 2026 19:57:22     Directory:
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
 Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Mar 13 2026 19:57:22     Directory:                        
+Compiled:   Mar 17 2026 14:59:14     Directory:                        
 
 
-Odom: -1.83, -24.00 | MCL: -1.14, -23.93 | Exec: 6.11 ms
-Odom: -3.53, -24.03 | MCL: -2.26, -23.96 | Exec: 4.45 ms
-Odom: -5.42, -24.07 | MCL: -3.55, -24.00 | Exec: 4.44 ms
-Odom: -7.23, -24.10 | MCL: -4.87, -24.01 | Exec: 4.44 ms
-Odom: -9.01, -24.10 | MCL: -6.23, -24.04 | Exec: 4.44 ms
-Odom: -10.62, -24.07 | MCL: -7.47, -24.03 | Exec: 4.43 ms
-Odom: -12.05, -24.01 | MCL: -8.61, -23.99 | Exec: 4.43 ms
-Odom: -13.21, -23.90 | MCL: -9.60, -23.90 | Exec: 6.11 ms
-Odom: -14.28, -23.73 | MCL: -10.55, -23.77 | Exec: 4.44 ms
-Odom: -15.39, -23.48 | MCL: -11.53, -23.55 | Exec: 4.44 ms
-Odom: -16.66, -23.14 | MCL: -12.60, -23.32 | Exec: 4.44 ms
-Odom: -18.18, -22.71 | MCL: -13.86, -23.02 | Exec: 4.43 ms
-Odom: -19.68, -22.26 | MCL: -17.43, -22.75 | Exec: 11.47 ms
-Odom: -21.33, -21.83 | MCL: -20.68, -22.58 | Exec: 8.41 ms
-Odom: -22.70, -21.44 | MCL: -22.59, -22.16 | Exec: 8.99 ms
-Odom: -23.76, -21.04 | MCL: -24.38, -21.70 | Exec: 11.50 ms
-Odom: -24.69, -20.59 | MCL: -25.74, -21.32 | Exec: 7.49 ms
-Odom: -25.95, -19.91 | MCL: -26.46, -20.83 | Exec: 7.50 ms
-Odom: -27.04, -19.29 | MCL: -27.62, -20.37 | Exec: 11.55 ms
-Odom: -28.08, -18.67 | MCL: -28.89, -19.99 | Exec: 7.49 ms
-Odom: -28.84, -18.17 | MCL: -30.41, -19.30 | Exec: 7.50 ms
-Odom: -29.53, -17.64 | MCL: -31.95, -18.67 | Exec: 10.07 ms
-Odom: -30.15, -17.11 | MCL: -33.06, -18.34 | Exec: 11.54 ms
-Odom: -30.83, -16.54 | MCL: -33.13, -17.86 | Exec: 7.51 ms
-Odom: -31.41, -15.94 | MCL: -33.95, -17.53 | Exec: 7.50 ms
-Odom: -32.01, -15.37 | MCL: -34.99, -17.27 | Exec: 11.53 ms
-Odom: -32.51, -15.00 | MCL: -34.91, -16.57 | Exec: 4.37 ms
-Odom: -33.14, -14.60 | MCL: -35.29, -16.03 | Exec: 4.36 ms
-Odom: -33.68, -14.22 | MCL: -35.59, -15.50 | Exec: 4.36 ms
-Odom: -34.13, -13.84 | MCL: -35.80, -14.98 | Exec: 4.38 ms
-Odom: -34.52, -13.42 | MCL: -35.99, -14.54 | Exec: 4.48 ms
-Odom: -34.86, -12.99 | MCL: -36.11, -14.17 | Exec: 4.47 ms
-Odom: -35.15, -12.55 | MCL: -36.22, -13.83 | Exec: 4.48 ms
-Odom: -35.39, -12.08 | MCL: -36.30, -13.43 | Exec: 4.47 ms
-Odom: -35.59, -11.63 | MCL: -36.38, -13.02 | Exec: 4.47 ms
-Odom: -35.76, -11.15 | MCL: -36.43, -12.62 | Exec: 6.44 ms
-Odom: -35.89, -10.68 | MCL: -36.46, -12.21 | Exec: 4.47 ms
-Odom: -35.99, -10.17 | MCL: -36.49, -11.76 | Exec: 4.48 ms
-Odom: -36.07, -9.63 | MCL: -36.50, -11.31 | Exec: 4.47 ms
-Odom: -36.13, -9.12 | MCL: -36.52, -10.88 | Exec: 4.48 ms
-Odom: -36.16, -8.55 | MCL: -36.50, -10.41 | Exec: 4.47 ms
-Odom: -36.18, -7.96 | MCL: -36.50, -9.92 | Exec: 4.47 ms
-Odom: -36.17, -7.27 | MCL: -36.46, -9.32 | Exec: 6.43 ms
-Odom: -36.17, -6.85 | MCL: -36.43, -8.93 | Exec: 4.48 ms
-Odom: -36.16, -6.15 | MCL: -36.40, -8.39 | Exec: 4.48 ms
-Odom: -36.16, -5.30 | MCL: -36.39, -7.72 | Exec: 4.47 ms
-Odom: -36.19, -4.49 | MCL: -36.39, -6.99 | Exec: 4.48 ms
-Odom: -36.21, -3.78 | MCL: -36.36, -6.36 | Exec: 4.48 ms
-Odom: -36.23, -3.24 | MCL: -36.35, -5.82 | Exec: 4.47 ms
-Odom: -36.24, -2.80 | MCL: -36.35, -5.35 | Exec: 6.43 ms
-Odom: -36.26, -2.46 | MCL: -36.35, -4.97 | Exec: 4.49 ms
-Odom: -36.27, -2.22 | MCL: -36.35, -4.64 | Exec: 4.49 ms
-Odom: -36.28, -2.07 | MCL: -36.33, -4.38 | Exec: 4.47 ms
-Odom: -36.28, -1.96 | MCL: -36.31, -4.14 | Exec: 4.47 ms
-Odom: -36.29, -1.86 | MCL: -36.31, -3.94 | Exec: 4.47 ms
-Odom: -36.29, -1.78 | MCL: -36.31, -3.75 | Exec: 4.47 ms
-Odom: -36.30, -1.70 | MCL: -36.31, -3.55 | Exec: 6.43 ms
-Odom: -36.30, -1.65 | MCL: -36.31, -3.41 | Exec: 4.48 ms
-Odom: -36.30, -1.64 | MCL: -36.29, -3.29 | Exec: 4.47 ms
-Odom: -36.30, -1.62 | MCL: -36.29, -3.19 | Exec: 4.49 ms
-Odom: -36.30, -1.58 | MCL: -36.30, -3.07 | Exec: 4.47 ms
-Odom: -36.30, -1.53 | MCL: -36.30, -2.95 | Exec: 4.47 ms
-Odom: -36.30, -1.45 | MCL: -36.31, -2.83 | Exec: 4.48 ms
-Odom: -36.30, -1.38 | MCL: -36.31, -2.68 | Exec: 6.43 ms
-Odom: -36.30, -1.31 | MCL: -36.30, -2.55 | Exec: 4.48 ms
-Odom: -36.31, -1.25 | MCL: -36.31, -2.45 | Exec: 4.47 ms
-Odom: -36.31, -1.19 | MCL: -36.32, -2.34 | Exec: 4.46 ms
-Odom: -36.31, -1.10 | MCL: -36.33, -2.23 | Exec: 4.47 ms
-Odom: -36.31, -1.04 | MCL: -36.34, -2.17 | Exec: 4.48 ms
-Odom: -36.31, -1.00 | MCL: -36.34, -2.11 | Exec: 4.47 ms
-pros mu
+Odom:(-44.8, -12.3) MCL:(-44.8, -12.3) Conf:1.00 | Raw Sensors: F:-1.0 B:60.4 L:4.1 R:-1.0
+Odom:(-48.7, -12.7) MCL:(-48.7, -13.1) Conf:0.88 | Raw Sensors: F:-1.0 B:55.1 L:4.7 R:-1.0
+Odom:(-49.9, -13.4) MCL:(-49.8, -14.2) Conf:0.66 | Raw Sensors: F:-1.0 B:53.3 L:4.7 R:-1.0
+Odom:(-50.5, -13.4) MCL:(-50.5, -14.3) Conf:0.68 | Raw Sensors: F:-1.0 B:53.9 L:5.8 R:-1.0
+Odom:(-51.3, -13.6) MCL:(-51.5, -14.3) Conf:0.71 | Raw Sensors: F:16.2 B:54.7 L:6.3 R:-1.0
+Odom:(-53.4, -14.3) MCL:(-69.1, -12.3) Conf:0.57 | Raw Sensors: F:14.3 B:54.8 L:7.8 R:-1.0
+Odom:(-74.4, -19.3) MCL:(-81.0, -18.9) Conf:0.79 | Raw Sensors: F:13.6 B:-1.0 L:45.5 R:-1.0
+Odom:(-85.5, -18.8) MCL:(-86.9, -18.6) Conf:0.83 | Raw Sensors: F:37.6 B:22.3 L:-1.0 R:24.3
+Odom:(-87.0, -18.6) MCL:(-87.2, -18.6) Conf:0.82 | Raw Sensors: F:-1.0 B:19.1 L:-1.0 R:20.1
+Odom:(-86.8, -19.2) MCL:(-86.6, -19.3) Conf:1.00 | Raw Sensors: F:49.5 B:-1.0 L:-1.0 R:12.5
+Odom:(-88.0, -18.8) MCL:(-94.9, -17.3) Conf:1.00 | Raw Sensors: F:22.4 B:-1.0 L:-1.0 R:23.2
+Odom:(-94.4, -18.9) MCL:(-94.6, -18.9) Conf:1.00 | Raw Sensors: F:14.8 B:-1.0 L:42.6 R:-1.0
+Odom:(-95.9, -23.3) MCL:(-95.9, -23.3) Conf:1.00 | Raw Sensors: F:19.0 B:-1.0 L:42.0 R:-1.0
+Odom:(-97.8, -29.5) MCL:(-97.9, -29.5) Conf:0.99 | Raw Sensors: F:25.9 B:-1.0 L:41.1 R:-1.0
+Odom:(-100.4, -37.1) MCL:(-102.0, -37.3) Conf:0.60 | Raw Sensors: F:34.2 B:-1.0 L:42.0 R:-1.0
+Odom:(-102.9, -45.9) MCL:(-109.6, -51.5) Conf:0.64 | Raw Sensors: F:53.3 B:-1.0 L:-1.0 R:-1.0
+Odom:(-102.7, -46.3) MCL:(-109.8, -51.9) Conf:0.66 | Raw Sensors: F:55.4 B:-1.0 L:-1.0 R:-1.0
+Odom:(-102.7, -46.4) MCL:(-109.8, -52.0) Conf:0.65 | Raw Sensors: F:54.3 B:-1.0 L:-1.0 R:-1.0
+Odom:(-104.1, -56.0) MCL:(-117.2, -53.5) Conf:0.89 | Raw Sensors: F:50.9 B:-1.0 L:50.1 R:-1.0
+Odom:(-119.5, -64.1) MCL:(-120.0, -64.0) Conf:0.81 | Raw Sensors: F:56.8 B:84.3 L:47.2 R:-1.0
+Odom:(-123.5, -83.2) MCL:(-115.8, -91.4) Conf:0.61 | Raw Sensors: F:78.3 B:62.7 L:45.9 R:-1.0
+Odom:(-115.5, -109.4) MCL:(-114.6, -110.2) Conf:0.98 | Raw Sensors: F:-1.0 B:49.6 L:51.1 R:-1.0
+Odom:(-105.9, -118.0) MCL:(-105.9, -118.0) Conf:0.98 | Raw Sensors: F:57.6 B:83.9 L:34.2 R:28.0
+Odom:(-94.4, -124.6) MCL:(-94.4, -124.6) Conf:0.98 | Raw Sensors: F:-1.0 B:-1.0 L:38.5 R:-1.0
+Odom:(-93.5, -132.9) MCL:(-93.5, -132.8) Conf:0.98 | Raw Sensors: F:-1.0 B:28.7 L:-1.0 R:44.2
+Odom:(-93.9, -133.4) MCL:(-93.9, -133.4) Conf:0.98 | Raw Sensors: F:-1.0 B:30.4 L:-1.0 R:-1.0
+Odom:(-93.9, -133.3) MCL:(-93.9, -133.3) Conf:0.98 | Raw Sensors: F:-1.0 B:30.2 L:-1.0 R:-1.0
+Odom:(-93.9, -133.3) MCL:(-93.9, -133.3) Conf:0.98 | Raw Sensors: F:-1.0 B:30.3 L:-1.0 R:-1.0
+Odom:(-93.9, -133.3) MCL:(-93.9, -133.3) Conf:0.98 | Raw Sensors: F:-1.0 B:30.2 L:-1.0 R:38.1
 WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

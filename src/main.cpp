@@ -20,11 +20,9 @@ rd::Console console;
 void initialize() {
     chassis.calibrate();
     console.focus();
-    
-    double start_x = 0;
-    double start_y = -24.0;
-    double start_theta = 270.0;
-
+    double start_x = -44.77;
+    double start_y = -12.31;
+    double start_theta = 90;
     chassis.setPose(start_x, start_y, start_theta); 
     MCL::StartMCL(start_x, start_y);
     pros::Task mcl_task(MCL::MonteCarlo);
@@ -40,6 +38,10 @@ void initialize() {
             
             console.printf("[ MCL ESTIMATE ]\n");
             console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
+
+			//distancePose pose = distanceReset(false);
+			//console.printf("X DSR: %.2f  Y DSR : %.2f\n", pose.x, pose.y);
+
             
             pros::delay(50);
         }
@@ -107,23 +109,18 @@ void AutoTuneSensorOffsets(pros::Distance& sensor, std::string sensor_name, doub
     chassis.tank(0, 0); 
 
     if (data.size() < 15) {
-        printf("❌ FAILED: Not enough valid data points collected.\n");
+        printf("FAILED: Not enough valid data points collected.\n");
         return;
     }
 
     printf("Data collected. Running grid search solver for X and Y...\n");
-
-    // We lock the angle to what you explicitly passed into the function
     double alpha_rad = deg2rad(known_angle_deg);
 
     double best_X = 0, best_Y = 0, best_W = 0;
     double lowest_error = std::numeric_limits<double>::infinity();
 
-    // Iterate through a grid of possible X and Y offsets at 0.1 inch resolution
     for (double test_x = -10.0; test_x <= 10.0; test_x += 0.1) {
         for (double test_y = -10.0; test_y <= 10.0; test_y += 0.1) {
-            
-            // Where the wall is relative to the start
             double test_W = min_dist + (test_x * std::cos(deg2rad(angle_at_min)) - test_y * std::sin(deg2rad(angle_at_min)));
             
             double total_error = 0;
@@ -165,7 +162,7 @@ void AutoTuneSensorOffsets(pros::Distance& sensor, std::string sensor_name, doub
 }
 
 void autonomous() {
-    //AutoTuneSensorOffsets(frontDistance, "Front Distance", 0);
+    //AutoTuneSensorOffsets(rightDistance, "Right Distance", -90);
     /*
     chassis.setPose(-24, -24, 90);
     chassis.moveToPoint(24, -24, 10000);
@@ -178,11 +175,13 @@ void autonomous() {
     */
 
     
-    chassis.setPose(0, -24, 270);
-    chassis.moveToPose(-36, 0, 0, 10000, {});
-    chassis.moveToPose(0, 36, 90, 10000, {});
-    chassis.moveToPose(36, 0, 180, 10000);
-    chassis.moveToPose(0, -36, 270, 10000);
+    chassis.setPose(-44.77, -12.31, 90);
+	chassis.moveToPoint(-24, -12.31, 2000);
+	chassis.turnToPoint(-24, 24, 2000);
+	chassis.moveToPoint(-24, 24, 2000);
+	chassis.moveToPose(24, 24, 90, 10000);
+	chassis.moveToPose(24, -24, 180, 10000);
+	
     
 }
 void opcontrol()
