@@ -55,12 +55,6 @@ void disabled() {
 void competition_initialize() {
 }
 
-#include "main.h"
-#include <vector>
-#include <cmath>
-#include <limits>
-#include <string>
-
 extern lemlib::Chassis chassis;
 
 struct Reading {
