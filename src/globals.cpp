@@ -138,4 +138,4 @@ lemlib::Chassis chassis(
 // Note: do not run executable code at namespace scope. Set the chassis
 // during runtime initialization (e.g., in initialize()).
 
-pros::AIVision ai_vision(15);
+pros::AIVision ai_vision(6);

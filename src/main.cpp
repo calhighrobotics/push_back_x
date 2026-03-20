@@ -1,6 +1,7 @@
 #include "main.h"
 #include "globals.h" 
 #include "liblvgl/core/lv_obj_pos.h"
+#include "pros/ai_vision.hpp"
 #include "pros/misc.h"
 #include "robodash/views/selector.hpp"
 #include <string>
@@ -21,18 +22,25 @@ void initialize() {
     console.focus();
     
     */
+	ai_vision.enable_detection_types(pros::AivisionModeType::colors);
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
             console.clear();
             pose = chassis.getPose();
 
-
             //distancePose dpose = distanceReset(false);
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
-			console.printf("Number of objects %\n", ai_vision.get_object_count());
+			std::vector<pros::AIVision::Object> objects = ai_vision.get_all_objects();
+			for(const auto& obj : objects)
+			{
+				if(pros::AIVision::is_type(obj, pros::AivisionDetectType::color))
+				{
+					console.print("BALL DETECTED");
+				}
+			}
             
             /*
             console.printf("D X: %f\n", dpose.x);
@@ -45,7 +53,7 @@ void initialize() {
             //console.printf("X MCL: %f\n", MCL::X);
             //console.printf("Y MCL: %f\n", MCL::Y);
             
-            pros::delay(100);
+            pros::delay(10);
         }
     });
 }
