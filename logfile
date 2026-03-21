@@ -15,12 +15,8 @@ Established terminal connection
      `+dMh\./dMd/
         `:yNy:`                      Powered by PROS for VEX V5
            "                Copyright (c) Purdue University ACM SIGBots
-Version:        4.2.1     Platform:  V1.1.2 (b34)     Uptime:    0.000 s
-Compiled:   Jan 19 2026 18:47:49     Directory:                        
+Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
+Compiled:   Mar 21 2026 00:59:12     Directory:                        
 
 
-ERROR - pros.serial.terminal.terminal:reader -  - pros-cli version:3.5.6
-  File "/opt/miniconda3/lib/python3.10/site-packages/pros/serial/devices/vex/v5_user_device.py", line 47, in read
-    assert len(msg) >= 4
-AssertionError
 WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

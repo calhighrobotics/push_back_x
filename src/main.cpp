@@ -22,7 +22,10 @@ void initialize() {
     console.focus();
     
     */
+    pros::AIVision ai_vision(6);
 	ai_vision.enable_detection_types(pros::AivisionModeType::colors);
+    ai_vision.start_awb();
+    
     pros::Task screen_task([&]() {
         lemlib::Pose pose{0,0,0};
         while (true) {
@@ -33,14 +36,16 @@ void initialize() {
             console.printf("X: %f\n", pose.x);
             console.printf("Y: %f\n", pose.y);
             console.printf("Theta: %f\n", pose.theta);
-			std::vector<pros::AIVision::Object> objects = ai_vision.get_all_objects();
-			for(const auto& obj : objects)
-			{
-				if(pros::AIVision::is_type(obj, pros::AivisionDetectType::color))
-				{
-					console.print("BALL DETECTED");
-				}
-			}
+            console.printf("Object Count: %d\n", ai_vision.get_object_count());
+            int32_t object_count = ai_vision.get_object_count();
+            for(int i = 0; i < object_count; i++)
+            {
+                pros::AIVision::Object object = ai_vision.get_object(1);
+                if(pros::AIVision::is_type(object, pros::AivisionDetectType::color))
+                {
+                    std::cout << object.id << " ," << object.object.color.width << std::endl;
+                }
+            }
             
             /*
             console.printf("D X: %f\n", dpose.x);
@@ -52,8 +57,7 @@ void initialize() {
             
             //console.printf("X MCL: %f\n", MCL::X);
             //console.printf("Y MCL: %f\n", MCL::Y);
-            
-            pros::delay(10);
+            pros::delay(50);
         }
     });
 }
@@ -93,18 +97,111 @@ Turn:
 void opcontrol() {
     while(true)
     {
-        int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+    chassis.arcade(controller.get_analog(ANALOG_LEFT_Y), controller.get_analog(ANALOG_RIGHT_X));
+    if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
+				{
+					chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
+				}
+				else
+				{
+					chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+				}
+
+				if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1))
+				{
+					intake_motor.move_voltage(-12000);
+					hood_motor.move_voltage(-12000);
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2))
+				{
+					intake_motor.move_voltage(-12000);
+					hood_motor.move_voltage(1000);
+				}
+
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_X))
+				{
+					intake_motor.move_voltage(12000);
+					hood_motor.move_voltage(12000);
+				}
+				else
+				{
+					intake_motor.move_voltage(0);
+					hood_motor.move_voltage(0);
+                }
 
 
-		if(controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X))
-		{
-			followMultipleObjectsPID({1,2,3}, 5, 10000);
-		}
-		else
-        	chassis.curvature(throttle, steer, false);
-        pros::delay(10);
-    }
+				if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP) && controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT))
+				{
+					chassis.turnToHeading(45, 2000);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP) && controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT))
+				{
+					chassis.turnToHeading(135, 2000);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN) && controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT))
+				{
+					chassis.turnToHeading(315, 2000);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN) && controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT))
+				{
+					chassis.turnToHeading(225, 750);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
+				{
+					chassis.turnToHeading(90, 750);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT))
+				{
+					chassis.turnToHeading(180, 750);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT))
+				{
+					chassis.turnToHeading(0, 750);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN))
+				{
+					chassis.turnToHeading(270, 750);
+					while (chassis.isInMotion()) {
+						pros::delay(20);
+					}
+				}
+				// {
+				// 	odom_lifter.set_value(false);
+				// }
+
+				// if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_Y))
+				// {
+				// 	puncher.set_value(true); // fire puncher
+				// 	mloader.set_value(false); // retract mloader to avoid jamming
+				// 	mloader_state = false;
+				// }
+
+				//button_pressed = controller.get_digital(pros::E_CONTROLLER_DIGITAL_B);
+				//button_pressed2 = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2);
+
+				pros::delay(20);
+            }
 }
 
 
