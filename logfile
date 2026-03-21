@@ -7080,3 +7080,4 @@ MCL: 22.01 44.17 | ODOM: -55.54 62.91 | CONF: 1.00 | STD: 9.15 | RATIO: 0.17
 MCL: -55.62 41.80 | ODOM: -55.54 62.93 | CONF: 1.00 | STD: 8.14 | RATIO: 0.01
 MCL: -55.35 42.19 | ODOM: -55.54 62.95 | CONF: 1.00 | STD: 8.04 | RATIO: 0.02
 MCL: -19.06 44.30 | ODOM: -55.54 62.95 | CONF: 1.00 | STD: 7.91 | RATIO: 0.16
+WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6
