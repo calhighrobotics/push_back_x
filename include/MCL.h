@@ -8,7 +8,7 @@
 namespace MCL {
     constexpr int NUM_PARTICLES = 2000; 
     constexpr float RESAMPLE_THRESHOLD = 0.4f;   
-    constexpr float SENSOR_MAX_RANGE_IN = 50.0f; 
+    constexpr float SENSOR_MAX_RANGE_IN = 65.0f; 
     extern double PARAMS_TRANS_BASE;      
     extern double PARAMS_TRANS_GAIN;      
 
