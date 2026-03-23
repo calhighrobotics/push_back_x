@@ -22,7 +22,7 @@ pros::MotorGroup leftMotors({-12, 13, -14}, pros::MotorGears::blue);
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
-    11.55, 
+    11, 
     3.25, 
     450, 
     8);
@@ -32,8 +32,8 @@ pros::Rotation horizontal_tracking_sensor(13);
 pros::Rotation vertical_tracking_sensor(-12);
 //-6.95780365196
 //0.0188794350939
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-7.28684844735 , 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.0188794350939,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,0 , 1);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
@@ -72,6 +72,26 @@ lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
+pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
+pros::Motor topMotor(19, pros::v5::MotorGears::blue);
+
+pros::Distance rightDistance(20);
+pros::Distance leftDistance(15);
+pros::Distance frontDistance(14);
+pros::Distance backDistance(16);
+pros::Distance frontDistance2(17);
+
+pros::adi::Pneumatics trapDoor('A', false);
+pros::adi::Pneumatics matchload('E', false);
+pros::adi::Pneumatics basket('F', false);
+pros::adi::Pneumatics descore('D', false);
+pros::adi::Pneumatics intakeFunnel('B', true);
+pros::adi::Pneumatics scoringBand('C', false);
+pros::adi::Pneumatics blockBlocker('G', false);
+
+pros::Optical color_sensor(7);
+
+pros::Vision vision_sensor(16);
 
 Color allianceColor = Color::RED;
 bool color_sort_enable = false;
