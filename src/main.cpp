@@ -154,18 +154,10 @@ void opcontrol() {
         int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
-            trapDoor_commanded = !trapDoor_commanded;
-            if (trapDoor_commanded) trapDoor.extend();
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
-            if (matchload.is_extended()) {
-                matchload.retract();
-                matchload_on = false;
-            } else {
-                matchload.extend();
-                matchload_on = true;
-            }
+            matchload_state(!matchloader.is_extended());
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
@@ -174,8 +166,6 @@ void opcontrol() {
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
-            basket.toggle();
-            if (!scoringBand.is_extended()) scoringBand.extend();
         }
 
 
@@ -265,10 +255,6 @@ void opcontrol() {
 
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
-            midgoal_first = true;
-            if (!trapDoor.is_extended()) {
-                trapDoor.extend();
-            }
         }
 
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
@@ -295,35 +281,20 @@ void opcontrol() {
                 intake();
                 break;
             case ScoringMode::OUTTAKE:
-                outtake(8500);
-                if (intakeFunnel.is_extended()) intakeFunnel.retract();
-                low_ramp_down_time += 10;
+                outtake();
                 break;
             case ScoringMode::MIDGOAL:
                 score_midgoal();
-                ramp_up_time += 10;
                 break;
             case ScoringMode::LONGGOAL:
-                score_longgoal(12000, allianceColor);
+                score_longgoal(600, allianceColor);
                 break;
             case ScoringMode::MANUAL_UP:
-                topMotor.move(12000);
-                intakeMotor.move(-12000);
                 break;
             case ScoringMode::NONE:
-                ramp_up_time = 0;
-                resting_state(trapDoor_commanded);
-                midgoal_first = false;
-                intakeFunnel.extend();
-                low_ramp_down_time = 0;
-                if (!color_sort_enable && scoringBand.is_extended()) {
-                    scoringBand.retract();
-                }
+                intake_stop();
                 break;
         }
-
-        if (color_sort_enable) blockBlocker.extend();
-        else blockBlocker.retract();
 
         leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
         rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);

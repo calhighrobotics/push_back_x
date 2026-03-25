@@ -72,26 +72,24 @@ lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
-pros::Motor intakeMotor(18, pros::v5::MotorGears::blue);
-pros::Motor topMotor(19, pros::v5::MotorGears::blue);
+pros::Motor intakeMotor(-1, pros::v5::MotorGears::blue);
+pros::Motor outtakeMotor(-2, pros::v5::MotorGears::blue);
+pros::Motor storageMotor(3, pros::MotorGears::blue);
 
 pros::Distance rightDistance(20);
 pros::Distance leftDistance(15);
 pros::Distance frontDistance(14);
-pros::Distance backDistance(16);
+pros::Distance backDistance(19);
 pros::Distance frontDistance2(17);
 
-pros::adi::Pneumatics trapDoor('A', false);
-pros::adi::Pneumatics matchload('E', false);
-pros::adi::Pneumatics basket('F', false);
+pros::adi::Pneumatics intake_lift('A', true);
+pros::adi::Pneumatics hood('B', false);
+pros::adi::Pneumatics matchloader('C', false);
 pros::adi::Pneumatics descore('D', false);
-pros::adi::Pneumatics intakeFunnel('B', true);
-pros::adi::Pneumatics scoringBand('C', false);
-pros::adi::Pneumatics blockBlocker('G', false);
 
 pros::Optical color_sensor(7);
 
-pros::Vision vision_sensor(16);
+pros::Vision vision_sensor(18);
 
 Color allianceColor = Color::RED;
 bool color_sort_enable = false;
