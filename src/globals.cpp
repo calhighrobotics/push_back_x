@@ -25,7 +25,7 @@ lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
     10.1, 
-    4.052, 
+    4.06, 
     160, 
     5);
 

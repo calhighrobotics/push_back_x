@@ -1,15 +1,17 @@
 #include "MCL.h"
-#include "globals.h"
+#include "globals.h" // Assuming this is where your chassis and sensors are actually instantiated
+#include "lemlib/api.hpp"
+#include "pros/rtos.hpp"
 #include <algorithm>
 #include <cmath>
 #include <vector>
 #include <limits>
-#include <cstdio> // For printf
+#include <cstdio>
 
 namespace MCL {
 
     double PARAMS_TRANS_BASE = 0.25;   
-    double PARAMS_TRANS_GAIN = 0.025;  
+    double PARAMS_TRANS_GAIN = 0.035;  
 
     double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0;
 
@@ -18,7 +20,7 @@ namespace MCL {
     constexpr float ALPHA_FAST = 0.1f;
 
     // ── Field boundary ───────────────────────────────────────────────────
-    constexpr float FIELD_SIZE = 140.42f;
+    constexpr float FIELD_SIZE = 140.42f; // Could be 141.2
     constexpr float HALF_SIZE  = FIELD_SIZE * 0.5f;  // 70.21"
     constexpr float FIELD_MIN  = -HALF_SIZE;
     constexpr float FIELD_MAX  =  HALF_SIZE;
@@ -26,7 +28,7 @@ namespace MCL {
     // Reject any sensor reading beyond this (inches)
     constexpr float MAX_SENSOR_READING = 65.0f;  
 
-    // ─────────────────────────── 2-State Particle Storage ──────────────
+    // ─────────────────────────── Particle Storage ────────────────────────
     float particle_x[NUM_PARTICLES];
     float particle_y[NUM_PARTICLES];
     float particle_weights[NUM_PARTICLES];
@@ -41,10 +43,10 @@ namespace MCL {
     };
 
     const std::vector<SensorConfig> SENSOR_CONFIGS = {
-        {  -1.75f,  2.8f,   0.0f },   // 0: front
-        {  4.0f,  4.3f,  90.0f },     // 1: right
+        { -1.75f,  2.8f,   0.0f },    // 0: front
+        {  4.6f,   4.3f,  90.0f },    // 1: right
         {  1.75f, -0.6f, 180.0f },    // 2: back
-        { -4.0f,  4.3f, -90.0f }      // 3: left
+        { -5.1f,   4.3f, -90.0f }     // 3: left
     };
 
     // ─────────────────────────── RNG ────────────────────────────────────
@@ -91,11 +93,13 @@ namespace MCL {
     }
 
     // ─────────────────────────── Motion Update ──────────────────────────
-    void MotionUpdate(double dX_global, double dY_global, double robot_theta_deg) {
+    void MotionUpdate(double dX_global, double dY_global, double dTheta, double robot_theta_deg) {
         const float dist = (float)std::hypot(dX_global, dY_global);
-        const float c    = 1.0f - std::clamp((float)global_Confidence, 0.0f, 1.0f);
+        const float turn_factor = std::abs((float)dTheta) * 0.05f; 
+        
+        const float c = 1.0f - std::clamp((float)global_Confidence, 0.0f, 1.0f);
         const float transStd = (float)(PARAMS_TRANS_BASE + c * 0.3)
-                             + (float)(PARAMS_TRANS_GAIN + c * 0.04) * dist;
+                             + (float)(PARAMS_TRANS_GAIN + c * 0.04) * (dist + turn_factor);
 
         float math_theta_deg = 90.0f - (float)robot_theta_deg; 
         const float theta_rad = degToRad(math_theta_deg);
@@ -131,7 +135,7 @@ namespace MCL {
         const float cos_t = std::cos(theta_rad);
         const float sin_t = std::sin(theta_rad);
 
-        const float dynamic_sensor_sig = 2.0f + (1.0f - std::clamp(current_confidence, 0.0f, 1.0f)) * 4.0f;
+        const float dynamic_sensor_sig = 1.5f + (1.0f - std::clamp(current_confidence, 0.0f, 1.0f)) * 4.0f;
         const float dynamic_margin = dynamic_sensor_sig * 3.0f; 
 
         for (int i = 0; i < NUM_PARTICLES; ++i) {
@@ -163,11 +167,10 @@ namespace MCL {
                 float expected = std::min(d_x, d_y);
                 float err = measurements[s] - expected;
 
-                // FIXED: Dynamic Asymmetric Sensor Model
                 if (err > dynamic_margin) {
-                    w *= 0.001f; // Long reading: physically impossible, strongly penalize
+                    w *= 0.001f; 
                 } else if (err < -dynamic_margin) {
-                    w *= 0.4f;   // Short reading: likely dynamic obstacle, soft penalty
+                    w *= 0.4f;   
                 } else {
                     w *= std::exp(-0.5f * err * err / (dynamic_sensor_sig * dynamic_sensor_sig));
                 }
@@ -209,8 +212,6 @@ namespace MCL {
         particle_mutex.take();
 
         const float ratio = (w_slow > 1e-10f) ? (w_fast / w_slow) : 1.0f;
-        
-        // FIXED: Increased cap to 20% to allow robust kidnapping recovery
         const float inject_rate = std::clamp(1.0f - ratio, 0.0f, 0.20f); 
         const int num_inject = (int)(NUM_PARTICLES * inject_rate);
         const int num_keep = NUM_PARTICLES - num_inject;
@@ -218,12 +219,12 @@ namespace MCL {
         static float new_x[NUM_PARTICLES];
         static float new_y[NUM_PARTICLES];
 
-        // FIXED: 1. Clean Low-Variance Resampling for kept particles only
         float step = 1.0f / (num_keep > 0 ? num_keep : 1);
         float r   = rng.next_f32() * step;
         float cum = particle_weights[0];
         int   j   = 0;
 
+        // Keep the high-performing particles
         for (int m = 0; m < num_keep; ++m) {
             float u = r + (float)m * step;
             while (u > cum && j < NUM_PARTICLES - 1) {
@@ -233,13 +234,12 @@ namespace MCL {
             new_y[m] = particle_y[j];
         }
 
-        // FIXED: 2. Append injected (kidnapped) particles safely
+        // Inject new particles locally around our best guess in a tight cluster (1.5" std dev)
         for (int m = num_keep; m < NUM_PARTICLES; ++m) {
-            new_x[m] = rng.uniform(FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
-            new_y[m] = rng.uniform(FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
+            new_x[m] = std::clamp<float>(global_X + rng.gaussian(1.5f), FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
+            new_y[m] = std::clamp<float>(global_Y + rng.gaussian(1.5f), FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
         }
 
-        // FIXED: 3. Uniformly reset weights
         const float uniform_w = 1.0f / NUM_PARTICLES;
         for (int i = 0; i < NUM_PARTICLES; ++i) {
             particle_x[i]       = new_x[i];
@@ -256,6 +256,7 @@ namespace MCL {
         uint32_t now = pros::millis();
         
         int print_counter = 0;
+        bool first_run = true; // Added for the EMA filter
 
         while (true) {
             lemlib::Pose currOdom = chassis.getPose();
@@ -266,7 +267,7 @@ namespace MCL {
 
             if (std::abs(dX_global) > 0.001 || std::abs(dY_global) > 0.001 || std::abs(dTheta) > 0.1) {
 
-                MotionUpdate(dX_global, dY_global, currOdom.theta);
+                MotionUpdate(dX_global, dY_global, dTheta, currOdom.theta);
 
                 std::vector<float> measurements(4, -1.0f);
                 bool has_valid_reading = false;
@@ -288,14 +289,8 @@ namespace MCL {
                     SensorUpdate(measurements, currOdom.theta, global_Confidence);
                 }
 
-                const float ess   = computeESS();
-                const float ratio = (w_slow > 1e-10f) ? (w_fast / w_slow) : 1.0f;
-                if (ess < NUM_PARTICLES * 0.5f || ratio < 0.9f)
-                    Resample();
-
                 particle_mutex.take();
                 
-                // Clustered Pose Estimation
                 float max_w = -1.0f;
                 int best_idx = 0;
                 for (int i = 0; i < NUM_PARTICLES; ++i) {
@@ -327,25 +322,37 @@ namespace MCL {
                 }
                 
                 float mcl_std_dev = 999.0f;
-                float cluster_weight_ratio = 0.0f; // NEW: Track weight agreement
+                float cluster_weight_ratio = 0.0f; 
+
+                // --- RAW CLUSTER CALCULATION ---
+                float raw_X = best_x;
+                float raw_Y = best_y;
                 
                 if (sumW > 1e-6f) {
-                    global_X = sumX / sumW;
-                    global_Y = sumY / sumW;
+                    raw_X = sumX / sumW;
+                    raw_Y = sumY / sumW;
                     
-                    float meanX = global_X;
-                    float meanY = global_Y;
+                    float meanX = raw_X;
+                    float meanY = raw_Y;
                     float varX = (sumX2 / sumW) - (meanX * meanX);
                     float varY = (sumY2 / sumW) - (meanY * meanY);
                     mcl_std_dev = std::sqrt(std::max(0.0f, varX + varY));
                     
-                    // NEW: Since weights are normalized to 1.0 previously, 
-                    // sumW equals the percentage of total weight in this cluster.
                     cluster_weight_ratio = sumW; 
-                } else {
-                    global_X = best_x;
-                    global_Y = best_y;
                 }
+
+                // --- EXPONENTIAL MOVING AVERAGE (EMA) FILTER ---
+                const float EMA_ALPHA = 0.20f; 
+                
+                if (first_run) {
+                    global_X = raw_X;
+                    global_Y = raw_Y;
+                    first_run = false;
+                } else {
+                    global_X = global_X + EMA_ALPHA * (raw_X - global_X);
+                    global_Y = global_Y + EMA_ALPHA * (raw_Y - global_Y);
+                }
+                // -----------------------------------------------
 
                 global_Theta      = currOdom.theta; 
                 global_Confidence = (w_slow > 1e-10f) ? std::min(w_fast / w_slow, 1.0f) : 0.0f;
@@ -358,20 +365,27 @@ namespace MCL {
                     print_counter = 0;
                 }
 
-                // FIXED: ── DYNAMIC ODOMETRY FUSION (Prevents lucky particle hijacking) ──
-                if (global_Confidence > 0.3 && cluster_weight_ratio > 0.30f) {
-                    double base_alpha = 0.10; 
-                    double variance_factor = std::clamp(2.0 / (mcl_std_dev + 1e-3), 0.01, 1.0);
-                    double dynamic_alpha = base_alpha * global_Confidence * variance_factor;
+                // ────────────────────────────────────────────────────────────
+                // CONDITIONAL LEMLIB CORRECTION
+                // ────────────────────────────────────────────────────────────
+                if (global_Confidence > 0.85 && cluster_weight_ratio > 0.70f && 
+                    std::abs(dX_global) < 2 && std::abs(dY_global) < 2) {
                     
-                    dynamic_alpha = std::clamp(dynamic_alpha, 0.0, 0.25); 
+                    double diff_x = global_X - currOdom.x;
+                    double diff_y = global_Y - currOdom.y;
+                    double correction_mag = std::hypot(diff_x, diff_y);
                     
-                    double fused_x = currOdom.x + (global_X - currOdom.x) * dynamic_alpha;
-                    double fused_y = currOdom.y + (global_Y - currOdom.y) * dynamic_alpha;
-                    
-                    lemlib::Pose fusedPose(fused_x, fused_y, currOdom.theta);
-                    chassis.setPose(fusedPose);
-                    currOdom = chassis.getPose(); // Update local tracking
+                    if (correction_mag > 1.0 && correction_mag < 12.0) {
+                        lemlib::Pose fusedPose(global_X, global_Y, currOdom.theta);
+                        chassis.setPose(fusedPose);
+                        currOdom = chassis.getPose(); 
+                    }
+                }
+
+                const float ess   = computeESS();
+                const float ratio = (w_slow > 1e-10f) ? (w_fast / w_slow) : 1.0f;
+                if (ess < NUM_PARTICLES * 0.5f || ratio < 0.9f) {
+                    Resample();
                 }
             }
 

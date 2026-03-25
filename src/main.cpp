@@ -156,18 +156,6 @@ void AutoTuneSensorOffsets(pros::Distance& sensor, std::string sensor_name, doub
 }
 
 void autonomous() {
-    //AutoTuneSensorOffsets(rightDistance, "Right Distance", -90);
-    /*
-    chassis.setPose(-24, -24, 90);
-    chassis.moveToPoint(24, -24, 10000);
-    chassis.turnToPoint(24, 24, 10000);
-    chassis.moveToPoint(24, 24, 10000);
-    chassis.turnToPoint(-24, 24, 10000);
-    chassis.moveToPoint(-24, 24, 10000);
-    chassis.turnToPoint(-24, -24, 10000);
-    chassis.moveToPoint(-24, -24, 10000);
-    */
-
     
     chassis.setPose(-44.77, -12.31, 90);
 	chassis.moveToPoint(-24, -12.31, 2000);
@@ -175,6 +163,18 @@ void autonomous() {
 	chassis.moveToPoint(-24, 24, 2000);
 	chassis.moveToPose(24, 24, 90, 10000);
 	chassis.moveToPose(24, -24, 180, 10000);
+    chassis.turnToPoint(-40, -24, 2000);
+    chassis.moveToPoint(-40, -24, 2000);
+    chassis.turnToPoint(-40, 60, 2000);
+    chassis.moveToPoint(-40, 60, 5000);
+    chassis.turnToPoint(40, 60, 2000);
+    chassis.moveToPoint(40, 60, 10000);
+    chassis.turnToPoint(40, -60, 10000);
+    chassis.moveToPoint(40, -60, 10000);
+    chassis.turnToPoint(-40, -60, 10000);
+    chassis.moveToPoint(-40, -60, 10000);
+    chassis.turnToPoint(-40, 0, 5000);
+    chassis.moveToPoint(-40, 0 , 5000);
 	
     
 }
