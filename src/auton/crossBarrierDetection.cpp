@@ -59,7 +59,7 @@ void crossBarrier(int times = 2, bool reverse = false, bool fullyDrop = true) {
             // --- LANDING LOGIC ---
             if (hasClimbed && hasDropped) {
                 if(i == 1 && times > 1)
-                    matchload.retract();
+                    matchloader.retract();
 
                 // FULLY DROP MODE
                 if (fullyDrop && std::abs(currentPitch) < PITCH_LEVEL_THRESHOLD) {

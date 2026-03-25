@@ -61,10 +61,8 @@ void right_auton()
 {
     descore.extend();
     chassis.setPose(-44.77, -12.31, 90);
-    trapDoor.extend();
     chassis.moveToPose(-24, -24, 145, 3000, {}); //24, 21
     chassis.waitUntil(3);
-    trapDoor.retract();
     intake();
     chassis.waitUntil(21);
     matchload_state(true);
@@ -80,7 +78,6 @@ void right_auton()
     chassis.moveToPoint(-46, -47, 3500, {.forwards = false, .maxSpeed = 100});
     chassis.waitUntil(7);
     matchload_state(true);
-    matchload.extend();
     chassis.waitUntilDone();
     chassis.turnToPoint(-72, -46.5, 3500, {}, false);
     distancePose pose = distanceReset(true, false, false, false, true);
@@ -113,10 +110,8 @@ void carry_auton() {
 void left_auton() {
     descore.extend();
     chassis.setPose(-44.77, 12.31, 90);
-    trapDoor.extend();
     chassis.moveToPose(-23, 23, 30, 3000, {});
     chassis.waitUntil(3);
-    trapDoor.retract();
     intake();
     chassis.waitUntil(20);
     matchload_state(true);
@@ -124,19 +119,15 @@ void left_auton() {
     chassis.turnToPoint(0,0, 1500,{.forwards = false}, true);
     chassis.moveToPoint(-14, 14, 1500, {.forwards = false, .minSpeed = 15, .earlyExitRange = 2}, false);
     midgoal_first = true;
-    trapDoor.extend();
     chassis.tank(-45, -45);
-    topMotor.move_voltage(7000);
     intakeMotor.move_voltage(12000);
     pros::delay(300);
-    topMotor.move_velocity(350);
     pros::delay(700);
     chassis.tank(0,0);
     intake_stop();
     midgoal_first = false;
     chassis.moveToPoint(-46, 47, 1700, {});
     chassis.waitUntil(7);
-    trapDoor.retract();
     chassis.waitUntilDone();
     chassis.turnToPoint(-72, 47, 1500, {}, false);
     distancePose pose = distanceReset(true);
@@ -165,10 +156,8 @@ void left_auton() {
 void elim_auton() {
     descore.extend();
     chassis.setPose(-44.77, -12.31, 90);
-    trapDoor.extend();
     chassis.moveToPose(-24, -24, 145, 3000, {}); //24, 21
     chassis.waitUntil(3);
-    trapDoor.retract();
     intake();
     chassis.waitUntil(21);
     matchload_state(true);
@@ -178,7 +167,6 @@ void elim_auton() {
     chassis.moveToPoint(-46, -47, 3500, {.forwards = false, .maxSpeed = 100});
     chassis.waitUntil(7);
     matchload_state(true);
-    matchload.extend();
     chassis.waitUntilDone();
     chassis.turnToPoint(-72, -46.5, 1200, {}, false);
     distancePose pose = distanceReset(true);
@@ -212,11 +200,9 @@ void awp_auton() {
     color_sort_enable = true;
     descore.extend();
     chassis.setPose(-51.8, -17.8, 180);
-    trapDoor.extend();
     matchload_state(true);
     chassis.moveToPoint(-51.8, -46.5, 1500, {});
     chassis.waitUntil(3);
-    trapDoor.retract();
     chassis.waitUntilDone();
     chassis.turnToPoint(-72, -47, 1500, {});
     intake();
@@ -259,10 +245,8 @@ void awp_auton() {
     pros::delay(20);
     distanceReset(true);
     chassis.moveToPoint(-14, 14.5, 2000, {.forwards = false}, false);
-    trapDoor.extend();
     pros::delay(50);
     intakeMotor.move_voltage(12000);
-    topMotor.move_voltage(10000);
     chassis.tank(-45, -45);
     pros::delay(1000);
     chassis.tank(0,0);
@@ -272,7 +256,6 @@ void awp_auton() {
 void skills_auton() {
     descore.extend();
     color_sort_enable = false;
-    blockBlocker.retract();
     int start;
     distancePose pose;
 
@@ -328,13 +311,11 @@ void skills_auton() {
     pros::delay(700);
     chassis.tank(0,0);
     chassis.turnToHeading(270, 1000);
-    intakeFunnel.retract();
     chassis.setPose(-45.7, 0, chassis.getPose().theta);
     pose = distanceReset(true, false);
     pros::delay(20);
     chassis.moveToPoint(-45.7 + 5, 0, 2000, {.forwards = false}, false);
     chassis.turnToPoint(0,0, 2000, {.direction = lemlib::AngularDirection::CW_CLOCKWISE}, false);
-    intakeFunnel.extend();
     pros::delay(20);
     distanceReset(true, false);
     chassis.moveToPose(-22.4, 22.4, 320, 1800, {.lead = 0.5});
@@ -349,19 +330,15 @@ void skills_auton() {
 
     midgoal_first = true;
     color_sort_enable = false;
-    trapDoor.extend();
     score_midgoal_auton();
     matchload_state(true);
     pros::delay(midgoal_delay);
     matchload_state(true);
-    matchload.extend();
     intake_stop();
-    topMotor.brake();
     pros::delay(500);
 
     chassis.moveToPoint(-45, 47.5, 2000, {});
     chassis.waitUntil(3);
-    trapDoor.retract();
     color_sort_enable = false;
     chassis.waitUntilDone();
     chassis.turnToPoint(-72, 45.5, 2000, {}, false);
@@ -391,7 +368,6 @@ void skills_auton() {
     //alignToGoal(90);
     score_longgoal_auton(12000, Color::RED, longgoal_delay + 150);
     matchload_state(true);
-    matchload.extend();
     distanceReset(true);
     pros::delay(20);
     intake_stop();

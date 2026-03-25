@@ -23,10 +23,10 @@ void colorSortFn(const Color allianceColor)
             if (detectedColor == allianceColor) {
                 //topMotor.move_velocity(200);
             } else {
-                topMotor.move_voltage(-8 * 1000);
+    
             }
             pros::delay(200); 
-            topMotor.brake();
+        
         }
         pros::delay(100);
     }
