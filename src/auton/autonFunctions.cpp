@@ -15,7 +15,7 @@ void intake(int power = 600)
         hood.retract();
     }
     intakeMotor.move_velocity(power);
-    outtakeMotor.move_velocity(power);
+    outtakeMotor.move_velocity(-power);
 }
 
 void outtake(int power =  600)
@@ -23,7 +23,7 @@ void outtake(int power =  600)
     if(intake_lift.is_extended())
         intake_lift.retract();
     intakeMotor.move_velocity(-power);
-    outtakeMotor.move_velocity(-power);
+    outtakeMotor.move_velocity(power);
 }
 
 void score_longgoal(int power = 600, Color allianceColor = Color::RED)
@@ -33,8 +33,8 @@ void score_longgoal(int power = 600, Color allianceColor = Color::RED)
         hood.extend();
     }
     intakeMotor.move_velocity(power);
-    outtakeMotor.move_velocity(power);
-    storageMotor.move_velocity(power);
+    outtakeMotor.move_velocity(-power);
+    storageMotor.move_velocity(-power);
 }
 
 void intake_stop(bool hood_state = false)
@@ -55,8 +55,8 @@ void intake_stop(bool hood_state = false)
 void score_midgoal(int power = 600)
 {
     intakeMotor.move_velocity(power);
-    outtakeMotor.move_velocity(power);
-    storageMotor.move_velocity(-power);
+    outtakeMotor.move_velocity(-power);
+    storageMotor.move_velocity(power);
 }
 
 void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
