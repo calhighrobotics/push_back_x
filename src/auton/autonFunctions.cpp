@@ -46,7 +46,7 @@ void intake_stop(bool hood_state = false)
         hood.retract();
     else
         hood.extend();
-    if(!intake_lift.is_extended())
+    if(intake_lift.is_extended())
     {
         intake_lift.retract();
     }
