@@ -11,6 +11,7 @@
 #include "pros/adi.hpp"
 #include "pros/motors.h"
 #include "pros/optical.hpp"
+#include "pros/rotation.h"
 #include "pros/vision.hpp"
 #include "colorSort.h"
 
@@ -30,8 +31,7 @@ lemlib::Drivetrain drivebase(
 pros::Imu imu(16);
 pros::Rotation horizontal_tracking_sensor(13);
 pros::Rotation vertical_tracking_sensor(-12);
-//-6.95780365196
-//0.0188794350939
+
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,0 , 1);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1);
 
@@ -73,7 +73,7 @@ lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(-1, pros::v5::MotorGears::blue);
-pros::Motor outtakeMotor(-2, pros::v5::MotorGears::blue);
+pros::Motor outtakeMotor(2, pros::v5::MotorGears::blue);
 pros::Motor storageMotor(3, pros::MotorGears::blue);
 
 pros::Distance rightDistance(20);
@@ -82,7 +82,7 @@ pros::Distance frontDistance(14);
 pros::Distance backDistance(19);
 pros::Distance frontDistance2(17);
 
-pros::adi::Pneumatics intake_lift('A', true);
+pros::adi::Pneumatics intake_lift('A', false);
 pros::adi::Pneumatics hood('B', false);
 pros::adi::Pneumatics matchloader('C', false);
 pros::adi::Pneumatics descore('D', false);

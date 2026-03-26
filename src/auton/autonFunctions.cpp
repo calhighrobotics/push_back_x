@@ -20,8 +20,8 @@ void intake(int power = 600)
 
 void outtake(int power =  600)
 {
-    if(intake_lift.is_extended())
-        intake_lift.retract();
+    if(!intake_lift.is_extended())
+        intake_lift.extend();
     intakeMotor.move_velocity(-power);
     outtakeMotor.move_velocity(power);
 }
@@ -48,7 +48,7 @@ void intake_stop(bool hood_state = false)
         hood.extend();
     if(!intake_lift.is_extended())
     {
-        intake_lift.extend();
+        intake_lift.retract();
     }
 }
 
@@ -79,11 +79,11 @@ void matchload_state(bool state)
 {
     if(state)
     {
-        if(!matchloader.is_extended()) {matchloader.extend();}
+        if(matchloader.is_extended()) {matchloader.retract();}
     }
     else
     {
-        if(matchloader.is_extended()) {matchloader.retract();}
+        if(!matchloader.is_extended()) {matchloader.extend();}
     }
 }
 

@@ -78,10 +78,14 @@ rd::Console console;
 
 void initialize() {
     chassis.calibrate();
-    temp_warning();
+    //temp_warning();
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
     create_alliance_selector();
+    color_sensor.set_integration_time(5);
+    vertical_tracking_sensor.set_data_rate(5);
+    horizontal_tracking_sensor.set_data_rate(5);
+
     double start_x = -51.25;
     double start_y = -18.5;
     double start_theta = 180.0;
@@ -105,10 +109,10 @@ void initialize() {
             //console.printf("Calculated Angle %.3f", calculateAngle(odomPose.theta));
             //console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
             
-            /*
+            
             console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
             console.printf("Theta: %.2f\n", MCL::global_Theta);
-        
+            /*
             console.printf("Conf: %.1f%%\n", MCL::global_Confidence * 100.0);
 
             double error_dist = std::hypot(odomPose.x - MCL::global_X, odomPose.y - MCL::global_Y);
