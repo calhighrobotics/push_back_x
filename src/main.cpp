@@ -161,7 +161,13 @@ void opcontrol() {
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
-            matchload_state(!matchloader.is_extended());
+            if(matchloader.is_extended())
+            {
+                matchloader.retract();
+            }
+            else {
+                matchloader.extend();
+            }
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
