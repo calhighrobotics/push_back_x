@@ -74,7 +74,7 @@ lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, senso
 
 pros::Motor intakeMotor(-1, pros::v5::MotorGears::blue);
 pros::Motor outtakeMotor(2, pros::v5::MotorGears::blue);
-pros::Motor storageMotor(3, pros::MotorGears::blue);
+pros::Motor storageMotor(-3, pros::MotorGears::blue);
 
 pros::Distance rightDistance(20);
 pros::Distance leftDistance(15);
