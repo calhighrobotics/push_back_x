@@ -6,7 +6,7 @@
 #include <vector>
 
 namespace MCL {
-    constexpr int NUM_PARTICLES = 400; 
+    constexpr int NUM_PARTICLES = 800; 
     constexpr float RESAMPLE_THRESHOLD = 0.4f;   
     constexpr float SENSOR_MAX_RANGE_IN = 65.0f; 
     extern double PARAMS_TRANS_BASE;      
