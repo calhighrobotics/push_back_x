@@ -95,9 +95,19 @@ Turn:
 */
 
 void opcontrol() {
+    bool mloader_state = false;
+	bool chicken_wing_state = false;
+	bool indexer_state = true;
+
+
+    mloader.set_value(false);
+	chicken_wing.set_value(false);
+	indexer.set_value(true);
+	extender.set_value(true);
+	odom_lifter.set_value(true);
     while(true)
     {
-    chassis.arcade(controller.get_analog(ANALOG_LEFT_Y), controller.get_analog(ANALOG_RIGHT_X));
+    chassis.arcade(controller.get_analog(ANALOG_LEFT_Y), controller.get_analog(ANALOG_RIGHT_X), false);
     if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
 				{
 					chassis.setBrakeMode(pros::E_MOTOR_BRAKE_BRAKE);
@@ -129,6 +139,25 @@ void opcontrol() {
 					hood_motor.move_voltage(0);
                 }
 
+                if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
+                {
+                    mloader_state = !mloader_state;
+                    mloader.set_value(mloader_state);
+                }
+
+                if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
+				{
+					chicken_wing.set_value(false);
+				}
+				else{
+					chicken_wing.set_value(true);
+				}
+
+                if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
+				{
+					indexer.set_value(!indexer_state);
+					indexer_state = !indexer_state;
+				}
 
 				if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP) && controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT))
 				{
