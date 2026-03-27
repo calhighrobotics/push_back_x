@@ -166,10 +166,10 @@ void autonomous() {
     chassis.turnToPoint(-40, -24, 2000);
     chassis.moveToPoint(-40, -24, 2000);
     chassis.turnToPoint(-40, 60, 2000);
-    chassis.moveToPoint(-40, 60, 5000);
+    chassis.moveToPoint(-40, 59, 5000);
     chassis.turnToPoint(40, 60, 2000);
     chassis.moveToPoint(40, 60, 10000);
-    chassis.turnToPoint(40, -60, 10000);
+    chassis.turnToPoint(40, -59, 10000);
     chassis.moveToPoint(40, -60, 10000);
     chassis.turnToPoint(-40, -60, 10000);
     chassis.moveToPoint(-40, -60, 10000);
