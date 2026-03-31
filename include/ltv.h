@@ -23,7 +23,7 @@ public:
         bool turnFirst = false;
         bool end_correction = false;
         float mpose_lead = 0.6f;
-        float track_width = 11.55f;
+        float track_width = 11.0f;
         float max_lin_correction = 2.0f;
         float max_ang_correction = 10.0f;
         int exit_points =0;
@@ -31,17 +31,12 @@ public:
         float max_velocity = 1.5f; 
         float max_acceleration = 2.0f;
         
-        float q_x_forward = 160.0f;
-        float q_y_forward = 256.0f * 8;
-        float q_theta_forward = 37.82f;
-        float r_ang_forward = 0.55f;
-        float r_vel_forward = 2.82f;
-        
-        float q_x_backward= 1300.0f; 
-        float q_y_backward = 90000.0f; 
-        float q_theta_backward = 10000.0f; 
-        float r_ang_backward = 115.0f;
-        float r_vel_backward = 190.0f;
+        float q_x = 160.0f;
+        float q_y = 256.0f * 8;
+        float q_theta = 37.82f;
+        float r_ang= 0.55f;
+        float r_vel = 2.82f;
+    
         
         /*
         float q_x_backward= 256.0f; 

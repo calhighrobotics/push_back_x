@@ -166,11 +166,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
     constexpr double FIXED_DT = 0.01; 
     
-    float active_q_x = l_config.backwards ? l_config.q_x_backward : l_config.q_x_forward;
-    float active_q_y = l_config.backwards ? l_config.q_y_backward : l_config.q_y_forward;
-    float active_q_theta = l_config.backwards ? l_config.q_theta_backward : l_config.q_theta_forward;
-    float active_r_vel = l_config.backwards ? l_config.r_vel_backward : l_config.r_vel_forward;
-    float active_r_ang = l_config.backwards ? l_config.r_ang_backward : l_config.r_ang_forward;
+
 
     for (int i = 0; i < trajectory_size; ++i) {
         if (cancel_request) break;
@@ -211,13 +207,13 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         }
         
         Eigen::Matrix3f Q_mat; 
-        Q_mat << active_q_x * q_gain_mult * q_x_boost, 0, 0,
-                 0, active_q_y * q_gain_mult, 0,
-                 0, 0, active_q_theta * q_gain_mult;
+        Q_mat << l_config.q_x * q_gain_mult * q_x_boost, 0, 0,
+                 0, l_config.q_y * q_gain_mult, 0,
+                 0, 0, l_config.q_theta * q_gain_mult;
         
         Eigen::Matrix2f R_mat;
-        R_mat << active_r_vel * r_vel_mult, 0,
-                 0, active_r_ang;
+        R_mat << l_config.r_vel * r_vel_mult, 0,
+                 0, l_config.r_ang;
 
         double math_theta = M_PI_2 - current_pose.theta; 
         
