@@ -101,10 +101,8 @@ void initialize() {
     //MCL::StartMCL(start_x, start_y, start_theta);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
-    chassis.setPose(0,0,0);
     selector.focus();
     color_sensor.set_led_pwm(100);
-    chassis.setPose(-50, 0, 270);
     image.focus();
     pros::Task screen_task([&]() {
         while (true) {
@@ -118,13 +116,8 @@ void initialize() {
             //console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
             
             
-            console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
-            console.printf("Theta: %.2f\n", MCL::global_Theta);
-            /*
-            console.printf("Conf: %.1f%%\n", MCL::global_Confidence * 100.0);
-            double error_dist = std::hypot(odomPose.x - MCL::global_X, odomPose.y - MCL::global_Y);
-            console.printf("Delta Dist: %.2f in\n", error_dist);
-            */
+            //console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
+            //console.printf("Theta: %.2f\n", MCL::global_Theta);
             pros::delay(50);
         }
     });
@@ -138,6 +131,11 @@ void disabled() {
 void competition_initialize() {
     selector.focus();
 }
+
+
+
+
+
 
 void autonomous() {
     selector.run_auton();
