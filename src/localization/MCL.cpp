@@ -1,340 +1,398 @@
 #include "MCL.h"
-#include "globals.h" 
+#include "globals.h" // Assuming this is where your chassis and sensors are actually instantiated
+#include "lemlib/api.hpp"
+#include "pros/rtos.hpp"
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <limits>
+#include <cstdio>
 
 namespace MCL {
 
-    double PARAMS_TRANS_BASE = 0.2;      
-    double PARAMS_TRANS_GAIN = 0.02;      
-    double PARAMS_SENSOR_SIGMA = 2; 
-    double PARAMS_REL_SIGMA = 5.0; 
+    double PARAMS_TRANS_BASE = 0.25;   
+    double PARAMS_TRANS_GAIN = 0.035;  
 
-    double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0; 
-    double map_min_x = -72.0, map_max_x = 72.0, map_min_y = -72.0, map_max_y = 72.0;
-    
+    double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0;
+
+    float w_slow = 0.0f, w_fast = 0.0f;
+    constexpr float ALPHA_SLOW = 0.001f;
+    constexpr float ALPHA_FAST = 0.1f;
+
+    // ── Field boundary ───────────────────────────────────────────────────
+    constexpr float FIELD_SIZE = 140.42f; // Could be 141.2
+    constexpr float HALF_SIZE  = FIELD_SIZE * 0.5f;  // 70.21"
+    constexpr float FIELD_MIN  = -HALF_SIZE;
+    constexpr float FIELD_MAX  =  HALF_SIZE;
+
+    // Reject any sensor reading beyond this (inches)
+    constexpr float MAX_SENSOR_READING = 65.0f;  
+
+    // ─────────────────────────── Particle Storage ────────────────────────
+    float particle_x[NUM_PARTICLES];
+    float particle_y[NUM_PARTICLES];
+    float particle_weights[NUM_PARTICLES];
+
     pros::Mutex particle_mutex;
-    std::mt19937 Random(std::random_device{}());
 
-    MCLDistanceSensor::MCLDistanceSensor(pros::Distance sensor_, double localX, double localY, double angleDeg) 
-        : Sensor(sensor_), LocalX(localX), LocalY(localY), AngleDeg(angleDeg) {
-        measurement = -1;
-        cos_off = std::cos(angleDeg * M_PI / 180.0);
-        sin_off = std::sin(angleDeg * M_PI / 180.0);
-    }
-
-    void MCLDistanceSensor::Measure() {
-        int dist_mm = Sensor.get_distance();
-        if (dist_mm > 10 && dist_mm < (SENSOR_MAX_RANGE_IN * 25.4)) { 
-            measurement = dist_mm * 0.0393701; 
-        } else {
-            measurement = -1.0;
-        }
-    }
-
-    static const Segment MAP_SEGMENTS[] = {
-        {72, 72, 72, -72}, {72, -72, -72, -72}, {-72, -72, -72, 72}, {-72, 72, 72, 72},
-        {20.9, 46.25, 24.4, 46.25}, {24.4, 46.25, 24.4, 49.75}, {24.4, 49.75, 20.9, 49.75}, {20.9, 49.75, 20.9, 46.25},
-        {-24.4, 46.25, -20.9, 46.25}, {-20.9, 46.25, -20.9, 49.75}, {-20.9, 49.75, -24.4, 49.75}, {-24.4, 49.75, -24.4, 46.25},
-        {20.9, -49.75, 24.4, -49.75}, {24.4, -49.75, 24.4, -46.25}, {24.4, -46.25, 20.9, -46.25}, {20.9, -46.25, 20.9, -49.75},
-        {-24.4, -49.75, -20.9, -49.75}, {-20.9, -49.75, -20.9, -46.25}, {-20.9, -46.25, -24.4, -46.25}, {-24.4, -46.25, -24.4, -49.75},
-        {-72, 45.5, -67, 45.5}, {-67, 45.5, -67, 50.5}, {-67, 50.5, -72, 50.5}, {-72, 50.5, -72, 45.5},
-        {67, 45.5, 72, 45.5}, {72, 45.5, 72, 50.5}, {72, 50.5, 67, 50.5}, {67, 50.5, 67, 45.5},
-        {-72, -50.5, -67, -50.5}, {-67, -50.5, -67, -45.5}, {-67, -45.5, -72, -45.5}, {-72, -45.5, -72, -50.5},
-        {67, -50.5, 72, -50.5}, {72, -50.5, 72, -45.5}, {72, -45.5, 67, -45.5}, {67, -45.5, 67, -50.5},
-    };
-    static const int MAP_SEGMENT_COUNT = sizeof(MAP_SEGMENTS) / sizeof(Segment);
-
-    struct OptSegment { double x0, y0, x1, y1, dx, dy, nx, ny; };
-    OptSegment opt_segments[MAP_SEGMENT_COUNT];
-
-    struct AABB { double min_x, max_x, min_y, max_y; };
-    AABB map_aabbs[MAP_SEGMENT_COUNT];
-
-    std::vector<MCLDistanceSensor> Sensors = {
-        MCLDistanceSensor(frontDistance, -3.0, -0.75, 0),  
-        MCLDistanceSensor(leftDistance, 0.5, -7.2, 90), 
-        MCLDistanceSensor(rightDistance, -0.5, 6.3, -90), 
-        MCLDistanceSensor(backDistance, 3.0, -10.5, 180), 
+    // ─────────────────────────── Sensor Configuration ──────────────────
+    struct SensorConfig {
+        float x;      // offset Right of robot center (inches)
+        float y;      // offset Forward of robot center (inches)
+        float angle;  // mounting angle relative to robot forward (deg)
     };
 
-    std::vector<Particle> particles(NUM_PARTICLES);
-    std::vector<Particle> resample_buffer(NUM_PARTICLES); 
+    const std::vector<SensorConfig> SENSOR_CONFIGS = {
+        { -1.75f,  2.8f,   0.0f },    // 0: front
+        {  4.6f,   4.3f,  90.0f },    // 1: right
+        {  1.75f, -0.6f, 180.0f },    // 2: back
+        { -5.1f,   4.3f, -90.0f }     // 3: left
+    };
 
-    struct ValidMeas { double pred; double meas; double weight; };
-    struct RayHit { double dist; double weight; };
-
-    inline double degToRad(double deg) { return deg * M_PI / 180.0; }
-    inline double radToDeg(double rad) { return rad * 180.0 / M_PI; }
-    inline double wrapAngleDeg(double angle) {
-        angle = std::fmod(angle + 180.0, 360.0);
-        if (angle < 0) angle += 360.0;
-        return angle - 180.0;
-    }
-
-    double gaussian_sample(double mean, double stddev) {
-        std::normal_distribution<double> dist(mean, stddev);
-        return dist(Random);
-    }
-
-    RayHit getRaycastDistance(double sensX, double sensY, double dx, double dy) {
-        double minDist = 10000.0; 
-        double bestWeight = 1.0; 
-
-        double ray_end_x = sensX + dx * SENSOR_MAX_RANGE_IN;
-        double ray_end_y = sensY + dy * SENSOR_MAX_RANGE_IN;
-        double r_min_x = std::min(sensX, ray_end_x);
-        double r_max_x = std::max(sensX, ray_end_x);
-        double r_min_y = std::min(sensY, ray_end_y);
-        double r_max_y = std::max(sensY, ray_end_y);
-
-        for (int i = 0; i < MAP_SEGMENT_COUNT; ++i) {
-            const AABB& box = map_aabbs[i];
-            if (r_max_x < box.min_x || r_min_x > box.max_x || 
-                r_max_y < box.min_y || r_min_y > box.max_y) continue;
-
-            const OptSegment& seg = opt_segments[i];
-            double r_px = seg.x0 - sensX;
-            double r_py = seg.y0 - sensY;
-            double r_cross_s = dx * seg.dy - dy * seg.dx; 
-            
-            if (std::abs(r_cross_s) < 1e-4) continue; 
-            
-            double t = (r_px * seg.dy - r_py * seg.dx) / r_cross_s;
-            double u = (r_px * dy - r_py * dx) / r_cross_s;
-            
-            if (u >= 0.0 && u <= 1.0 && t > 0.0) {
-                if (t < minDist) {
-                    minDist = t;
-                    bestWeight = 0.5 + 0.5 * std::abs(dx * seg.nx + dy * seg.ny);
-                }
-            }
+    // ─────────────────────────── RNG ────────────────────────────────────
+    struct XorShift32 {
+        uint32_t state;
+        explicit XorShift32(uint32_t seed = pros::micros())
+            : state(seed == 0 ? 0x12345678u : seed) {}
+        inline uint32_t next_u32() {
+            uint32_t x = state;
+            x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+            return state = x;
         }
-        
-        if (minDist <= 0 || minDist > SENSOR_MAX_RANGE_IN) return {-1.0, 1.0};
-        return {minDist, bestWeight};
+        inline float next_f32()  { return (next_u32() >> 8) * (1.0f / (1u << 24)); }
+        inline float uniform(float lo, float hi) { return lo + next_f32() * (hi - lo); }
+        inline float gaussian(float std_dev) {
+            const float u1 = std::max(next_f32(), 1e-12f);
+            const float u2 = next_f32();
+            return std_dev * std::sqrt(-2.0f * std::log(u1))
+                           * std::cos(2.0f * (float)M_PI * u2);
+        }
+    } rng;
+
+    // ─────────────────────────── Utilities ──────────────────────────────
+    inline float degToRad(float d) { return d * (float)M_PI / 180.0f; }
+    inline float wrapAngle(float a) {
+        a = std::fmod(a + 180.0f, 360.0f);
+        if (a < 0.0f) a += 360.0f;
+        return a - 180.0f;
     }
 
+    // ─────────────────────────── Initialisation ─────────────────────────
     void StartMCL(double x, double y) {
         particle_mutex.take();
-        map_min_x = map_min_y = std::numeric_limits<double>::infinity();
-        map_max_x = map_max_y = -std::numeric_limits<double>::infinity();
-
-        for (int i = 0; i < MAP_SEGMENT_COUNT; ++i) {
-            map_min_x = std::min({map_min_x, MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1});
-            map_max_x = std::max({map_max_x, MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1});
-            map_min_y = std::min({map_min_y, MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1});
-            map_max_y = std::max({map_max_y, MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1});
-            
-            map_aabbs[i] = {
-                std::min(MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1),
-                std::max(MAP_SEGMENTS[i].x0, MAP_SEGMENTS[i].x1),
-                std::min(MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1),
-                std::max(MAP_SEGMENTS[i].y0, MAP_SEGMENTS[i].y1)
-            };
-
-            opt_segments[i].x0 = MAP_SEGMENTS[i].x0;
-            opt_segments[i].y0 = MAP_SEGMENTS[i].y0;
-            opt_segments[i].x1 = MAP_SEGMENTS[i].x1;
-            opt_segments[i].y1 = MAP_SEGMENTS[i].y1;
-            opt_segments[i].dx = MAP_SEGMENTS[i].x1 - MAP_SEGMENTS[i].x0;
-            opt_segments[i].dy = MAP_SEGMENTS[i].y1 - MAP_SEGMENTS[i].y0;
-            double len = std::hypot(opt_segments[i].dx, opt_segments[i].dy);
-            if (len > 1e-6) {
-                opt_segments[i].nx = -opt_segments[i].dy / len;
-                opt_segments[i].ny = opt_segments[i].dx / len;
-            } else {
-                opt_segments[i].nx = 0;
-                opt_segments[i].ny = 0;
-            }
+        rng = XorShift32(pros::micros());
+        for (int i = 0; i < NUM_PARTICLES; ++i) {
+            particle_x[i] = std::clamp<float>(
+                (float)x + rng.gaussian(2.0f), FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
+            particle_y[i] = std::clamp<float>(
+                (float)y + rng.gaussian(2.0f), FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
+            particle_weights[i] = 1.0f / NUM_PARTICLES;
         }
+        w_slow = w_fast = 1.0f / NUM_PARTICLES;
+        particle_mutex.give();
+    }
 
-        for (auto& p : particles) {
-            p.x = gaussian_sample(x, 2.0);
-            p.y = gaussian_sample(y, 2.0);
-            p.weight = 1.0 / NUM_PARTICLES;
+    // ─────────────────────────── Motion Update ──────────────────────────
+    void MotionUpdate(double dX_global, double dY_global, double dTheta, double robot_theta_deg) {
+        const float dist = (float)std::hypot(dX_global, dY_global);
+        const float turn_factor = std::abs((float)dTheta) * 0.05f; 
+        
+        const float c = 1.0f - std::clamp((float)global_Confidence, 0.0f, 1.0f);
+        const float transStd = (float)(PARAMS_TRANS_BASE + c * 0.3)
+                             + (float)(PARAMS_TRANS_GAIN + c * 0.04) * (dist + turn_factor);
+
+        float math_theta_deg = 90.0f - (float)robot_theta_deg; 
+        const float theta_rad = degToRad(math_theta_deg);
+        
+        const float cos_t = std::cos(theta_rad);
+        const float sin_t = std::sin(theta_rad);
+
+        particle_mutex.take();
+        for (int i = 0; i < NUM_PARTICLES; ++i) {
+            const float nF = rng.gaussian(transStd);
+            const float nS = rng.gaussian(transStd * 0.6f);
+            
+            const float noise_X = nF * cos_t - nS * sin_t;
+            const float noise_Y = nF * sin_t + nS * cos_t;
+
+            particle_x[i] = std::clamp<float>(
+                particle_x[i] + (float)dX_global + noise_X,
+                FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
+            particle_y[i] = std::clamp<float>(
+                particle_y[i] + (float)dY_global + noise_Y,
+                FIELD_MIN + 0.1f, FIELD_MAX - 0.1f);
         }
         particle_mutex.give();
     }
 
+    // ─────────────────────────── Dynamic Raycast Sensor Update ──────────
+    void SensorUpdate(const std::vector<float>& measurements, float robot_theta_deg, float current_confidence) {
+        particle_mutex.take();
+        float sum_w = 0.0f;
+
+        float math_theta_deg = 90.0f - robot_theta_deg;
+        const float theta_rad = degToRad(math_theta_deg);
+        const float cos_t = std::cos(theta_rad);
+        const float sin_t = std::sin(theta_rad);
+
+        const float dynamic_sensor_sig = 1.0f + (1.0f - std::clamp(current_confidence, 0.0f, 1.0f)) * 4.0f;
+        const float dynamic_margin = dynamic_sensor_sig * 3.0f; 
+
+        for (int i = 0; i < NUM_PARTICLES; ++i) {
+            float w = 1.0f;
+
+            for (size_t s = 0; s < measurements.size(); ++s) {
+                if (measurements[s] < 0.0f) continue;
+
+                const SensorConfig& sc = SENSOR_CONFIGS[s];
+
+                float sensor_x = particle_x[i] + sc.y * cos_t + sc.x * sin_t;
+                float sensor_y = particle_y[i] + sc.y * sin_t - sc.x * cos_t;
+
+                float absolute_lemlib_deg = robot_theta_deg + sc.angle;
+                float math_beam_deg = 90.0f - absolute_lemlib_deg;
+                const float beam_rad = degToRad(math_beam_deg);
+
+                float v_x = std::cos(beam_rad);
+                float v_y = std::sin(beam_rad);
+
+                float d_x = 999.0f;
+                if (v_x > 1e-4f)       d_x = (FIELD_MAX - sensor_x) / v_x;
+                else if (v_x < -1e-4f) d_x = (FIELD_MIN - sensor_x) / v_x;
+
+                float d_y = 999.0f;
+                if (v_y > 1e-4f)       d_y = (FIELD_MAX - sensor_y) / v_y;
+                else if (v_y < -1e-4f) d_y = (FIELD_MIN - sensor_y) / v_y;
+
+                float expected = std::min(d_x, d_y);
+                float err = measurements[s] - expected;
+
+                if (err > dynamic_margin) {
+                    w *= 0.001f; 
+                } else if (err < -dynamic_margin) {
+                    w *= 0.4f;   
+                } else {
+                    w *= std::exp(-0.5f * err * err / (dynamic_sensor_sig * dynamic_sensor_sig));
+                }
+            }
+
+            particle_weights[i] = w;
+            sum_w += w;
+        }
+
+        const float w_avg = sum_w / NUM_PARTICLES;
+        if (w_slow < 1e-10f) w_slow = w_avg;
+        if (w_fast < 1e-10f) w_fast = w_avg;
+        w_slow += ALPHA_SLOW * (w_avg - w_slow);
+        w_fast += ALPHA_FAST * (w_avg - w_fast);
+
+        if (sum_w > 1e-10f) {
+            for (int i = 0; i < NUM_PARTICLES; ++i)
+                particle_weights[i] /= sum_w;
+        } else {
+            const float u = 1.0f / NUM_PARTICLES;
+            for (int i = 0; i < NUM_PARTICLES; ++i)
+                particle_weights[i] = u;
+        }
+
+        particle_mutex.give();
+    }
+
+    // ─────────────────────────── ESS & Resampling ────────────────────────
+    float computeESS() {
+        particle_mutex.take();
+        float sq = 0.0f;
+        for (int i = 0; i < NUM_PARTICLES; ++i)
+            sq += particle_weights[i] * particle_weights[i];
+        particle_mutex.give();
+        return (sq > 1e-20f) ? 1.0f / sq : 0.0f;
+    }
+
+    void Resample() {
+        particle_mutex.take();
+
+        const float ratio = (w_slow > 1e-10f) ? (w_fast / w_slow) : 1.0f;
+        const float inject_rate = std::clamp(1.0f - ratio, 0.0f, 0.20f); 
+        const int num_inject = (int)(NUM_PARTICLES * inject_rate);
+        const int num_keep = NUM_PARTICLES - num_inject;
+
+        static float new_x[NUM_PARTICLES];
+        static float new_y[NUM_PARTICLES];
+
+        float step = 1.0f / (num_keep > 0 ? num_keep : 1);
+        float r   = rng.next_f32() * step;
+        float cum = particle_weights[0];
+        int   j   = 0;
+
+        // Keep the high-performing particles
+        for (int m = 0; m < num_keep; ++m) {
+            float u = r + (float)m * step;
+            while (u > cum && j < NUM_PARTICLES - 1) {
+                cum += particle_weights[++j];
+            }
+            new_x[m] = particle_x[j];
+            new_y[m] = particle_y[j];
+        }
+
+        // Inject new particles locally around our best guess in a tight cluster (1.5" std dev)
+        for (int m = num_keep; m < NUM_PARTICLES; ++m) {
+            new_x[m] = std::clamp<float>(global_X + rng.gaussian(1.5f), FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
+            new_y[m] = std::clamp<float>(global_Y + rng.gaussian(1.5f), FIELD_MIN + 1.0f, FIELD_MAX - 1.0f);
+        }
+
+        const float uniform_w = 1.0f / NUM_PARTICLES;
+        for (int i = 0; i < NUM_PARTICLES; ++i) {
+            particle_x[i]       = new_x[i];
+            particle_y[i]       = new_y[i];
+            particle_weights[i] = uniform_w;
+        }
+        
+        particle_mutex.give();
+    }
+
+    // ─────────────────────────── Main Loop ──────────────────────────────
     void MonteCarlo() {
         lemlib::Pose prevOdom = chassis.getPose();
+        uint32_t now = pros::millis();
         
+        int print_counter = 0;
+        bool first_run = true; // Added for the EMA filter
+
         while (true) {
             lemlib::Pose currOdom = chassis.getPose();
-            double dX_global = currOdom.x - prevOdom.x;
-            double dY_global = currOdom.y - prevOdom.y;
-            double dTheta = wrapAngleDeg(currOdom.theta - prevOdom.theta);
 
-            // Pre-calculate the current absolute robot heading for translations
-            double robot_rad = degToRad(currOdom.theta);
-            double robot_cos = std::cos(robot_rad);
-            double robot_sin = std::sin(robot_rad);
+            const double dX_global = currOdom.x - prevOdom.x;
+            const double dY_global = currOdom.y - prevOdom.y;
+            const double dTheta    = wrapAngle((float)(currOdom.theta - prevOdom.theta));
 
-            double cosP = std::cos(degToRad(prevOdom.theta));
-            double sinP = std::sin(degToRad(prevOdom.theta));
-            double dF = dX_global * sinP + dY_global * cosP;
-            double dS = dX_global * cosP - dY_global * sinP;
+            if (std::abs(dX_global) > 0.001 || std::abs(dY_global) > 0.001 || std::abs(dTheta) > 0.1) {
 
-            particle_mutex.take();
+                MotionUpdate(dX_global, dY_global, dTheta, currOdom.theta);
 
-            for (auto& p : particles) {
-                double dist = std::hypot(dF, dS);
-                // Keep dTheta here to account for translation noise induced during heavy turning
-                double transStd = PARAMS_TRANS_BASE + 0.08 * dist + 0.03 * std::abs(dTheta);
-                
-                double dx_l = dF + gaussian_sample(0, transStd);
-                double dy_l = dS + gaussian_sample(0, transStd);
+                std::vector<float> measurements(4, -1.0f);
+                bool has_valid_reading = false;
 
-                p.x += dx_l * robot_sin + dy_l * robot_cos;
-                p.y += dx_l * robot_cos - dy_l * robot_sin;
-            }
-            prevOdom = currOdom;
-
-            std::vector<MCLDistanceSensor*> active;
-            for (auto& s : Sensors) { s.Measure(); if (s.measurement > 0) active.push_back(&s); }
-
-            if (!active.empty()) {
-                double max_log = -1e9;
-                std::vector<double> logs(NUM_PARTICLES);
-
-                // PERFORMANCE BOOST: Pre-compute sensor offsets and ray vectors globally
-                struct SensorPrecomp {
-                    MCLDistanceSensor* s;
-                    double dx, dy, offsetX, offsetY;
+                auto try_read_sensor = [&](auto& sensor, int index) {
+                    float val = sensor.get() / 25.4f; 
+                    if (val > 2.0f && val < MAX_SENSOR_READING) { 
+                        measurements[index] = val; 
+                        has_valid_reading = true; 
+                    }
                 };
+
+                try_read_sensor(frontDistance, 0);
+                try_read_sensor(rightDistance, 1);
+                try_read_sensor(backDistance, 2);
+                try_read_sensor(leftDistance, 3);
                 
-                std::vector<SensorPrecomp> precomps;
-                for (auto* s : active) {
-                    SensorPrecomp sc;
-                    sc.s = s;
-                    sc.dx = robot_sin * s->cos_off + robot_cos * s->sin_off;
-                    sc.dy = robot_cos * s->cos_off - robot_sin * s->sin_off;
-                    sc.offsetX = s->LocalY * robot_sin + s->LocalX * robot_cos;
-                    sc.offsetY = s->LocalY * robot_cos - s->LocalX * robot_sin;
-                    precomps.push_back(sc);
+                if (has_valid_reading) {
+                    SensorUpdate(measurements, currOdom.theta, global_Confidence);
                 }
 
+                particle_mutex.take();
+                
+                float max_w = -1.0f;
+                int best_idx = 0;
                 for (int i = 0; i < NUM_PARTICLES; ++i) {
-                    double logL = 0.0;
-                    
-                    ValidMeas valid_measurements[4];
-                    int valid_count = 0;
-
-                    for (const auto& sc : precomps) {
-                        double sensX = particles[i].x + sc.offsetX;
-                        double sensY = particles[i].y + sc.offsetY;
-
-                        RayHit hit = getRaycastDistance(sensX, sensY, sc.dx, sc.dy);
-                        
-                        if (hit.dist < 0) continue; 
-                        double err = sc.s->measurement - hit.dist;
-
-                        if (std::abs(err) > 18.0) continue;  
-
-                        valid_measurements[valid_count++] = {hit.dist, sc.s->measurement, hit.weight};
-
-                        double gaussian_prob = std::exp(-(err * err) / (2 * PARAMS_SENSOR_SIGMA * PARAMS_SENSOR_SIGMA));
-                        
-                        double p_abs = gaussian_prob * hit.weight;
-                        logL += std::log(std::max(p_abs, 1e-6));
+                    if (particle_weights[i] > max_w) {
+                        max_w = particle_weights[i];
+                        best_idx = i;
                     }
-
-                    if (valid_count > 1) {
-                        for (int a = 0; a < valid_count; ++a) {
-                            for (int b = a + 1; b < valid_count; ++b) {
-                                double predDiff = valid_measurements[a].pred - valid_measurements[b].pred;
-                                double measDiff = valid_measurements[a].meas - valid_measurements[b].meas;
-                                double diffErr = measDiff - predDiff;
-
-                                double w = std::min(valid_measurements[a].weight, valid_measurements[b].weight);
-                                double rel_prob = std::exp(-(diffErr * diffErr) / (2 * PARAMS_REL_SIGMA * PARAMS_REL_SIGMA));
-                                
-                                logL += std::log(std::max(rel_prob * w, 1e-6));
-                            }
-                        }
-                    }
-
-                    logs[i] = logL;
-                    if (logL > max_log) max_log = logL;
                 }
+                
+                float best_x = particle_x[best_idx];
+                float best_y = particle_y[best_idx];
 
-                double sumW = 0;
+                float sumX = 0.0f, sumY = 0.0f, sumW = 0.0f;
+                float sumX2 = 0.0f, sumY2 = 0.0f; 
+                const float CLUSTER_RADIUS = 15.0f;
+                
                 for (int i = 0; i < NUM_PARTICLES; ++i) {
-                    particles[i].weight = std::exp(logs[i] - max_log);
+                    float dx = particle_x[i] - best_x;
+                    float dy = particle_y[i] - best_y;
                     
-                    if (particles[i].x < map_min_x || particles[i].x > map_max_x || 
-                        particles[i].y < map_min_y || particles[i].y > map_max_y) {
-                        particles[i].weight *= 0.01;
+                    if ((dx * dx + dy * dy) <= (CLUSTER_RADIUS * CLUSTER_RADIUS)) {
+                        float w = particle_weights[i];
+                        sumX += w * particle_x[i];
+                        sumY += w * particle_y[i];
+                        sumX2 += w * particle_x[i] * particle_x[i];
+                        sumY2 += w * particle_y[i] * particle_y[i];
+                        sumW += w;
                     }
-                    sumW += particles[i].weight;
                 }
-                for (auto& p : particles) p.weight /= (sumW > 1e-9 ? sumW : 1.0);
-            }
-
-            double mX = 0, mY = 0, neff_s = 0;
-            for (const auto& p : particles) {
-                mX += p.x * p.weight; 
-                mY += p.y * p.weight;
-                neff_s += p.weight * p.weight;
-            }
-            
-            // IMU serves as the source of truth for heading
-            global_X = mX; 
-            global_Y = mY; 
-            global_Theta = currOdom.theta; 
-            
-            double neff = (neff_s > 0) ? (1.0 / neff_s) : 0;
-            global_Confidence = std::clamp(neff / NUM_PARTICLES, 0.0, 1.0);
-
-            if (global_Confidence < RESAMPLE_THRESHOLD && (!active.empty() || global_Confidence < 0.15)) {
-                double injectP = 0.02 + (1.0 - global_Confidence) * 0.15;
-                if (global_Confidence < 0.2) injectP = 0.3; 
-
-                int keep = NUM_PARTICLES * (1.0 - injectP);
-                double r = std::uniform_real_distribution<double>(0, 1.0 / keep)(Random), c = particles[0].weight;
-                int idx = 0;
                 
-                for (int i = 0; i < keep; ++i) {
-                    double U = r + (double)i / keep;
-                    while (U > c && idx < NUM_PARTICLES - 1) c += particles[++idx].weight;
+                float mcl_std_dev = 999.0f;
+                float cluster_weight_ratio = 0.0f; 
+
+                // --- RAW CLUSTER CALCULATION ---
+                float raw_X = best_x;
+                float raw_Y = best_y;
+                
+                if (sumW > 1e-6f) {
+                    raw_X = sumX / sumW;
+                    raw_Y = sumY / sumW;
                     
-                    resample_buffer[i] = particles[idx];
-                    resample_buffer[i].weight = 1.0 / NUM_PARTICLES;
+                    float meanX = raw_X;
+                    float meanY = raw_Y;
+                    float varX = (sumX2 / sumW) - (meanX * meanX);
+                    float varY = (sumY2 / sumW) - (meanY * meanY);
+                    mcl_std_dev = std::sqrt(std::max(0.0f, varX + varY));
                     
-                    resample_buffer[i].x += gaussian_sample(0, 0.2);
-                    resample_buffer[i].y += gaussian_sample(0, 0.2);
+                    cluster_weight_ratio = sumW; 
                 }
+
+                // --- EXPONENTIAL MOVING AVERAGE (EMA) FILTER ---
+                const float EMA_ALPHA = 0.20f; 
                 
-                std::normal_distribution<double> fX(currOdom.x, 10.0);
-                std::normal_distribution<double> fY(currOdom.y, 10.0);
-                
-                for (int i = keep; i < NUM_PARTICLES; ++i) {
-                    double newX = std::clamp(fX(Random), map_min_x, map_max_x);
-                    double newY = std::clamp(fY(Random), map_min_y, map_max_y);
-                    resample_buffer[i] = {newX, newY, 1.0/NUM_PARTICLES};
+                if (first_run) {
+                    global_X = raw_X;
+                    global_Y = raw_Y;
+                    first_run = false;
+                } else {
+                    global_X = global_X + EMA_ALPHA * (raw_X - global_X);
+                    global_Y = global_Y + EMA_ALPHA * (raw_Y - global_Y);
                 }
-                particles = resample_buffer;
+                // -----------------------------------------------
+
+                global_Theta      = currOdom.theta; 
+                global_Confidence = (w_slow > 1e-10f) ? std::min(w_fast / w_slow, 1.0f) : 0.0f;
+                
+                particle_mutex.give();
+
+                if (++print_counter >= 3) {
+                    printf("MCL: %.2f %.2f | ODOM: %.2f %.2f | CONF: %.2f | STD: %.2f | RATIO: %.2f\n",
+                        global_X, global_Y, currOdom.x, currOdom.y, global_Confidence, mcl_std_dev, cluster_weight_ratio);
+                    print_counter = 0;
+                }
+
+                // ────────────────────────────────────────────────────────────
+                // CONDITIONAL LEMLIB CORRECTION
+                // ────────────────────────────────────────────────────────────
+                if (global_Confidence > 0.65 && cluster_weight_ratio > 0.50f && 
+                    std::abs(dX_global) < 5 && std::abs(dY_global) < 5) {
+                    
+                    double diff_x = global_X - currOdom.x;
+                    double diff_y = global_Y - currOdom.y;
+                    double correction_mag = std::hypot(diff_x, diff_y);
+                    
+                    if (correction_mag > 1.0 && correction_mag < 12.0) {
+                        lemlib::Pose fusedPose(global_X, global_Y, currOdom.theta);
+                        chassis.setPose(fusedPose);
+                        currOdom = chassis.getPose(); 
+                    }
+                }
+
+                const float ess   = computeESS();
+                const float ratio = (w_slow > 1e-10f) ? (w_fast / w_slow) : 1.0f;
+                if (ess < NUM_PARTICLES * 0.5f || ratio < 0.9f) {
+                    Resample();
+                }
             }
 
-            static uint32_t last_print = pros::millis();
-            if (pros::millis() - last_print > 500) { 
-                last_print = pros::millis();
-                
-                printf("Odom = (%.2f, %.2f, %.2f)\n", currOdom.x, currOdom.y, currOdom.theta);
-                printf("MCL = (%.2f, %.2f)\n", global_X, global_Y);
-                
-                printf("P = [");
-                for (int i = 0; i < NUM_PARTICLES; ++i) {
-                    printf("(%.2f, %.2f)", particles[i].x, particles[i].y);
-                    if (i != NUM_PARTICLES - 1) printf(", ");
-                }
-                printf("]\n\n");
-            }
-            particle_mutex.give(); 
-            
-            pros::delay(5); 
+            prevOdom = currOdom;
+            pros::Task::delay_until(&now, 10);
         }
     }
-}
+
+} // namespace MCL
+
