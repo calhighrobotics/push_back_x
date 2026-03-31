@@ -9,13 +9,13 @@
 
 
 
-void intake(int power = 12000);
+void intake(int power = 600);
 
-void outtake(int power = 12000);
+void outtake(int power = 600);
 
-void score_longgoal(int power = 12000, Color allianceColor = Color::RED);
+void score_longgoal(int power = 600, Color allianceColor = Color::RED);
 
-void score_midgoal(int power = 12000);
+void score_midgoal(int power = 600);
 
 void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1);
 

@@ -38,7 +38,7 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           11.4953431776,
           54.5797495382,
           99999.0, 
-          11.55f * INCH_TO_METER 
+          11.0f * INCH_TO_METER 
       ) {}
 
 void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
@@ -422,8 +422,6 @@ std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) 
         else if (line.find("L =") != std::string::npos) L = parse_pairs(line.substr(line.find('[')));
         else if (line.find("A =") != std::string::npos) A = parse_pairs(line.substr(line.find('[')));
     }
-    
-    // FIX 1: Prevent Segfaults by grabbing the smallest array size
     size_t n = std::min({X.size(), L.size(), A.size()});
     if (n == 0) return {};
     

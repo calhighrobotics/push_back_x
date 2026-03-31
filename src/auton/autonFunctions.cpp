@@ -16,6 +16,7 @@ void intake(int power = 600)
     }
     intakeMotor.move_velocity(power);
     outtakeMotor.move_velocity(-power);
+    storageMotor.move_velocity(-100);
 }
 
 void outtake(int power =  600)

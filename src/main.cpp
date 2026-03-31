@@ -8,6 +8,7 @@
 #include "auton/autonRoutines.h"
 #include "pros/misc.hpp"
 #include "pros/motors.h"
+#include "robodash/views/image.hpp"
 #include "robodash/views/selector.hpp"
 #include "colorSort.h"
 #include "warnings.h"
@@ -15,9 +16,11 @@
 #include "MCL.h"
 #include "auton/autonFunctions.h"
 #include "distanceReset.h"
-#include <atomic> // For std::atomic
-#include <memory> // For std::unique_ptr and std::make_unique
+#include <atomic> 
+#include <memory>
+#include "motorDashboard.h"
 
+LV_IMG_DECLARE(callogo);
 
 static void update_alliance_btn(lv_obj_t* btn, Color newColor) {
     lv_obj_t* label = lv_obj_get_child(btn, 0);
@@ -75,6 +78,7 @@ rd::Selector selector({
 });
 
 rd::Console console;
+rd::Image image = rd::Image(&callogo, "logo");
 
 void initialize() {
     chassis.calibrate();
@@ -82,9 +86,12 @@ void initialize() {
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
     create_alliance_selector();
+    init_motor_dashboard();
+
     color_sensor.set_integration_time(5);
     vertical_tracking_sensor.set_data_rate(5);
     horizontal_tracking_sensor.set_data_rate(5);
+
 
     double start_x = -51.25;
     double start_y = -18.5;
@@ -98,6 +105,7 @@ void initialize() {
     selector.focus();
     color_sensor.set_led_pwm(100);
     chassis.setPose(-50, 0, 270);
+    image.focus();
     pros::Task screen_task([&]() {
         while (true) {
             console.clear();
@@ -114,7 +122,6 @@ void initialize() {
             console.printf("Theta: %.2f\n", MCL::global_Theta);
             /*
             console.printf("Conf: %.1f%%\n", MCL::global_Confidence * 100.0);
-
             double error_dist = std::hypot(odomPose.x - MCL::global_X, odomPose.y - MCL::global_Y);
             console.printf("Delta Dist: %.2f in\n", error_dist);
             */
@@ -124,7 +131,7 @@ void initialize() {
 }
 
 void disabled() {
-    selector.focus();
+    image.focus();
     
 }
 
@@ -140,7 +147,7 @@ void autonomous() {
 void opcontrol() {
     midgoal_first = false;
     bool trapDoor_commanded = false;
-    bool matchload_on = false;
+    bool matchload_on = true;
 
     std::unique_ptr<pros::Task> longgoalTask = nullptr;
     int stall_timer = 0;
@@ -150,7 +157,7 @@ void opcontrol() {
     static std::atomic<bool> macro_abort{false}; 
 
     enum class ScoringMode {
-        NONE, INTAKE, OUTTAKE, MIDGOAL, LONGGOAL, MANUAL_UP
+        NONE, INTAKE, OUTTAKE, MIDGOAL, LONGGOAL, MANUAL_UP, BRAKE
     };
 
     while (true) {
@@ -169,98 +176,22 @@ void opcontrol() {
                 matchloader.extend();
             }
         }
+        ScoringMode scoringMode = ScoringMode::NONE;
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+            intakeMotor.move_velocity(600);
+            scoringMode = ScoringMode::BRAKE;
 
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
-            color_sort_enable = !color_sort_enable;
-            controller.rumble(".");
         }
 
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
+            outtakeMotor.move_velocity(600);
+            scoringMode = ScoringMode::BRAKE;
         }
 
 
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) {
-            
-            if (longgoalTask != nullptr) {
-                macro_abort = true;
-                chassis.cancelMotion(); 
-            }
-    
-            else {
-                stall_timer = 0;
-                task_run_time = 0;
-                macro_finished = false;
-                macro_abort = false; 
-
-                longgoalTask = std::make_unique<pros::Task>([] {
-                    distancePose pose = distanceReset(true);
-
-                    if (!pose.using_odom_x && !pose.using_odom_y &&
-                        std::abs(std::abs(pose.x) - (22 + longgoal_offset)) < 4 &&
-                        std::abs(std::abs(pose.y) - 47.5) < 4) {
-                        
-                        int x_mult = pose.x < 0 ? -1 : 1;
-                        int y_mult = pose.y < 0 ? -1 : 1;
-
-                        chassis.moveToPoint(49 * x_mult, 47.5 * y_mult, 3000, {.earlyExitRange = 2});
-                        if (macro_abort) { macro_finished = true; return; } 
-
-                        descore.retract();
-                        chassis.waitUntilDone();
-                        if (macro_abort) { macro_finished = true; return; }
-
-                        chassis.moveToPose((22 + longgoal_offset) * x_mult,
-                                        (47.5 * y_mult) + 13.5, x_mult > 0 ? 90 : 270, 1500,
-                                        {.forwards = false, .lead = 0.2, .minSpeed = 20, .earlyExitRange = 8});
-                        if (macro_abort) { macro_finished = true; return; }
-
-                        chassis.moveToPose(-16 * x_mult,
-                                        (47.5 * y_mult) + 12.5, x_mult > 0 ? 90 : 270, 1500,
-                                        {.forwards = false, .lead = 0.3});
-                    }
-                    
-                    macro_finished = true; 
-                });
-            }
-        }
-        if (longgoalTask != nullptr) {
-            task_run_time += 10;
-
-    
-            if (macro_finished) {
-                longgoalTask = nullptr; 
-            }
-
-            else if (std::abs(throttle) > 15 || std::abs(steer) > 15) {
-                macro_abort = true;
-                chassis.cancelMotion();
-            }
-        
-            else if (task_run_time > 3500) {
-                macro_abort = true;
-                chassis.cancelMotion();
-                controller.rumble("-"); 
-            }
-    
-            else if (task_run_time > 500) {
-                double left_vel = std::abs(leftMotors.get_actual_velocity());
-                double right_vel = std::abs(rightMotors.get_actual_velocity());
-
-                if (left_vel < 10.0 && right_vel < 10.0) {
-                    stall_timer += 10;
-                } else {
-                    stall_timer = 0; 
-                }
-
-                if (stall_timer > 500) {
-                    macro_abort = true;
-                    chassis.cancelMotion();
-                    controller.rumble("- -"); 
-                }
-            }
-        } else {
-            stall_timer = 0;
-            task_run_time = 0;
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT)) {
+            storageMotor.move_velocity(600);
+            scoringMode = ScoringMode::BRAKE;
         }
 
 
@@ -273,7 +204,7 @@ void opcontrol() {
             descore.extend();
         }
 
-        ScoringMode scoringMode = ScoringMode::NONE;
+        
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
             scoringMode = ScoringMode::LONGGOAL;
         } else if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
@@ -303,6 +234,8 @@ void opcontrol() {
                 break;
             case ScoringMode::NONE:
                 intake_stop();
+                break;
+            case ScoringMode::BRAKE:
                 break;
         }
 

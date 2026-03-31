@@ -2,15 +2,12 @@
 #include "auton/autonFunctions.h"
 #include "lemlib/chassis/chassis.hpp"
 #include "ltv.h"
-#include "pros/abstract_motor.hpp"
 #include "pros/rtos.hpp"
 #include "velocityController.h"
 #include "paths.h"
-#include "ramsete.h"
 #include "distanceReset.h"
 #include "colorSort.h"
 #include "crossBarrierDetection.h"
-#include <type_traits>
 
 /*
 
@@ -50,7 +47,6 @@ const VelocityControllerConfig config{
 54.5797495382,
 };
 
-RamsetePathFollower ramsete(config, 2.5, 0.7);
 LTVPathFollower ltv(config);
 
 void precompute_auton_paths() {
@@ -221,7 +217,6 @@ void awp_auton() {
     chassis.turnToPoint(-22, -22, 2000, {.minSpeed = 30, .earlyExitRange = 15});
     matchload_state(false);
     chassis.waitUntilDone();
-    ltv.followPath(awp_1, {});
     ltv.waitUntil(16);
     matchload_state(true);
     ltv.waitUntil(26);
