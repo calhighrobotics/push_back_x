@@ -44,6 +44,7 @@ We are a VEX VRC team based in the Bay Area, California.
    - return estimated global position for odometry recalibration
  - Monte Carlo Localization:
    - Uses advanced particle filter for robot pose localization in 2d space
+   - Utilizes Adaptive MCL for minimal tuning and behavior adapting around unexpected noise/unexpected obstacles
    - Current performance runs around 2000 particles (10ms) and 5000 particles (33ms (distance sensor refresh time))
    - Utilizes raycast and line intersection logic for map based local known MCL
    - Robust MCL in progress for more accurate sensor likelyhood model
