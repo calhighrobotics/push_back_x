@@ -16,7 +16,7 @@ class LTVPathFollower {
 public:
 
     struct ltvConfig {
-        bool forwards = true;
+        bool backwards = false;
         bool log = false;
         int path_index = -1;
         bool test = false;
@@ -31,13 +31,12 @@ public:
         // --- Bryson's Rule Baseline Matrix Values ---
         float q_x = 100.0f;
         float q_y = 400.0f;
-        float q_theta = 33.0f;
+        float q_theta = 200.0f;
         float r_ang = 0.25f;
         float r_vel = 1.0f;
         
 
         float q_scalar = 1.0f; 
-        bool backwards = !forwards;
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);

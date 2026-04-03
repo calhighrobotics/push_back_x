@@ -24,8 +24,8 @@ pros::Imu imu(16);
 pros::Rotation horizontal_tracking_sensor(-10);
 pros::Rotation vertical_tracking_sensor(-9);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-2.4373261421 , 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.273535108698,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-0.5, 1);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.27,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 

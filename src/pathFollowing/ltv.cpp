@@ -33,7 +33,7 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           config.KS_turn,
           config.KP_straight,
           config.KI_straight,
-          99999.0, 
+          75.0, 
           11.0f * INCH_TO_METER 
       ) {}
 
@@ -184,6 +184,23 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         double q_gain_mult = 1.0;
         double r_vel_mult = 1.0;
         double q_x_boost = 1.0;
+        /*
+        if (progress > 0.85) {
+            double end_phase = (progress - 0.85) / 0.15;
+            
+            if (end_phase > 1.0) end_phase = 1.0; 
+            
+            double ramp = 1.0 - end_phase;
+            velocity_scale *= ramp;
+
+            r_vel_mult = 1.0 + (1.0 * end_phase);
+            q_gain_mult = 1.0 + (2.0 * end_phase);
+        }
+        
+        if (std::abs(target_state.angular_vel) > 0.5) { 
+            q_x_boost = 2; 
+        }
+        */
         
         Eigen::Matrix3f Q_mat; 
         Q_mat << l_config.q_x * q_gain_mult * q_x_boost * l_config.q_scalar, 0, 0,
@@ -281,6 +298,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         if(l_config.log) {
             std::ostringstream ss;
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
+            //ss << Vector2((current_time - start_time) / 1000.0, rightMotors.get_actual_velocity() * rpm_to_mps_factor).latex() << ",";
             logs.push_back(ss.str());
         }
         

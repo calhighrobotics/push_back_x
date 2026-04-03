@@ -38,13 +38,13 @@ const int triball_delay = 500;
 const int dual_ball_delay = 500;
 
 const VelocityControllerConfig config{
-5.8432642308,
-0.213526937516,
-1.14429410811,
-0.906356177095,
-0.347072436421,
-11.4953431776,
-54.5797495382,
+5.09498070723,
+0.23396112183,
+1.22496514644,
+0.964796393603,
+0.522291806997,
+10.933332351,
+44.6788428062,
 };
 
 LTVPathFollower ltv(config);
@@ -55,7 +55,7 @@ void precompute_auton_paths() {
 
 void test_auton()
 {
-    ltv.followPath(test_straight, {.forwards = true, .log = true, .test = true});
+    ltv.followPath(test_s, {.backwards = false, .log = true, .test = true});
     //ltv.followPath(test_s, {.forwards = true, .log = true, .test = true});
     //ltv.followPath(test_u, {.forwards = true, .log = true, .test = true});
 }

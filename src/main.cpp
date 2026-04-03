@@ -161,13 +161,13 @@ void collect_velocity_vs_voltage_data() {
             continue;
 
         leftMotors.move_voltage(direction * input * 1000);
-        rightMotors.move_voltage(direction * input * 1000);
+        rightMotors.move_voltage(-direction * input * 1000);
 
         pros::delay(1000);
         float v_sum = 0;
         int n;
         for (n = 0; n < 500; ++n) {
-            v_sum += (std::fabs(leftMotors.get_actual_velocity()*rpm_to_mps_factor) + std::fabs(rightMotors.get_actual_velocity()*rpm_to_mps_factor)) / 2;
+            v_sum += imu.get_gyro_rate().z * (M_PI/180);
         }
         outputs.emplace_back( (v_sum / (float)n));
         auto v = input * direction * 1000;
@@ -179,6 +179,7 @@ void collect_velocity_vs_voltage_data() {
             pros::delay(10);
         }
         direction = -direction;
+        pros::delay(1000);
     }
 
     leftMotors.brake();
@@ -196,10 +197,10 @@ void collect_voltage_step_data(float step_input, unsigned int duration) {
     outputs.reserve(duration);
 
     leftMotors.move_voltage(step_input * 1000);
-    rightMotors.move_voltage(step_input * 1000);
+    rightMotors.move_voltage(-step_input * 1000);
 
     for (int i = 0; i < duration; ++i) {
-        auto speed = (std::fabs(leftMotors.get_actual_velocity()*rpm_to_mps_factor) + std::fabs(rightMotors.get_actual_velocity()*rpm_to_mps_factor)) / 2;
+        auto speed = imu.get_gyro_rate().z * (M_PI/180);
         std::cout << Vector2((float)i / 100, speed).latex() << "," << std::flush;
         pros::delay(10);
     }
@@ -259,11 +260,11 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 
 void autonomous() {
     chassis.setPose(0,0,0);
-    chassis.turnToHeading(90, 5000);
-    chassis.moveToPoint(0, 24, 5000);
-    //find_tracking_center(3.5, 5000);
+    //chassis.moveToPose(36, 36, 90, 10000);
+    //find_tracking_center(2.5, 5000);
     //collect_velocity_vs_voltage_data();
-    //collect_voltage_step_data(5, 5);
+    //collect_voltage_step_data(7, 2.2);
+    test_auton();
 }
 
 
