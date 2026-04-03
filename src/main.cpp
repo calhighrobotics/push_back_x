@@ -62,98 +62,111 @@ struct Reading {
     double distance;
 };
 
-inline double deg2rad(double deg) { return deg * M_PI / 180.0; }
-void AutoTuneSensorOffsets(pros::Distance& sensor, std::string sensor_name, double known_angle_deg) {
-    printf("\n=========================================\n");
-    printf("🔍 STARTING CALIBRATION: %s\n", sensor_name.c_str());
-    printf("=========================================\n");
-
-    // Reset Odometry/IMU heading to 0
-    chassis.setPose(0, 0, 0);
-    pros::delay(200);
-
-    std::vector<Reading> data;
-    chassis.tank(60, -60); 
-
-    uint32_t start_time = pros::millis();
-    double start_heading = chassis.getPose().theta;
-    double current_heading = start_heading;
-    
-    double min_dist = 9999.0;
-    double angle_at_min = 0.0;
-
-    printf("Spinning 90 degrees and collecting data...\n");
-
-    while (std::abs(current_heading - start_heading) < 90 && (pros::millis() - start_time < 4000)) {
-        current_heading = chassis.getPose().theta;
-        int dist_mm = sensor.get_distance();
-        
-        if (dist_mm > 10 && dist_mm < 1016) { 
-            double d_inches = dist_mm * 0.0393701;
-            data.push_back({current_heading, d_inches});
-
-            if (d_inches < min_dist) {
-                min_dist = d_inches;
-                angle_at_min = current_heading;
-            }
-        }
-        pros::delay(20); 
+void driveArcadeVoltage(float leftVoltage, float rightVoltage) {
+    float max = std::max(fabs(leftVoltage), fabs(rightVoltage));
+    if (max > 12.0) {
+        leftVoltage *= 12.0 / max;
+        rightVoltage *= 12.0 / max;
     }
-    
-    chassis.tank(0, 0); 
-
-    if (data.size() < 15) {
-        printf("FAILED: Not enough valid data points collected.\n");
-        return;
-    }
-
-    printf("Data collected. Running grid search solver for X and Y...\n");
-    double alpha_rad = deg2rad(known_angle_deg);
-
-    double best_X = 0, best_Y = 0, best_W = 0;
-    double lowest_error = std::numeric_limits<double>::infinity();
-
-    for (double test_x = -10.0; test_x <= 10.0; test_x += 0.1) {
-        for (double test_y = -10.0; test_y <= 10.0; test_y += 0.1) {
-            double test_W = min_dist + (test_x * std::cos(deg2rad(angle_at_min)) - test_y * std::sin(deg2rad(angle_at_min)));
-            
-            double total_error = 0;
-            int valid_points = 0;
-            
-            for (const auto& pt : data) {
-                double theta_rad = deg2rad(pt.heading);
-                double denominator = std::cos(theta_rad + alpha_rad);
-                
-                if (std::abs(denominator) < 0.15) continue; 
-                
-                double expected_d = (test_W - (test_x * std::cos(theta_rad) - test_y * std::sin(theta_rad))) / denominator;
-                
-                double error = pt.distance - expected_d;
-                total_error += (error * error); 
-                valid_points++;
-            }
-
-            if (valid_points > 0 && total_error < lowest_error) {
-                lowest_error = total_error;
-                best_X = test_x;
-                best_Y = test_y;
-                best_W = test_W;
-            }
-        }
-    }
-
-    double avg_error = std::sqrt(lowest_error / data.size());
-
-    printf("\n🎯 SOLVER RESULTS FOR: %s\n", sensor_name.c_str());
-    printf("-----------------------------------------\n");
-    printf("Local X       :  %.2f inches\n", best_X);
-    printf("Local Y       :  %.2f inches\n", best_Y);
-    printf("Angle Offset  :  %.2f degrees (Locked)\n\n", known_angle_deg);
-    
-    printf("--- Diagnostic Info ---\n");
-    printf("Average Error :  %.3f inches\n", avg_error);
-    printf("=========================================\n\n");
+    leftMotors.move_voltage(leftVoltage); 
+    rightMotors.move_voltage(rightVoltage);
 }
+
+DrivetoPointConfig dtpConfig{};
+
+// Wraps any angle (in degrees) to the range [-90, 90]
+float wrapTo90(float angle) {
+    while (angle > 90.0f) angle -= 180.0f;
+    while (angle < -90.0f) angle += 180.0f;
+    return angle;
+}
+
+void driveToPoint(float target_x, float target_y, const VelocityControllerConfig &config) {
+    // Set up position variables
+    target_x *= INCH_TO_METER;
+    target_y *= INCH_TO_METER;
+    lemlib::Pose currentPose = chassis.getPose(true, true);
+    lemlib::Pose target(target_x, target_y);
+
+    VoltageController controller(
+        config.kV,
+        config.KA_straight,
+        config.KA_turn,
+        config.KS_straight,
+        config.KS_turn,
+        config.KP_straight,
+        config.KI_straight,
+        99999.0,
+        10.0 * INCH_TO_METER
+    );
+    // working angular was kp 2, kd, 10, lateralGain 2
+    lemlib::PID angularPID(2, 0, 1);
+    lemlib::PID lateralPID(1.5, 0.0005, 0);
+    lemlib::ExitCondition lateral(0.04, 50);
+    lemlib::ExitCondition longitudinal(0.01, 50);
+    float lateralGain = 1.75;
+    float pastAngularVelocity = 0;
+    float pastLinearVelocity = 0;
+    // Logging variables
+    float time = 0.0;
+    std::vector<std::string> logs;
+
+    while (!lateral.getExit() || !longitudinal.getExit()) {
+        currentPose = chassis.getPose(true, true);
+        currentPose.x *= INCH_TO_METER;
+        currentPose.y *= INCH_TO_METER;
+        Eigen::Vector2f globalError(target_x-currentPose.x, target_y-currentPose.y);
+        Eigen::Matrix2f rotationMatrix;
+        rotationMatrix << cosf(currentPose.theta), sinf(currentPose.theta),
+                -sinf(currentPose.theta), cosf(currentPose.theta);
+        Eigen::Vector2f localError = rotationMatrix * globalError;
+
+        float angularError = atan2f(localError.y(), localError.x());
+        float cosineScaling = cosf(angularError);
+        float driveError = localError.norm() * (float) sign(cosineScaling);
+
+        // Set angular error equal to 0 when close to the target; following point is no longer important
+        if (fabsf(driveError) < 0.07) { // in meters
+            angularError = 0;
+            cosineScaling = (float) sign(cosineScaling);
+        }
+
+        // Update exit conditions
+        lateral.update(localError.y());
+        longitudinal.update(localError.x());
+
+        // Update angularOutput and clamp it to a respectable value (8.4 rad/s, around max turning speed of robot)
+        float angularOutput = angularPID.update(angularError);
+
+        // Update driveOutput and clamp it to a respectable value (1.2 m/s, around max speed of robot)
+        float driveOutput = lateralPID.update(driveError);
+        driveOutput = std::clamp(driveOutput, -1.0, 1.0);
+        driveOutput = driveOutput * fabsf(cosineScaling);
+
+        // When distance to target is close, completely disable angular outputfloat target
+        if (fabsf(driveError) < 0.07) 
+            angularOutput = 0;
+        else
+            angularOutput += driveOutput * lateralGain * localError.y() * (float) sinc(angularError);
+        angularOutput = clamp(angularOutput, -8.0, 8.0);
+        angularOutput = lemlib::slew(angularOutput, pastAngularVelocity, 3.0f);
+        driveOutput = lemlib::slew(driveOutput, pastLinearVelocity, 0.25f);
+
+        //std::cout << Vector2(time, angularOutput).latex() << ",";
+        DrivetrainVoltages outputVoltages = controller.update(driveOutput, angularOutput, leftMotors.get_actual_velocity()*rpm_to_mps_factor, rightMotors.get_actual_velocity()*rpm_to_mps_factor);
+        leftMotors.move_voltage(outputVoltages.leftVoltage*1000);
+        rightMotors.move_voltage(outputVoltages.rightVoltage*1000);
+        pastAngularVelocity = angularOutput;
+        pastLinearVelocity = driveOutput;
+
+        std::cout << Vector2(time, localError.y()*39.37).latex() << ",";
+        //std::cout << Vector2(time, angularError).latex() << ",";
+        //std::cout << Vector2(time, localError.y()).latex() << ",";
+        pros::delay(10);
+        time += 0.01;
+    }
+    leftMotors.move_voltage(0);
+    rightMotors.move_voltage(0);
 
 void autonomous() {
     
