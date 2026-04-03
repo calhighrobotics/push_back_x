@@ -1,17 +1,9 @@
-#include <sstream>
-#include <string>
-#include "lemlib/chassis/trackingWheel.hpp"
-#include "pros/ai_vision.h"
-#include "pros/ai_vision.hpp"
-#include "pros/colors.hpp"
+
+#include "lemlib/logger/baseSink.hpp"
 #include "pros/distance.hpp"
-#include "pros/misc.h"
 #include "lemlib/chassis/chassis.hpp"
-#include "pros/adi.h"
 #include "pros/adi.hpp"
-#include "pros/motors.h"
 #include "pros/optical.hpp"
-#include "pros/rotation.h"
 #include "pros/vision.hpp"
 #include "colorSort.h"
 
@@ -29,52 +21,58 @@ lemlib::Drivetrain drivebase(
     8);
 
 pros::Imu imu(16);
-pros::Rotation horizontal_tracking_sensor(13);
-pros::Rotation vertical_tracking_sensor(-12);
+pros::Rotation horizontal_tracking_sensor(-10);
+pros::Rotation vertical_tracking_sensor(-9);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,0 , 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-2.4373261421 , 1);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, -0.273535108698,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
-lemlib::ControllerSettings lateral_controller(16.5, // proportional gain (kP)
-                                              0, // integral gain (kI)
-                                              120, // derivative gain (kD)
-                                              4, // anti windup
-                                              0.5, // small error range, in inches
-                                              75, // small error range timeout, in milliseconds
-                                              3, // large error range, in inches
-                                              200, // large error range timeout, in milliseconds
-                                              25 // maximum acceleration (slew)
-);
 
-lemlib::ControllerSettings angular_controller(3.2, // proportional gain (kP)
-                                              0.0, // integral gain (kI)
-                                              25, // derivative gain (kD)
-                                               3, // anti windup
-                                              0.5, // small error range, in inches
-                                              50, // small error range timeout, in milliseconds
-                                              3, // large error range, in inches
-                                              75, // large error range timeout, in milliseconds
+float lateralKP = 5, lateralKI = 0, lateralKD = 0, angularKP = 2, angularKI = 0, angularKD = 0;
+
+
+lemlib::ControllerSettings lateral_controller(lateralKP, // proportional gain (kP)
+                                              lateralKI, // integral gain (kI)
+                                              lateralKD, // derivative gain (kD)
+                                              0, // anti windup
+                                              0, // small error range, in inches
+                                              0, // small error range timeout, in milliseconds
+                                              0, // large error range, in inches
+                                              0, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
-lemlib::ExpoDriveCurve throttle_curve(20,    // joystick deadband out of 127
-                                            10,   // minimum output where drivetrain will move out of 127
-                                            1.01 // expo curve gain
+lemlib::ControllerSettings angular_controller(angularKP, // proportional gain (kP)
+                                              angularKI, // integral gain (kI)
+                                              angularKD, // derivative gain (kD)
+                                               0, // anti windup
+                                              0, // small error range, in inches
+                                              0, // small error range timeout, in milliseconds
+                                              0, // large error range, in inches
+                                              0, // large error range timeout, in milliseconds
+                                              0 // maximum acceleration (slew)
 );
 
-lemlib::ExpoDriveCurve steer_curve(20,   // joystick deadband out of 127
-                                        10,   // minimum output where drivetrain will move out of 127
-                                         1.015 // expo curve gain
+lemlib::ExpoDriveCurve throttle_curve(10,    // joystick deadband out of 127
+                                            20,   // minimum output where drivetrain will move out of 127
+                                            1.012 // expo curve gain
 );
+
+lemlib::ExpoDriveCurve steer_curve(10,   // joystick deadband out of 127
+                                        20,   // minimum output where drivetrain will move out of 127
+                                         1.017 // expo curve gain
+);
+
+
 
 
 lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(-1, pros::v5::MotorGears::blue);
-pros::Motor outtakeMotor(2, pros::v5::MotorGears::blue);
-pros::Motor storageMotor(-3, pros::MotorGears::blue);
+pros::Motor storageMotor(2, pros::v5::MotorGears::blue);
+pros::Motor outtakeMotor(3, pros::MotorGears::blue);
 
 pros::Distance rightDistance(20);
 pros::Distance leftDistance(15);

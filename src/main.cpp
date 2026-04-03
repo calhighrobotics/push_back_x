@@ -1,13 +1,7 @@
 #include "main.h"
-#include "crossBarrierDetection.h"
 #include "globals.h" 
-#include "lemlib/chassis/chassis.hpp"
 #include "liblvgl/core/lv_obj_pos.h"
-#include "pros/distance.hpp"
-#include "pros/misc.h"
 #include "auton/autonRoutines.h"
-#include "pros/misc.hpp"
-#include "pros/motors.h"
 #include "robodash/views/image.hpp"
 #include "robodash/views/selector.hpp"
 #include "colorSort.h"
@@ -91,7 +85,7 @@ void initialize() {
     color_sensor.set_integration_time(5);
     vertical_tracking_sensor.set_data_rate(5);
     horizontal_tracking_sensor.set_data_rate(5);
-
+    imu.set_data_rate(5);
 
     double start_x = -51.25;
     double start_y = -18.5;
@@ -101,9 +95,8 @@ void initialize() {
     //MCL::StartMCL(start_x, start_y, start_theta);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
-    selector.focus();
     color_sensor.set_led_pwm(100);
-    image.focus();
+    console.focus();
     pros::Task screen_task([&]() {
         while (true) {
             console.clear();
@@ -124,12 +117,12 @@ void initialize() {
 }
 
 void disabled() {
-    image.focus();
+    console.focus();
     
 }
 
 void competition_initialize() {
-    selector.focus();
+    console.focus();
 }
 
 float INCH_TO_METER = 0.0254f;
@@ -220,8 +213,8 @@ void collect_voltage_step_data(float step_input, unsigned int duration) {
 void find_tracking_center(float turnVoltage, uint32_t time_ms) {
     chassis.setPose(0, 0, 0);
 
-    std::vector<std::string> logs;
-    std::vector<std::string> logs2;
+    std::vector<std::string> logs_xy;
+    std::vector<std::string> logs_theta;
 
     uint32_t start = pros::millis();
     while (pros::millis() - start < time_ms)
@@ -229,26 +222,48 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
         leftMotors.move_voltage(turnVoltage * 1000);
         rightMotors.move_voltage(-turnVoltage * 1000);
 
-        auto pose = chassis.getPose(false);  // don't estimate
-        logs.push_back(std::to_string(pose.x) + "," + std::to_string(pose.y) + ",");
-        logs2.push_back(std::to_string(pose.theta) + ",");
+        auto pose = chassis.getPose(false); 
+        
+        // Format as \left(x,y\right)
+        logs_xy.push_back("\\left(" + std::to_string(pose.x) + "," + std::to_string(pose.y) + "\\right)");
+        
+        // Format as just the number for theta
+        logs_theta.push_back(std::to_string(pose.theta));
 
         pros::delay(20);
     }
     leftMotors.brake();
     rightMotors.brake();
 
-    for (auto &s : logs) std::cout << s, pros::delay(50);
-    std::cout << "\n" << std::endl;
-    for (auto &s : logs2) std::cout << s, pros::delay(50);
+    // Print the X_{0} array
+    std::cout << "X_{0}=\\left[";
+    for (size_t i = 0; i < logs_xy.size(); i++) {
+        std::cout << logs_xy[i];
+        if (i != logs_xy.size() - 1) std::cout << ","; // Add comma if not the last element
+        pros::delay(30);
+    }
+    std::cout << "\\right]\n\n";
+
+    // Print the \theta_{t} array
+    std::cout << "\\theta_{t}=\\left[";
+    for (size_t i = 0; i < logs_theta.size(); i++) {
+        std::cout << logs_theta[i];
+        if (i != logs_theta.size() - 1) std::cout << ","; // Add comma if not the last element
+        pros::delay(30);
+    }
+    std::cout << "\\right]\n" << std::endl;
 }
 
 
 
 
 void autonomous() {
-    find_tracking_center(3.5, 5000);
-
+    chassis.setPose(0,0,0);
+    chassis.turnToHeading(90, 5000);
+    chassis.moveToPoint(0, 24, 5000);
+    //find_tracking_center(3.5, 5000);
+    //collect_velocity_vs_voltage_data();
+    //collect_voltage_step_data(5, 5);
 }
 
 

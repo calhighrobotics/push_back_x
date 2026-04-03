@@ -16,7 +16,7 @@ class LTVPathFollower {
 public:
 
     struct ltvConfig {
-        bool backwards = false;
+        bool forwards = true;
         bool log = false;
         int path_index = -1;
         bool test = false;
@@ -24,27 +24,20 @@ public:
         bool end_correction = false;
         float mpose_lead = 0.6f;
         float track_width = 11.0f;
-        float max_lin_correction = 2.0f;
-        float max_ang_correction = 10.0f;
-        int exit_points =0;
+        float max_lin_correction = 9.0f;
+        float max_ang_correction = 30.0f;
+        int exit_points = 0;
 
-        float max_velocity = 1.5f; 
-        float max_acceleration = 2.0f;
+        // --- Bryson's Rule Baseline Matrix Values ---
+        float q_x = 100.0f;
+        float q_y = 400.0f;
+        float q_theta = 33.0f;
+        float r_ang = 0.25f;
+        float r_vel = 1.0f;
         
-        float q_x = 160.0f;
-        float q_y = 256.0f * 8;
-        float q_theta = 37.82f;
-        float r_ang= 0.55f;
-        float r_vel = 2.82f;
-    
-        
-        /*
-        float q_x_backward= 256.0f; 
-        float q_y_backward = 2000.0f; 
-        float q_theta_backward = 40.0f; 
-        float r_ang_backward = 0.15f;
-        float r_vel_backward = 1.0f;
-        */
+
+        float q_scalar = 1.0f; 
+        bool backwards = !forwards;
     };
 
     LTVPathFollower(const VelocityControllerConfig& config);
@@ -87,8 +80,11 @@ private:
     Eigen::MatrixXf dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R);
     std::pair<Eigen::MatrixXf, Eigen::MatrixXf> discretizeAB(const Eigen::MatrixXf& contA, const Eigen::MatrixXf& contB, double dtSeconds);
     static void precompute_paths_task(void* param);
-    static std::vector<std::pair<double,double>> parse_pairs(const std::string& line);
+    
+    // Updated parser definition
+    static std::vector<std::vector<double>> parse_tuples(const std::string& line);
     static std::vector<State> prepare_trajectory(const std::string& data);
+    
     static double angleError(double robotAngle, double targetAngle);
     static double clamp(double value, double min, double max);
 

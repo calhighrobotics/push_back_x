@@ -13,11 +13,12 @@ extern const int triball_delay = 500;
 extern const int dual_ball_delay = 500;
 
 // Function declarations
+
 void precompute_auton_paths();
+void test_auton();
 void right_auton();
 void left_auton();
 void carry_auton();
 void elim_auton(); 
 void awp_auton();
 void skills_auton();
-void test_auton();

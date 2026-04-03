@@ -1,5 +1,9 @@
 #pragma once
 
-#include "pros/rtos.hpp"
 #include <string>
-#include <vector>
+
+extern const std::string test_straight;
+
+extern const std::string test_s;
+
+extern const std::string test_u;

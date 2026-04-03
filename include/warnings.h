@@ -1,8 +1,5 @@
 #pragma once
 
-#include "pros/rtos.hpp"
-#include "globals.h"
-
 // Spawns a background task that monitors motor temperatures
 // and alerts the controller if overheating is detected.
 void temp_warning();

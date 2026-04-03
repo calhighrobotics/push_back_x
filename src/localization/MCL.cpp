@@ -365,9 +365,6 @@ namespace MCL {
                     print_counter = 0;
                 }
 
-                // ────────────────────────────────────────────────────────────
-                // CONDITIONAL LEMLIB CORRECTION
-                // ────────────────────────────────────────────────────────────
                 if (global_Confidence > 0.65 && cluster_weight_ratio > 0.50f && 
                     std::abs(dX_global) < 5 && std::abs(dY_global) < 5) {
                     

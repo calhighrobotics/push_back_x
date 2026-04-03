@@ -3,8 +3,6 @@
 #ifndef DISTANCE_SENSORS_HPP
 #define DISTANCE_SENSORS_HPP
 
-#include "globals.h"
-#include "lemlib/util.hpp"
 
 constexpr double MM_TO_IN = 0.0393701;
 constexpr double FIELD_WIDTH = 3657.6 * MM_TO_IN;

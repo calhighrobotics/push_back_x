@@ -1,14 +1,10 @@
 #include "ltv.h"
-#include "lemlib/util.hpp"
-#include "pros/motors.h"
 #include <cmath>
-#include <sys/types.h>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
-#include <iomanip>
 
 LTVPathFollower::Vector2::Vector2(float x, float y) : x(x), y(y) {}
 
@@ -35,8 +31,8 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           config.KA_turn,
           config.KS_straight,
           config.KS_turn,
-          11.4953431776,
-          54.5797495382,
+          config.KP_straight,
+          config.KI_straight,
           99999.0, 
           11.0f * INCH_TO_METER 
       ) {}
@@ -166,8 +162,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
     constexpr double FIXED_DT = 0.01; 
     
-
-
     for (int i = 0; i < trajectory_size; ++i) {
         if (cancel_request) break;
 
@@ -190,26 +184,11 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         double q_gain_mult = 1.0;
         double r_vel_mult = 1.0;
         double q_x_boost = 1.0;
-        if (progress > 0.85) {
-            double end_phase = (progress - 0.85) / 0.15;
-            
-            if (end_phase > 1.0) end_phase = 1.0; 
-            
-            double ramp = 1.0 - end_phase;
-            velocity_scale *= ramp;
-
-            r_vel_mult = 1.0 + (1.0 * end_phase);
-            q_gain_mult = 1.0 + (2.0 * end_phase);
-        }
-        
-        if (std::abs(target_state.angular_vel) > 0.5) { 
-            q_x_boost = 2; 
-        }
         
         Eigen::Matrix3f Q_mat; 
-        Q_mat << l_config.q_x * q_gain_mult * q_x_boost, 0, 0,
-                 0, l_config.q_y * q_gain_mult, 0,
-                 0, 0, l_config.q_theta * q_gain_mult;
+        Q_mat << l_config.q_x * q_gain_mult * q_x_boost * l_config.q_scalar, 0, 0,
+                 0, l_config.q_y * q_gain_mult * l_config.q_scalar, 0,
+                 0, 0, l_config.q_theta * q_gain_mult * l_config.q_scalar;
         
         Eigen::Matrix2f R_mat;
         R_mat << l_config.r_vel * r_vel_mult, 0,
@@ -262,7 +241,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
             last_solve_w = w_ref;
             dare_solved_once = true;
         }
-
+        
         Eigen::Vector2f u = cached_K * error.cast<float>();
         
         float u_v = clamp(u(0), -l_config.max_lin_correction, l_config.max_lin_correction);
@@ -288,7 +267,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
         float left_actual_mps = leftMotors.get_actual_velocity() * rpm_to_mps_factor;
         float right_actual_mps = rightMotors.get_actual_velocity() * rpm_to_mps_factor;
-
 
         DrivetrainVoltages output_voltages = controller.update(
             v_cmd, w_cmd, left_actual_mps, right_actual_mps
@@ -334,7 +312,6 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
     is_running = false;
 }
-
 
 Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
     Eigen::MatrixXf X = Q; 
@@ -387,10 +364,11 @@ void LTVPathFollower::precompute_paths_task(void* param) {
     delete path_names;
 }
 
-std::vector<std::pair<double,double>> LTVPathFollower::parse_pairs(const std::string& line) {
-    std::vector<std::pair<double,double>> result;
+std::vector<std::vector<double>> LTVPathFollower::parse_tuples(const std::string& line) {
+    std::vector<std::vector<double>> result;
     std::string temp;
     bool inside_parens = false;
+    
     for (char c : line) {
         if (c == '(') {
             temp.clear();
@@ -398,9 +376,14 @@ std::vector<std::pair<double,double>> LTVPathFollower::parse_pairs(const std::st
         } else if (c == ')') { 
             std::replace(temp.begin(), temp.end(), ',', ' ');
             std::istringstream ss(temp);
-            double first, second;
-            ss >> first >> second;
-            result.emplace_back(first, second);
+            std::vector<double> tuple;
+            double val;
+            
+            while (ss >> val) {
+                tuple.push_back(val);
+            }
+            
+            result.push_back(tuple);
             inside_parens = false;
         } else if (inside_parens) {
             temp += c;
@@ -411,36 +394,31 @@ std::vector<std::pair<double,double>> LTVPathFollower::parse_pairs(const std::st
 
 std::vector<State> LTVPathFollower::prepare_trajectory(const std::string& data) {
     std::istringstream ss(data);
-    std::vector<std::pair<double,double>> X, L, A;
+    std::vector<std::vector<double>> P, V;
     std::string line;
+    
     while (std::getline(ss, line)) {
-        if (line.find("X =") != std::string::npos) X = parse_pairs(line.substr(line.find('[')));
-        else if (line.find("L =") != std::string::npos) L = parse_pairs(line.substr(line.find('[')));
-        else if (line.find("A =") != std::string::npos) A = parse_pairs(line.substr(line.find('[')));
+        if (line.find("P =") != std::string::npos) {
+            P = parse_tuples(line.substr(line.find('{')));
+        } else if (line.find("V =") != std::string::npos) {
+            V = parse_tuples(line.substr(line.find('{')));
+        }
     }
-    size_t n = std::min({X.size(), L.size(), A.size()});
+    
+    size_t n = std::min(P.size(), V.size());
     if (n == 0) return {};
     
     std::vector<State> states(n);
     for (size_t i = 0; i < n; i++) {
-        states[i].x = X[i].first;
-        states[i].y = X[i].second;
-        states[i].linear_vel = L[i].second;
-        states[i].angular_vel = A[i].second;
-    }
-    
-    for (size_t i = 0; i < n; i++) {
-        size_t next_idx = i + 1;
-        while (next_idx < n && states[next_idx].x == states[i].x && states[next_idx].y == states[i].y) {
-            next_idx++;
+        if (P[i].size() >= 3) {
+            states[i].x = P[i][0];
+            states[i].y = P[i][1];
+            states[i].heading = P[i][2];
         }
         
-        if (next_idx < n) {
-            states[i].heading = std::atan2(states[next_idx].y - states[i].y, states[next_idx].x - states[i].x);
-        } else if (i > 0) {
-            states[i].heading = states[i - 1].heading; 
-        } else {
-            states[i].heading = 0.0;
+        if (V[i].size() >= 2) {
+            states[i].linear_vel = V[i][0];
+            states[i].angular_vel = V[i][1];
         }
     }
     

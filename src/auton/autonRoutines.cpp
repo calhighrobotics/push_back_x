@@ -53,6 +53,13 @@ void precompute_auton_paths() {
     std::vector<std::string> paths = {};
 }
 
+void test_auton()
+{
+    ltv.followPath(test_straight, {.forwards = true, .log = true, .test = true});
+    //ltv.followPath(test_s, {.forwards = true, .log = true, .test = true});
+    //ltv.followPath(test_u, {.forwards = true, .log = true, .test = true});
+}
+
 void right_auton()
 {
     descore.extend();
@@ -439,9 +446,4 @@ void skills_auton() {
     rightMotors.brake();
 }
 
-void test_auton()
-{
-    chassis.setPose(-51.25, -18.5, 180);
-    distanceReset(true);
-}
 

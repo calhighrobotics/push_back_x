@@ -1,49 +1,40 @@
-#pragma once
+#ifndef MCL_H
+#define MCL_H
 
-#include "main.h"
-#include "lemlib/api.hpp"
+#include "api.h"        
 #include <vector>
-#include <cmath>
-#include <random>
-#include <limits>
 
 namespace MCL {
-
-    constexpr int NUM_PARTICLES = 200; 
-    constexpr double SENSOR_MAX_RANGE_IN = 70.0; 
-    constexpr double RESAMPLE_THRESHOLD = 0.5; 
-
+    constexpr int NUM_PARTICLES = 800; 
+    constexpr float RESAMPLE_THRESHOLD = 0.4f;   
+    constexpr float SENSOR_MAX_RANGE_IN = 65.0f; 
     extern double PARAMS_TRANS_BASE;      
     extern double PARAMS_TRANS_GAIN;      
-    extern double PARAMS_SENSOR_SIGMA;    
-
-    struct Particle {
-        double x, y, weight;
-    };
-
-    struct Segment {
-        double x0, y0, x1, y1;
-    };
-
-    class MCLDistanceSensor {
-    public:
-        MCLDistanceSensor(pros::Distance sensor_, double localX, double localY, double angleDeg);
-        
-        void Measure();
-        
-        pros::Distance Sensor;
-        double measurement, LocalX, LocalY, AngleDeg; 
-        double cos_off, sin_off; 
-    };
 
     extern double global_X;
     extern double global_Y;
     extern double global_Theta;
-    extern double global_Confidence; 
-    
-    extern std::vector<MCLDistanceSensor> Sensors;
 
+    struct MCLDistanceSensor {
+        pros::Distance Sensor;
+        double LocalX;
+        double LocalY;
+        double AngleDeg;
+        
+        double measurement;
+        double cos_off;
+        double sin_off;
+
+        MCLDistanceSensor(pros::Distance sensor_, double localX, double localY, double angleDeg);
+        
+        void Measure();
+    };
+
+    extern std::vector<MCLDistanceSensor> Sensors;
     void StartMCL(double x, double y);
+
     void MonteCarlo();
-    bool isConfident(); 
-}
+
+} 
+
+#endif 
