@@ -179,7 +179,7 @@ void collect_velocity_vs_voltage_data() {
             pros::delay(10);
         }
         direction = -direction;
-        pros::delay(1000);
+        pros::delay(3000);
     }
 
     leftMotors.brake();
@@ -258,12 +258,15 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 
 
 
+
+
+
 void autonomous() {
     chassis.setPose(0,0,0);
     //chassis.moveToPose(36, 36, 90, 10000);
     //find_tracking_center(2.5, 5000);
     //collect_velocity_vs_voltage_data();
-    //collect_voltage_step_data(7, 2.2);
+    //collect_voltage_step_data(6, 2.2);
     test_auton();
 }
 

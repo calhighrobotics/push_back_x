@@ -32,9 +32,9 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           config.KS_straight,
           config.KS_turn,
           config.KP_straight,
-          config.KI_straight,
-          75.0, 
-          11.0f * INCH_TO_METER 
+          0,
+          5000.0, 
+          11.45f * INCH_TO_METER 
       ) {}
 
 void LTVPathFollower::followPath(const std::string& path_name, const ltvConfig& l_config) {
@@ -184,32 +184,23 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
         double q_gain_mult = 1.0;
         double r_vel_mult = 1.0;
         double q_x_boost = 1.0;
-        /*
-        if (progress > 0.85) {
-            double end_phase = (progress - 0.85) / 0.15;
-            
-            if (end_phase > 1.0) end_phase = 1.0; 
-            
-            double ramp = 1.0 - end_phase;
-            velocity_scale *= ramp;
+        
+        float q_x_effective = (l_config.backwards) ? l_config.q_x_b : l_config.q_x;
+        float q_y_effective = (l_config.backwards) ? l_config.q_y_b : l_config.q_y;
+        float q_theta_effective = (l_config.backwards) ? l_config.q_theta_b : l_config.q_theta;
+        float r_ang_effective = (l_config.backwards) ? l_config.r_ang_b : l_config.r_ang;
+        float r_vel_effective = (l_config.backwards) ? l_config.r_vel_b : l_config.r_vel;
+        
 
-            r_vel_mult = 1.0 + (1.0 * end_phase);
-            q_gain_mult = 1.0 + (2.0 * end_phase);
-        }
-        
-        if (std::abs(target_state.angular_vel) > 0.5) { 
-            q_x_boost = 2; 
-        }
-        */
-        
+
         Eigen::Matrix3f Q_mat; 
-        Q_mat << l_config.q_x * q_gain_mult * q_x_boost * l_config.q_scalar, 0, 0,
-                 0, l_config.q_y * q_gain_mult * l_config.q_scalar, 0,
-                 0, 0, l_config.q_theta * q_gain_mult * l_config.q_scalar;
+        Q_mat << q_x_effective * q_gain_mult * q_x_boost * l_config.q_scalar, 0, 0,
+                 0, q_y_effective * q_gain_mult * l_config.q_scalar, 0,
+                 0, 0, q_theta_effective * q_gain_mult * l_config.q_scalar;
         
         Eigen::Matrix2f R_mat;
-        R_mat << l_config.r_vel * r_vel_mult, 0,
-                 0, l_config.r_ang;
+        R_mat << r_vel_effective * r_vel_mult, 0,
+                 0, r_ang_effective;
 
         double math_theta = M_PI_2 - current_pose.theta; 
         
@@ -228,41 +219,43 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
                             0, 0, 1;
         Eigen::Vector3d error = rotation_matrix * global_error;
 
-        float v_ref = std::abs(target_state.linear_vel) * velocity_scale;
-        
+
+        //float lateral_coupling = std::clamp(v_ref, -1.0f, 1.0f);
+
+       float v_ref = std::abs(target_state.linear_vel) * velocity_scale;
         float w_ref = target_state.angular_vel * velocity_scale;
 
-        float lateral_coupling = std::clamp(v_ref, -1.0f, 1.0f);
+        // --- THE FIX ---
+        // 1. Prevent loss of controllability at low speeds. 
+        // We clamp the velocity used in the A matrix so the LQR never "forgets" how to steer.
+        float a_v_ref = (v_ref < 0.15f) ? 0.15f : v_ref;
 
+        // 2. The CORRECT unicycle A matrix. You must include w_ref!
+        // Without w_ref, the controller doesn't know the error frame is rotating during curves.
         constexpr float eps = -1e-3f;
         Eigen::Matrix3f A;
         A << eps, w_ref, 0,
-             -w_ref, eps, lateral_coupling, 
+            -w_ref, eps, a_v_ref, 
              0, 0, eps;
              
         Eigen::Matrix<float, 3, 2> B;
         B << 1, 0,
              0, 0,
              0, 1;
-
-        if (!dare_solved_once || 
-            std::abs(v_ref - last_solve_v) > 0.15f || 
-            std::abs(w_ref - last_solve_w) > 0.25f) {
             
-            auto discAB = discretizeAB(A, B, measured_dt);
-            Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
-            
-            cached_K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
-            
-            last_solve_v = v_ref;
-            last_solve_w = w_ref;
-            dare_solved_once = true;
-        }
+        auto discAB = discretizeAB(A, B, measured_dt);
+        Eigen::MatrixXf X = dareSolver(discAB.first, discAB.second, Q_mat, R_mat);
+        
+        cached_K = (R_mat + discAB.second.transpose() * X * discAB.second).inverse() * discAB.second.transpose() * X * discAB.first;
+        
+        last_solve_v = v_ref;
+        last_solve_w = w_ref;
         
         Eigen::Vector2f u = cached_K * error.cast<float>();
         
         float u_v = clamp(u(0), -l_config.max_lin_correction, l_config.max_lin_correction);
         float u_w = clamp(u(1), -l_config.max_ang_correction, l_config.max_ang_correction);
+
         
         float v_cmd = v_ref + u_v;
         float w_cmd = w_ref + u_w;
@@ -299,6 +292,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
             std::ostringstream ss;
             ss << Vector2(current_pose.x, current_pose.y).latex() << ",";
             //ss << Vector2((current_time - start_time) / 1000.0, rightMotors.get_actual_velocity() * rpm_to_mps_factor).latex() << ",";
+            //ss << Vector2((current_time - start_time) / 1000.0, u_w).latex() << ",";
             logs.push_back(ss.str());
         }
         
@@ -332,25 +326,39 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 }
 
 Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
-    Eigen::MatrixXf X = Q; 
-    Eigen::MatrixXf X_prev;
-    Eigen::MatrixXf K;
+    int states = A.rows();
+    
+    // Initial conditions for SDA
+    Eigen::MatrixXf A_k = A;
+    // G_0 = B * R^-1 * B^T
+    // Using LLT decomposition since R is symmetric positive definite
+    Eigen::MatrixXf G_k = B * R.llt().solve(B.transpose()); 
+    Eigen::MatrixXf H_k;
+    Eigen::MatrixXf H_k1 = Q;
+    
+    Eigen::MatrixXf I = Eigen::MatrixXf::Identity(states, states);
 
     for (int i = 0; i < 80; ++i) {
-        X_prev = X;
-        Eigen::MatrixXf R_BXB = R + B.transpose() * X * B;
-        K = R_BXB.inverse() * B.transpose() * X * A;
-        X = A.transpose() * X * (A - B * K) + Q;
-        if ((X - X_prev).norm() < 1e-4) {
+        H_k = H_k1;
+        Eigen::MatrixXf W = I + G_k * H_k;
+        auto W_solver = W.partialPivLu();
+        Eigen::MatrixXf V_1 = W_solver.solve(A_k);
+        Eigen::MatrixXf V_2 = W_solver.solve(G_k);
+
+        G_k += A_k * V_2 * A_k.transpose();
+        H_k1 = H_k + V_1.transpose() * H_k * A_k;
+        A_k *= V_1;
+        if ((H_k1 - H_k).norm() <= 1e-10f * H_k1.norm()) {
             break;
         }
     }
-    return X;
+
+    return H_k1;
 }
 
 std::pair<Eigen::MatrixXf, Eigen::MatrixXf> LTVPathFollower::discretizeAB(
     const Eigen::MatrixXf& contA, const Eigen::MatrixXf& contB, double dtSeconds) {
-    if(dtSeconds <= 0.001) dtSeconds = 0.01;
+    dtSeconds = 0.01;
     int states = contA.rows();
     int inputs = contB.cols();
     Eigen::MatrixXf M(states + inputs, states + inputs);

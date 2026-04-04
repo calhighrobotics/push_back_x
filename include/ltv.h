@@ -23,17 +23,23 @@ public:
         bool turnFirst = false;
         bool end_correction = false;
         float mpose_lead = 0.6f;
-        float track_width = 11.0f;
-        float max_lin_correction = 9.0f;
-        float max_ang_correction = 30.0f;
+        float track_width = 11.45f;
+        float max_lin_correction = 99999.0f;
+        float max_ang_correction = 999999.0f;
         int exit_points = 0;
 
         // --- Bryson's Rule Baseline Matrix Values ---
-        float q_x = 100.0f;
-        float q_y = 400.0f;
-        float q_theta = 200.0f;
+        float q_x = 4;
+        float q_y = 200.0;
+        float q_theta = 0.25f * 30;
         float r_ang = 0.25f;
         float r_vel = 1.0f;
+
+        float q_x_b = 90;
+        float q_y_b = 2600;
+        float q_theta_b = 0.25f * 3.7;
+        float r_ang_b = 0.47f; //0.45 was
+        float r_vel_b = 1.0f;
         
 
         float q_scalar = 1.0f; 

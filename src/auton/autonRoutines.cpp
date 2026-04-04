@@ -49,13 +49,66 @@ const VelocityControllerConfig config{
 
 LTVPathFollower ltv(config);
 
+
+
+class Vector2 {
+public:
+    Vector2(float x, float y) : x(x), y(y) {}
+    std::string latex() const {
+        std::ostringstream oss;
+        oss << "\left(" << std::fixed << this->x << "," << std::fixed << this->y << "\right)";
+        return oss.str();
+    }
+
+    float x;
+    float y;
+};
+
+void velocity_test(const VelocityControllerConfig &config, float max_velocity, int duration, int acceleration_time) {
+    duration /= 10;
+    acceleration_time /= 10;
+
+    VoltageController controller(
+        config.kV,
+        config.KA_straight,
+        config.KA_turn,
+        config.KS_straight,
+        config.KS_turn,
+        config.KP_straight,
+        config.KI_straight,
+        1000.0,
+        11.45 * 0.0254f
+    );
+
+    std::cout << "\left[";
+
+    int i;
+    for (i = 0; i < duration; ++i) {
+        auto v_d = max_velocity * fminf(fminf(1, (float)i / (float)acceleration_time),
+                                        (float)(duration - i) / (float)acceleration_time);
+        std::cout << Vector2(i * 0.01f, rightMotors.get_actual_velocity() * 0.00324).latex() << ",";
+        std::cout.flush();
+
+        DrivetrainVoltages voltage = controller.update(v_d, 0, leftMotors.get_actual_velocity() * 0.00324, rightMotors.get_actual_velocity() * 0.00324);
+        leftMotors.move_voltage(voltage.leftVoltage * 1000);
+        rightMotors.move_voltage(voltage.rightVoltage * 1000);
+
+        pros::delay(10);
+    }
+
+    leftMotors.brake();
+    rightMotors.brake();
+    std::cout << "\b" << std::endl;
+}
+
 void precompute_auton_paths() {
     std::vector<std::string> paths = {};
 }
 
 void test_auton()
 {
-    ltv.followPath(test_s, {.backwards = false, .log = true, .test = true});
+    //velocity_test(config, 1.3, 2000, 300);
+    ltv.followPath(test_straight, {.backwards = false, .log = true, .test = true});
     //ltv.followPath(test_s, {.forwards = true, .log = true, .test = true});
     //ltv.followPath(test_u, {.forwards = true, .log = true, .test = true});
 }
