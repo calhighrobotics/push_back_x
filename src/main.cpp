@@ -63,14 +63,13 @@ void create_alliance_selector() {
 
 
 rd::Selector selector({
-    {"Right 7 Block", right_auton_7},
-    {"Left 7 Block", left_auton_7},
+    {"Right 7 Block", right_auton_split},
+    {"Left 7 Block", left_auton_split},
     {"Right Rush", right_rush},
     {"Left Rush", left_rush},
-    {"Left Double", left_double},
     {"AWP", awp_auton},
     {"Skills", skills_auton},
-    {"Carry", carry_auton},
+    {"Carry", carry_auton}
 });
 
 rd::Console console;
@@ -290,8 +289,10 @@ void autonomous() {
     chassis.moveToPoint(-40, 0 , 5000);
     */
     //score_midgoal_auton(600, allianceColor, 1500);
-    left_auton_7();
+    //left_auton_split();
     //right_auton();
+    //right_rush();
+    left_rush();
 }
 
 

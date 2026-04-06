@@ -22,7 +22,6 @@ void right_rush();
 void left_rush();
 void right_7();
 void left_7();
-void left_double();
 void carry_auton();
 void awp_auton();
 void skills_auton();
