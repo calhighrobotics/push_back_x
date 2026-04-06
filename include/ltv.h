@@ -29,16 +29,32 @@ public:
         int exit_points = 0;
 
         // --- Bryson's Rule Baseline Matrix Values ---
-        float q_x = 4;
-        float q_y = 200.0;
+        /*
+        float q_x = 35;
+        float q_y = 3000;
+        float q_theta = 0.25f * 500;
+        float r_ang = 0.025f;
+        float r_vel = 1.4f;
+        */
+
+        /*
+        float q_x = 5;
+        float q_y = 250;
+        float q_theta = 0.25 * 50;
+        float r_ang = 0.025f;
+        float r_vel = 1.0f;
+        */
+
+        float q_x = 10;
+        float q_y = 270.0;
         float q_theta = 0.25f * 30;
         float r_ang = 0.25f;
         float r_vel = 1.0f;
 
-        float q_x_b = 90;
-        float q_y_b = 2600;
-        float q_theta_b = 0.25f * 3.7;
-        float r_ang_b = 0.47f; //0.45 was
+        float q_x_b = 5;
+        float q_y_b = 270;
+        float q_theta_b = 0.01;
+        float r_ang_b = 0.3; //0.45 was
         float r_vel_b = 1.0f;
         
 

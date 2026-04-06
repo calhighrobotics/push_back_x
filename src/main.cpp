@@ -63,12 +63,14 @@ void create_alliance_selector() {
 
 
 rd::Selector selector({
-    {"Right", right_auton},
-    {"Left", left_auton},
-    {"Carry", carry_auton},
-    {"Elim", elim_auton},
+    {"Right 7 Block", right_auton_7},
+    {"Left 7 Block", left_auton_7},
+    {"Right Rush", right_rush},
+    {"Left Rush", left_rush},
+    {"Left Double", left_double},
     {"AWP", awp_auton},
-    {"Skills", skills_auton}
+    {"Skills", skills_auton},
+    {"Carry", carry_auton},
 });
 
 rd::Console console;
@@ -86,13 +88,17 @@ void initialize() {
     vertical_tracking_sensor.set_data_rate(5);
     horizontal_tracking_sensor.set_data_rate(5);
     imu.set_data_rate(5);
-
-    double start_x = -51.25;
-    double start_y = -18.5;
-    double start_theta = 180.0;
+    /*
+    chassis.setPose(-48, -12, 90);
+    distancePose pose = distanceReset(true);
+    double start_x = pose.x;
+    double start_y = pose.y;
+    double start_theta = 90;
     chassis.setPose(start_x, start_y, start_theta); 
+    */
+    chassis.setPose(-47, -24, 90);
 
-    //MCL::StartMCL(start_x, start_y, start_theta);
+    //MCL::StartMCL(start_x, start_y);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
     color_sensor.set_led_pwm(100);
@@ -107,7 +113,9 @@ void initialize() {
             console.printf("Theta: %.3f\n\n", odomPose.theta);
             //console.printf("Calculated Angle %.3f", calculateAngle(odomPose.theta));
             //console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
-            
+            distancePose pose = distanceReset(false);
+            console.printf("DSR X: %.3f  DSR Y: %.3f\n", pose.x, pose.y);
+            console.printf("DSR using Odom X: %s  using Odom Y: %s\n", pose.using_odom_x ? "true" : "false", pose.using_odom_y ? "true" : "false");
             
             //console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
             //console.printf("Theta: %.2f\n", MCL::global_Theta);
@@ -262,12 +270,28 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 
 
 void autonomous() {
-    chassis.setPose(0,0,0);
-    //chassis.moveToPose(36, 36, 90, 10000);
-    //find_tracking_center(2.5, 5000);
-    //collect_velocity_vs_voltage_data();
-    //collect_voltage_step_data(6, 2.2);
-    test_auton();
+    /*
+    chassis.moveToPoint(-24, -13, 2000);
+	chassis.turnToPoint(-24, 24, 2000);
+	chassis.moveToPoint(-24, 24, 2000);
+	chassis.moveToPose(24, 24, 90, 10000);
+	chassis.moveToPose(24, -24, 180, 10000);
+    chassis.turnToPoint(-40, -24, 2000);
+    chassis.moveToPoint(-40, -24, 2000);
+    chassis.turnToPoint(-40, 60, 2000);
+    chassis.moveToPoint(-40, 57, 5000);
+    chassis.turnToPoint(40, 60, 2000);
+    chassis.moveToPoint(40, 60, 10000);
+    chassis.turnToPoint(40, -57, 10000);
+    chassis.moveToPoint(40, -60, 10000);
+    chassis.turnToPoint(-40, -60, 10000);
+    chassis.moveToPoint(-40, -60, 10000);
+    chassis.turnToPoint(-40, 0, 5000);
+    chassis.moveToPoint(-40, 0 , 5000);
+    */
+    //score_midgoal_auton(600, allianceColor, 1500);
+    left_auton_7();
+    //right_auton();
 }
 
 

@@ -6,6 +6,7 @@
 #include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include <cmath>
+#include <sys/types.h>
 #include "colorSort.h"
 
 void intake(int power = 600)
@@ -60,15 +61,42 @@ void score_midgoal(int power = 600)
     storageMotor.move_velocity(power);
 }
 
-void score_midgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
+void score_midgoal_auton(int power = 600, Color allianceColor = Color::RED, int time = -1)
 {
-
+    u_int32_t start_time = pros::millis();
+    if(time != -1)    {   
+        while(pros::millis() - start_time < (u_int32_t)time)
+        {
+            intakeMotor.move_velocity((int)power/3);
+            outtakeMotor.move_velocity((int)power/3);
+            storageMotor.move_velocity(power);
+            chassis.tank(-20, -20);
+        }
+    }
+    chassis.tank(0,0);
+    intake_stop();
     
 }
 
-void score_longgoal_auton(int power = 12000, Color allianceColor = Color::RED, int time = -1)
+void score_longgoal_auton(int power = 600, Color allianceColor = Color::RED, int time = -1)
 {
-
+    u_int32_t start_time = pros::millis();
+    if(time != -1)
+    {   
+        while(pros::millis() - start_time < (u_int32_t)time)
+        {
+            if(!hood.is_extended())
+            {
+                hood.extend();
+            }
+            intakeMotor.move_velocity((int)power/3);
+            outtakeMotor.move_velocity(-(int)power/3);
+            storageMotor.move_velocity(power);
+            chassis.tank(-20, -20);
+        }
+    }
+    chassis.tank(0,0);
+    intake_stop();
 }
 
 void intake_to_basket()
@@ -80,11 +108,11 @@ void matchload_state(bool state)
 {
     if(state)
     {
-        if(matchloader.is_extended()) {matchloader.retract();}
+        if(!matchloader.is_extended()) {matchloader.extend();}
     }
     else
     {
-        if(!matchloader.is_extended()) {matchloader.extend();}
+        if(matchloader.is_extended()) {matchloader.retract();}
     }
 }
 

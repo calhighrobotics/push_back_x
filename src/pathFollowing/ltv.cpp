@@ -32,8 +32,8 @@ LTVPathFollower::LTVPathFollower(const VelocityControllerConfig& config)
           config.KS_straight,
           config.KS_turn,
           config.KP_straight,
-          0,
-          5000.0, 
+          config.KI_straight,
+        5000.0, 
           11.45f * INCH_TO_METER 
       ) {}
 

@@ -7,7 +7,7 @@
 #include "globals.h"
 
 #define TEMP_WARNING_THRESHOLD 55.0
-#define HISTORY_MAX_POINTS 200
+#define HISTORY_MAX_POINTS 25
 
 struct MotorDisplayData {
     std::string name;
@@ -175,14 +175,15 @@ void init_motor_dashboard() {
     lv_obj_add_event_cb(close_btn, close_modal_cb, LV_EVENT_CLICKED, NULL);
 
     temp_chart = lv_chart_create(chart_modal);
-    lv_obj_set_size(temp_chart, 360, 130);
+    lv_obj_set_size(temp_chart, 330, 145);
     lv_obj_align(temp_chart, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_chart_set_type(temp_chart, LV_CHART_TYPE_LINE);
     
-    lv_chart_set_range(temp_chart, LV_CHART_AXIS_PRIMARY_Y, 10, 80); 
+    lv_chart_set_range(temp_chart, LV_CHART_AXIS_PRIMARY_Y, 10, 60); 
+    lv_chart_set_axis_tick(temp_chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 8, 1, true, 40);
     
     lv_chart_set_point_count(temp_chart, HISTORY_MAX_POINTS);
     temp_series = lv_chart_add_series(temp_chart, lv_color_hex(0x4CAF50), LV_CHART_AXIS_PRIMARY_Y);
 
-    lv_timer_create(update_temps_cb, 2000, NULL);
+    lv_timer_create(update_temps_cb, 10000, NULL);
 }

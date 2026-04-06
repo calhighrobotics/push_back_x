@@ -16,9 +16,13 @@ extern const int dual_ball_delay = 500;
 
 void precompute_auton_paths();
 void test_auton();
-void right_auton();
-void left_auton();
+void right_auton_split();
+void left_auton_split();
+void right_rush();
+void left_rush();
+void right_7();
+void left_7();
+void left_double();
 void carry_auton();
-void elim_auton(); 
 void awp_auton();
 void skills_auton();

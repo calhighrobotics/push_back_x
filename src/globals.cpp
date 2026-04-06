@@ -15,43 +15,51 @@ pros::MotorGroup leftMotors({-12, 13, -14}, pros::MotorGears::blue);
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
-    11, 
+    11.0, 
     3.25, 
     450, 
-    8);
+    6);
+
+//-0.0756927599614
+//6.44304298828
+
+//0.066057675731
+//6.76806367608
+
+float horizontal_offset = (6.44304298828 + 6.76806367608)/2;
 
 pros::Imu imu(16);
-pros::Rotation horizontal_tracking_sensor(-10);
+pros::Rotation horizontal_tracking_sensor(10);
 pros::Rotation vertical_tracking_sensor(-9);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,-0.5, 1);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0.27,1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,horizontal_offset, 1);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 
-float lateralKP = 5, lateralKI = 0, lateralKD = 0, angularKP = 2, angularKI = 0, angularKD = 0;
+float lateralKP = 9, lateralKI = 0.001, lateralKD = 72, angularKP = 3.07, angularKI = 0.0015, angularKD = 26.5;
 
 
 lemlib::ControllerSettings lateral_controller(lateralKP, // proportional gain (kP)
                                               lateralKI, // integral gain (kI)
                                               lateralKD, // derivative gain (kD)
-                                              0, // anti windup
-                                              0, // small error range, in inches
-                                              0, // small error range timeout, in milliseconds
-                                              0, // large error range, in inches
-                                              0, // large error range timeout, in milliseconds
+                                              3, // anti windup
+                                              1, // small error range, in inches
+                                              50, // small error range timeout, in milliseconds
+                                              3, // large error range, in inches
+                                              200, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
 lemlib::ControllerSettings angular_controller(angularKP, // proportional gain (kP)
                                               angularKI, // integral gain (kI)
                                               angularKD, // derivative gain (kD)
-                                               0, // anti windup
-                                              0, // small error range, in inches
-                                              0, // small error range timeout, in milliseconds
-                                              0, // large error range, in inches
-                                              0, // large error range timeout, in milliseconds
+                                               3, // anti windup
+                                              1, // small error range, in inches
+                                              50, // small error range timeout, in milliseconds
+                                              3, // large error range, in inches
+                                              100, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
 
@@ -74,11 +82,10 @@ pros::Motor intakeMotor(-1, pros::v5::MotorGears::blue);
 pros::Motor storageMotor(2, pros::v5::MotorGears::blue);
 pros::Motor outtakeMotor(3, pros::MotorGears::blue);
 
-pros::Distance rightDistance(20);
-pros::Distance leftDistance(15);
-pros::Distance frontDistance(14);
-pros::Distance backDistance(19);
-pros::Distance frontDistance2(17);
+pros::Distance rightDistance(6);
+pros::Distance leftDistance(5);
+pros::Distance frontDistance(8);
+pros::Distance backDistance(7);
 
 pros::adi::Pneumatics intake_lift('A', false);
 pros::adi::Pneumatics hood('B', false);

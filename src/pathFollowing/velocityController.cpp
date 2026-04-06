@@ -55,5 +55,7 @@ DrivetrainVoltages VoltageController::update(double targetLinearVelocity, double
         rightVoltage /= ratio;
     }
 
+    prevLeftError = leftError;
+    prevRightError = rightError;
     return {leftVoltage, rightVoltage};
 }

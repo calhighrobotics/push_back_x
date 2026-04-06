@@ -10,8 +10,8 @@
 
 namespace MCL {
 
-    double PARAMS_TRANS_BASE = 0.25;   
-    double PARAMS_TRANS_GAIN = 0.035;  
+    double PARAMS_TRANS_BASE = 0.3;   
+    double PARAMS_TRANS_GAIN = 0.025;  
 
     double global_X = 0, global_Y = 0, global_Theta = 0, global_Confidence = 0;
 
@@ -26,7 +26,7 @@ namespace MCL {
     constexpr float FIELD_MAX  =  HALF_SIZE;
 
     // Reject any sensor reading beyond this (inches)
-    constexpr float MAX_SENSOR_READING = 65.0f;  
+    constexpr float MAX_SENSOR_READING = 55.0f;  
 
     // ─────────────────────────── Particle Storage ────────────────────────
     float particle_x[NUM_PARTICLES];
@@ -42,14 +42,14 @@ namespace MCL {
         float angle;  // mounting angle relative to robot forward (deg)
     };
 
+
     const std::vector<SensorConfig> SENSOR_CONFIGS = {
-        { -1.75f,  2.8f,   0.0f },    // 0: front
-        {  4.6f,   4.3f,  90.0f },    // 1: right
-        {  1.75f, -0.6f, 180.0f },    // 2: back
-        { -5.1f,   4.3f, -90.0f }     // 3: left
+        { 3.66f,  4.067f + 2.5,   0.0f },    // 0: front
+        {  -6.309f -1.1,   -0.068f,  90.0f },    // 1: right
+        {  3.93f, -2.691f + 2.7, 180.0f },    // 2: back
+        { -6.039f + 1.4, -0.068f, -90.0f }     // 3: left
     };
 
-    // ─────────────────────────── RNG ────────────────────────────────────
     struct XorShift32 {
         uint32_t state;
         explicit XorShift32(uint32_t seed = pros::micros())
@@ -135,7 +135,7 @@ namespace MCL {
         const float cos_t = std::cos(theta_rad);
         const float sin_t = std::sin(theta_rad);
 
-        const float dynamic_sensor_sig = 1.0f + (1.0f - std::clamp(current_confidence, 0.0f, 1.0f)) * 4.0f;
+        const float dynamic_sensor_sig = 1.5f + (1.0f - std::clamp(current_confidence, 0.0f, 1.0f)) * 4.0f;
         const float dynamic_margin = dynamic_sensor_sig * 3.0f; 
 
         for (int i = 0; i < NUM_PARTICLES; ++i) {

@@ -18,16 +18,18 @@ struct SensorConfig {
     double strafe_offset;
     double mounting_angle;
 };
+//Forward -35.5
+// Right 24
 
-/*
-Front: \left(-6.19257613,4.55790433\right)
-Left: \left(2.75813795,-0.09347829\right)
+//-43.9 (-41.2)
+//
 
-*/
-const SensorConfig front_sensor_cfg = {-0.75, -3, 0};   
-const SensorConfig left_sensor_cfg  = {-0.5, -7.2, 90};   
-const SensorConfig right_sensor_cfg = {-0.5, 6.3, -90};  
-const SensorConfig back_sensor_cfg  = {-10.5, -3, 180}; 
+
+
+const SensorConfig front_sensor_cfg = {4.067 + 1.5, 5.756, 0};   
+const SensorConfig left_sensor_cfg  = {-0.5, -6.039 + 1.4, 90};   
+const SensorConfig right_sensor_cfg = {0, 6.039 - 1.1, -90};  
+const SensorConfig back_sensor_cfg  = {-2.691 + 2.7, 3.879, 180}; 
 
 struct SensorReadings {
     double dist_mm;
@@ -204,12 +206,12 @@ distancePose distanceReset(bool setPose = false, bool filter = true) {
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
     if(filter)
     {
-        if(std::abs(pose.x - chassis.getPose().x) > 3.5)
+        if(std::abs(pose.x - chassis.getPose().x) >  3.5)
         {
             pose.x = chassis.getPose().x;
             std::cout << "Filtered X" << std::endl;
         }
-        if(std::abs(pose.y - chassis.getPose().y) > 3.5)
+        if(std::abs(pose.y - chassis.getPose().y) >  3.5)
         {
             pose.x = chassis.getPose().y;
             std::cout << "Filtered Y" << std::endl;
