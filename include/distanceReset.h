@@ -5,8 +5,8 @@
 
 
 constexpr double MM_TO_IN = 0.0393701;
-constexpr double FIELD_WIDTH = 3657.6 * MM_TO_IN;
-constexpr double FIELD_HEIGHT = 3657.6 * MM_TO_IN;
+constexpr double FIELD_WIDTH = 3566.668 * MM_TO_IN;
+constexpr double FIELD_HEIGHT = 3566.668 * MM_TO_IN;
 constexpr double HALF_WIDTH = FIELD_WIDTH / 2.0;
 constexpr double HALF_HEIGHT = FIELD_HEIGHT / 2.0;
 constexpr double MAX_SENSOR_RANGE = 2100 * MM_TO_IN;
@@ -48,7 +48,7 @@ distancePose calculateGlobalPosition(
 );
 
 // Resets distance-based global pose using all sensors
-distancePose distanceReset(bool setPose = true, bool filter = true);
+distancePose distanceReset(bool setPose = true, bool filter = true, float filter_range = 3.5);
 
 // Resets distance-based global pose using selected sensors
 distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use, bool setPose);

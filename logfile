@@ -1,24 +1,3 @@
 Transferring V5 to download channel
 Established terminal connection
-
-
-
-         _+=+_
-      .-`  .  `-.          8888888b.  8888888b.   .d88888b.   .d8888b.
-   _+`     "     `+_       888   Y88b 888   Y88b d88P" "Y88b d88P  Y88b
-  \\\sssssssssssss///      888    888 888    888 888     888 Y88b.
-     .ss\  *  /ss.         888   d88P 888   d88P 888     888  "Y888b.
- .+bm  .s  *  s.  md+.     8888888P"  8888888P"  888     888     "Y88b.
-.hMMMMs .  *  . sMMMMh.    888        888 T88b   888     888       "888
- `\hMMMb \ | / dMMMh:      888        888  T88b  Y88b. .d88P Y88b  d88P
-   -SNMNo  -  oNMNs-       888        888   T88b  "Y88888P"   "Y8888P"
-     `+dMh\./dMd/
-        `:yNy:`                      Powered by PROS for VEX V5
-           "                Copyright (c) Purdue University ACM SIGBots
-Version:        4.2.1     Platform:  V1.1.5 (b18)     Uptime:    0.000 s
-Compiled:   Apr  5 2026 15:09:14     Directory:                        
-
-
-Distance Reset Pose: -1.32136, -43.0663, using_odom_x: 0, using_odom_y: 0
-Distance Reset Pose: -4.50661, 30.1379, using_odom_x: 0, using_odom_y: 0
 WARNING - pros.serial.terminal.terminal:stop - Stopping terminal - pros-cli version:3.5.6

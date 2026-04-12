@@ -1,4 +1,5 @@
 #pragma once
+#include "IntakeAntiJam.h"
 #include "pros/distance.hpp"
 #include "lemlib/chassis/chassis.hpp"
 #include "pros/adi.hpp"
@@ -69,3 +70,6 @@ extern bool color_sort_enable;
 extern bool midgoal_first;
 extern int ramp_up_time;
 extern int low_ramp_down_time;
+extern bool skills;
+
+extern IntakeAntiJam jamManager;

@@ -28,23 +28,6 @@ public:
         float max_ang_correction = 999999.0f;
         int exit_points = 0;
 
-        // --- Bryson's Rule Baseline Matrix Values ---
-        /*
-        float q_x = 35;
-        float q_y = 3000;
-        float q_theta = 0.25f * 500;
-        float r_ang = 0.025f;
-        float r_vel = 1.4f;
-        */
-
-        /*
-        float q_x = 5;
-        float q_y = 250;
-        float q_theta = 0.25 * 50;
-        float r_ang = 0.025f;
-        float r_vel = 1.0f;
-        */
-
         float q_x = 10;
         float q_y = 270.0;
         float q_theta = 0.25f * 30;

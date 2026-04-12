@@ -6,6 +6,7 @@
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
 #include "colorSort.h"
+#include "IntakeAntiJam.h"
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
@@ -18,7 +19,7 @@ lemlib::Drivetrain drivebase(
     11.0, 
     3.25, 
     450, 
-    6);
+    8);
 
 //-0.0756927599614
 //6.44304298828
@@ -26,13 +27,14 @@ lemlib::Drivetrain drivebase(
 //0.066057675731
 //6.76806367608
 
-float horizontal_offset = (6.44304298828 + 6.76806367608)/2;
+float horizontal_offset = (-1.18588887482  -1.2351177609)/2;
+float vertical_offset = (-0.414862637269 + 0.0661399466844)/2;
 
 pros::Imu imu(16);
-pros::Rotation horizontal_tracking_sensor(10);
+pros::Rotation horizontal_tracking_sensor(-15);
 pros::Rotation vertical_tracking_sensor(-9);
 
-lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2,horizontal_offset, 1);
+lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, horizontal_offset, 1);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1);
 
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
@@ -90,7 +92,7 @@ pros::Distance backDistance(7);
 pros::adi::Pneumatics intake_lift('A', false);
 pros::adi::Pneumatics hood('B', false);
 pros::adi::Pneumatics matchloader('C', false);
-pros::adi::Pneumatics descore('D', false);
+pros::adi::Pneumatics descore('D', true);
 
 pros::Optical color_sensor(7);
 
@@ -101,4 +103,7 @@ bool color_sort_enable = false;
 bool midgoal_first = false;
 int ramp_up_time = 0;
 int low_ramp_down_time = 0;
+bool skills = true;
+
+IntakeAntiJam jamManager(intakeMotor, outtakeMotor, storageMotor, 55);
 

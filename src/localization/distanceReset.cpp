@@ -26,9 +26,9 @@ struct SensorConfig {
 
 
 
-const SensorConfig front_sensor_cfg = {4.067 + 1.5, 5.756, 0};   
-const SensorConfig left_sensor_cfg  = {-0.5, -6.039 + 1.4, 90};   
-const SensorConfig right_sensor_cfg = {0, 6.039 - 1.1, -90};  
+const SensorConfig front_sensor_cfg = {4.067 + 0.2, 5.756, 0};   
+const SensorConfig left_sensor_cfg  = {-0.5, -6.039 + 0.7 + 0.3, 90};   
+const SensorConfig right_sensor_cfg = {0.5, 6.039  - 1, -90};  
 const SensorConfig back_sensor_cfg  = {-2.691 + 2.7, 3.879, 180}; 
 
 struct SensorReadings {
@@ -195,7 +195,7 @@ distancePose calculateGlobalPosition(
 }
 
 
-distancePose distanceReset(bool setPose = false, bool filter = true) {
+distancePose distanceReset(bool setPose = false, bool filter = true, float filter_range = 3.5) {
     double heading_deg = chassis.getPose().theta;
 
     const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
@@ -206,14 +206,16 @@ distancePose distanceReset(bool setPose = false, bool filter = true) {
     distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
     if(filter)
     {
-        if(std::abs(pose.x - chassis.getPose().x) >  3.5)
+        if(std::abs(pose.x - chassis.getPose().x) > filter_range)
         {
             pose.x = chassis.getPose().x;
+            pose.using_odom_x = true;
             std::cout << "Filtered X" << std::endl;
         }
-        if(std::abs(pose.y - chassis.getPose().y) >  3.5)
+        if(std::abs(pose.y - chassis.getPose().y) > filter_range)
         {
-            pose.x = chassis.getPose().y;
+            pose.y = chassis.getPose().y;
+            pose.using_odom_y = true;
             std::cout << "Filtered Y" << std::endl;
         }
         

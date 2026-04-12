@@ -13,6 +13,7 @@
 #include <atomic> 
 #include <memory>
 #include "motorDashboard.h"
+#include "IntakeAntiJam.h"
 
 LV_IMG_DECLARE(callogo);
 
@@ -82,6 +83,7 @@ void initialize() {
     distance_sensor_disconnect_warning();
     create_alliance_selector();
     init_motor_dashboard();
+    pros::Task jamTask(antiJamTask);
 
     color_sensor.set_integration_time(5);
     vertical_tracking_sensor.set_data_rate(5);
@@ -95,8 +97,11 @@ void initialize() {
     double start_theta = 90;
     chassis.setPose(start_x, start_y, start_theta); 
     */
-    chassis.setPose(-47, -24, 90);
-
+    chassis.setPose(-49.7, -14, 180);
+    /*
+    if(skills)
+        intake_lift.extend();
+    */
     //MCL::StartMCL(start_x, start_y);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
@@ -110,11 +115,10 @@ void initialize() {
             //distancePose pose = distanceReset(false);
             console.printf("X: %.3f  Y: %.3f\n", odomPose.x, odomPose.y);
             console.printf("Theta: %.3f\n\n", odomPose.theta);
-            //console.printf("Calculated Angle %.3f", calculateAngle(odomPose.theta));
-            //console.printf("X_DSR: %.3f  Y_DSR: %.3f\n", pose.x, pose.y);
-            distancePose pose = distanceReset(false);
-            console.printf("DSR X: %.3f  DSR Y: %.3f\n", pose.x, pose.y);
-            console.printf("DSR using Odom X: %s  using Odom Y: %s\n", pose.using_odom_x ? "true" : "false", pose.using_odom_y ? "true" : "false");
+
+            //distancePose pose = distanceReset(false);
+            //console.printf("DSR X: %.3f  DSR Y: %.3f\n", pose.x, pose.y);
+            //console.printf("DSR using Odom X: %s  using Odom Y: %s\n", pose.using_odom_x ? "true" : "false", pose.using_odom_y ? "true" : "false");
             
             //console.printf("X: %.2f  Y: %.2f\n", MCL::global_X, MCL::global_Y);
             //console.printf("Theta: %.2f\n", MCL::global_Theta);
@@ -269,30 +273,7 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 
 
 void autonomous() {
-    /*
-    chassis.moveToPoint(-24, -13, 2000);
-	chassis.turnToPoint(-24, 24, 2000);
-	chassis.moveToPoint(-24, 24, 2000);
-	chassis.moveToPose(24, 24, 90, 10000);
-	chassis.moveToPose(24, -24, 180, 10000);
-    chassis.turnToPoint(-40, -24, 2000);
-    chassis.moveToPoint(-40, -24, 2000);
-    chassis.turnToPoint(-40, 60, 2000);
-    chassis.moveToPoint(-40, 57, 5000);
-    chassis.turnToPoint(40, 60, 2000);
-    chassis.moveToPoint(40, 60, 10000);
-    chassis.turnToPoint(40, -57, 10000);
-    chassis.moveToPoint(40, -60, 10000);
-    chassis.turnToPoint(-40, -60, 10000);
-    chassis.moveToPoint(-40, -60, 10000);
-    chassis.turnToPoint(-40, 0, 5000);
-    chassis.moveToPoint(-40, 0 , 5000);
-    */
-    //score_midgoal_auton(600, allianceColor, 1500);
-    //left_auton_split();
-    //right_auton();
-    //right_rush();
-    left_rush();
+    awp_auton();
 }
 
 
@@ -351,11 +332,9 @@ void opcontrol() {
         }
 
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
-            descore.retract();        
-        } else {
-            descore.extend();
+            descore.retract(); 
+            scoringMode = ScoringMode::BRAKE;
         }
-
         
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
             scoringMode = ScoringMode::LONGGOAL;
@@ -386,6 +365,7 @@ void opcontrol() {
                 break;
             case ScoringMode::NONE:
                 intake_stop();
+                descore.extend();
                 break;
             case ScoringMode::BRAKE:
                 break;
