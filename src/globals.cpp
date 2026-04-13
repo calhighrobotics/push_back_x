@@ -1,4 +1,5 @@
 
+#include "globals.h"
 #include "lemlib/logger/baseSink.hpp"
 #include "pros/distance.hpp"
 #include "lemlib/chassis/chassis.hpp"
@@ -27,12 +28,12 @@ lemlib::Drivetrain drivebase(
 //0.066057675731
 //6.76806367608
 
-float horizontal_offset = (-1.18588887482  -1.2351177609)/2;
-float vertical_offset = (-0.414862637269 + 0.0661399466844)/2;
+const float horizontal_offset = (-1.18588887482  -1.2351177609)/2;
+const float vertical_offset = (-0.414862637269 + 0.0661399466844)/2;
 
 pros::Imu imu(16);
 pros::Rotation horizontal_tracking_sensor(-15);
-pros::Rotation vertical_tracking_sensor(-9);
+pros::Rotation vertical_tracking_sensor(9);
 
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_tracking_sensor, 2, horizontal_offset, 1);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1);
@@ -40,7 +41,7 @@ lemlib::TrackingWheel vertical_tracking_wheel(&vertical_tracking_sensor, 2, 0,1)
 lemlib::OdomSensors sensors(&vertical_tracking_wheel, nullptr, &horizontal_tracking_wheel, nullptr, &imu);
 
 
-float lateralKP = 9, lateralKI = 0.001, lateralKD = 72, angularKP = 3.07, angularKI = 0.0015, angularKD = 26.5;
+const float lateralKP = 9, lateralKI = 0.001, lateralKD = 72, angularKP = 3.07, angularKI = 0.0015, angularKD = 26.5;
 
 
 lemlib::ControllerSettings lateral_controller(lateralKP, // proportional gain (kP)
@@ -93,6 +94,7 @@ pros::adi::Pneumatics intake_lift('A', false);
 pros::adi::Pneumatics hood('B', false);
 pros::adi::Pneumatics matchloader('C', false);
 pros::adi::Pneumatics descore('D', true);
+pros::adi::Pneumatics mid_descore('E', false);
 
 pros::Optical color_sensor(7);
 
@@ -103,7 +105,7 @@ bool color_sort_enable = false;
 bool midgoal_first = false;
 int ramp_up_time = 0;
 int low_ramp_down_time = 0;
-bool skills = true;
+bool antiJamEnabled = true;
 
 IntakeAntiJam jamManager(intakeMotor, outtakeMotor, storageMotor, 55);
 

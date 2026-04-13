@@ -11,6 +11,7 @@
 #include <algorithm>
 #include "globals.h" 
 #include "pros/rtos.hpp"
+#include <map>
 
 class LTVPathFollower {
 public:
@@ -64,13 +65,10 @@ private:
     static constexpr float rpm_to_mps_factor = (wheel_circumference / gear_ratio) / 60.0f;
 
     VoltageController controller;
-
-    // Task management
     pros::Task* task = nullptr;
     std::atomic<bool> is_running {false};
     std::atomic<bool> cancel_request {false};
     std::atomic<float> distance_traveled_inches {0.0f};
-
     struct TaskParams {
         LTVPathFollower* instance;
         std::string path_name;
@@ -80,12 +78,11 @@ private:
 
     static void task_trampoline(void* params);
     void followPathImpl(const std::string& path_name, const ltvConfig& l_config, const std::vector<State>& dynamic_path = {});
-    static inline std::vector<std::vector<State>> precomputed_paths;
+    static inline std::unordered_map<std::string, std::vector<State>> precomputed_paths;
     Eigen::MatrixXf dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R);
     std::pair<Eigen::MatrixXf, Eigen::MatrixXf> discretizeAB(const Eigen::MatrixXf& contA, const Eigen::MatrixXf& contB, double dtSeconds);
     static void precompute_paths_task(void* param);
     
-    // Updated parser definition
     static std::vector<std::vector<double>> parse_tuples(const std::string& line);
     static std::vector<State> prepare_trajectory(const std::string& data);
     

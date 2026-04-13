@@ -1,7 +1,8 @@
 #include "IntakeAntiJam.h"
-#include "pros/rtos.hpp" // Needed for pros::delay
+#include "pros/rtos.hpp" 
+#include "globals.h"
 
-// Constructor
+
 IntakeAntiJam::IntakeAntiJam(pros::Motor& i_motor, pros::Motor& o_motor, pros::Motor& s_motor, int temp) 
     : intakeMotor(i_motor), outtakeMotor(o_motor), storageMotor(s_motor), maxTemp(temp) 
 {
@@ -9,26 +10,23 @@ IntakeAntiJam::IntakeAntiJam(pros::Motor& i_motor, pros::Motor& o_motor, pros::M
     cmd_outtake = 0;
     cmd_storage = 0;
     
-    velocity_threshold = 15.0; // RPM
-    jam_trigger_loops = 15;    // 150ms
-    reverse_duration_ms = 100; // Spit out time
+    velocity_threshold = 15.0; 
+    jam_trigger_loops = 15; 
+    reverse_duration_ms = 250; 
     
     jam_counter = 0;
     is_unjamming = false;
-    anti_jam_enabled = true;   // Default to enabled
+    anti_jam_enabled = true;  
 }
 
-// Enable or disable anti-jam detection
 void IntakeAntiJam::enable_anti_jam(bool enable) {
     anti_jam_enabled = enable;
-    
-    // Reset the counter if disabled so it doesn't instantly trigger when re-enabled
+
     if (!anti_jam_enabled) {
         jam_counter = 0;
     }
 }
 
-// Set Velocities
 void IntakeAntiJam::set_velocities(float i_vel, float o_vel, float s_vel) {
     cmd_intake = i_vel;
     cmd_outtake = o_vel;
@@ -41,7 +39,6 @@ void IntakeAntiJam::set_velocities(float i_vel, float o_vel, float s_vel) {
     }
 }
 
-// Stop
 void IntakeAntiJam::stop() {
     set_velocities(0, 0, 0);
     if (!is_unjamming) {
@@ -51,9 +48,7 @@ void IntakeAntiJam::stop() {
     }
 }
 
-// Update (Run this in your background task)
 void IntakeAntiJam::update() {
-    // 1. Safety Temp Check (Always runs, regardless of anti-jam state)
     double max_t = std::max({intakeMotor.get_temperature(), 
                              outtakeMotor.get_temperature(), 
                              storageMotor.get_temperature()});
@@ -64,12 +59,11 @@ void IntakeAntiJam::update() {
         return;
     }
 
-    // If anti-jam is disabled, skip the detection and unjamming logic
-    if (!anti_jam_enabled) {
+    if (!anti_jam_enabled || matchloader.is_extended()) {
+        jam_counter = 0;
         return; 
     }
 
-    // 2. Jam Detection
     bool is_stuck = false;
     if (std::abs(cmd_intake) > 0 && std::abs(intakeMotor.get_actual_velocity()) < velocity_threshold) is_stuck = true;
     if (std::abs(cmd_storage) > 0 && std::abs(storageMotor.get_actual_velocity()) < velocity_threshold) is_stuck = true;
@@ -80,11 +74,10 @@ void IntakeAntiJam::update() {
         jam_counter = 0;
     }
 
-    // 3. Unjam Action
     if (jam_counter > jam_trigger_loops) {
         is_unjamming = true; 
         
-        intakeMotor.move_velocity(-cmd_intake);
+        intakeMotor.move_velocity(0);
         outtakeMotor.move_velocity(-cmd_outtake);
         storageMotor.move_velocity(-cmd_storage);
         

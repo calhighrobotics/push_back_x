@@ -64,7 +64,8 @@ void create_alliance_selector() {
 
 
 rd::Selector selector({
-    {"Right 7 Block", right_auton_split},
+    {"Right 7 Split", right_auton_split},
+    {"Right 7", right_7},
     {"Left 7 Block", left_auton_split},
     {"Right Rush", right_rush},
     {"Left Rush", left_rush},
@@ -76,19 +77,32 @@ rd::Selector selector({
 rd::Console console;
 rd::Image image = rd::Image(&callogo, "logo");
 
+void auton_check(std::optional<rd::Selector::routine_t> auton)
+{
+    if(selector.get_auton().value().name == "Skills")
+    {
+        intake_lift.extend();
+    }
+    precompute_auton_paths(selector.get_auton().value().name);
+}
+
 void initialize() {
     chassis.calibrate();
     //temp_warning();
+    selector.focus();
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
     create_alliance_selector();
     init_motor_dashboard();
     pros::Task jamTask(antiJamTask);
+    selector.on_select(auton_check);
+
 
     color_sensor.set_integration_time(5);
     vertical_tracking_sensor.set_data_rate(5);
     horizontal_tracking_sensor.set_data_rate(5);
     imu.set_data_rate(5);
+
     /*
     chassis.setPose(-48, -12, 90);
     distancePose pose = distanceReset(true);
@@ -98,10 +112,7 @@ void initialize() {
     chassis.setPose(start_x, start_y, start_theta); 
     */
     chassis.setPose(-49.7, -14, 180);
-    /*
-    if(skills)
-        intake_lift.extend();
-    */
+
     //MCL::StartMCL(start_x, start_y);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
@@ -128,12 +139,9 @@ void initialize() {
 }
 
 void disabled() {
-    console.focus();
-    
 }
 
 void competition_initialize() {
-    console.focus();
 }
 
 float INCH_TO_METER = 0.0254f;
@@ -273,7 +281,7 @@ void find_tracking_center(float turnVoltage, uint32_t time_ms) {
 
 
 void autonomous() {
-    awp_auton();
+    skills_auton();
 }
 
 
@@ -281,6 +289,17 @@ void opcontrol() {
     midgoal_first = false;
     bool trapDoor_commanded = false;
     bool matchload_on = true;
+    float maxDeltaThrottle = 4;
+    float prevThrottle = 0;
+    float starting_pitch = imu.get_roll();
+    float roll_forward_threshold = 1;
+    float roll_backward_threshold = -1;
+    bool slewOn = true;
+    
+    int radio_cooldown = 50;     
+    bool needs_clear = false;
+    bool needs_print = false;    
+    bool needs_rumble = false;   
 
     std::unique_ptr<pros::Task> longgoalTask = nullptr;
     int stall_timer = 0;
@@ -289,31 +308,71 @@ void opcontrol() {
     static std::atomic<bool> macro_finished{false}; 
     static std::atomic<bool> macro_abort{false}; 
 
+    leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+    rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
+
     enum class ScoringMode {
         NONE, INTAKE, OUTTAKE, MIDGOAL, LONGGOAL, MANUAL_UP, BRAKE
     };
 
     while (true) {
-        int throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-        int steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+
+        float throttle = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+        float steer = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X);
+        
+        if (std::abs(throttle) < 5) throttle = 0;
+        if (std::abs(steer) < 5) steer = 0;
+
+        if(slewOn) {
+            bool isTipping = (imu.get_roll() - starting_pitch > roll_forward_threshold || imu.get_roll() - starting_pitch < roll_backward_threshold);
+            bool isSlowingDown = (std::abs(throttle) < std::abs(prevThrottle));
+            bool isReversing = (prevThrottle > 0 && throttle < 0) || (prevThrottle < 0 && throttle > 0);
+
+            if (isTipping && (isSlowingDown || isReversing)) {
+                throttle = lemlib::slew(throttle, prevThrottle, maxDeltaThrottle);
+            }
+        }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+            antiJamEnabled = !antiJamEnabled;
+            jamManager.enable_anti_jam(antiJamEnabled);
+            
+            needs_clear = true;
+            needs_print = true; 
+            needs_rumble = true;
+        }
+
+        if (radio_cooldown >= 50) {
+            if (needs_clear) {
+                controller.clear_line(0);
+                needs_clear = false;
+                radio_cooldown = 0;
+            }
+            else if (needs_print) {
+                controller.print(0, 0, "ANTIJAM %s", (antiJamEnabled) ? "ON" : "OFF");
+                needs_print = false;
+                radio_cooldown = 0;   
+            } 
+            else if (needs_rumble) {
+                controller.rumble("."); 
+                needs_rumble = false;
+                radio_cooldown = 0;   
+            }
         }
 
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
-            if(matchloader.is_extended())
-            {
+            if(matchloader.is_extended()) {
                 matchloader.retract();
-            }
-            else {
+            } else {
                 matchloader.extend();
             }
         }
+        
         ScoringMode scoringMode = ScoringMode::NONE;
+        
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
-            intakeMotor.move_velocity(600);
+            mid_descore.extend();
             scoringMode = ScoringMode::BRAKE;
-
         }
 
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
@@ -321,14 +380,9 @@ void opcontrol() {
             scoringMode = ScoringMode::BRAKE;
         }
 
-
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT)) {
             storageMotor.move_velocity(600);
             scoringMode = ScoringMode::BRAKE;
-        }
-
-
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
         }
 
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)) {
@@ -366,18 +420,19 @@ void opcontrol() {
             case ScoringMode::NONE:
                 intake_stop();
                 descore.extend();
+                mid_descore.retract();
                 break;
             case ScoringMode::BRAKE:
                 break;
         }
-
-        leftMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
-        rightMotors.set_brake_mode(pros::E_MOTOR_BRAKE_COAST);
         
         if (longgoalTask == nullptr) {
             chassis.curvature(throttle, steer, false);
         }
-
+        
+        prevThrottle = throttle;   
+        radio_cooldown += 10;   
+        
         pros::delay(10);
     }
 }

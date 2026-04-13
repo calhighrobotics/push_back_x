@@ -14,7 +14,7 @@ extern const int dual_ball_delay = 500;
 
 // Function declarations
 
-void precompute_auton_paths();
+void precompute_auton_paths(std::string path_name);
 void test_auton();
 void right_auton_split();
 void left_auton_split();

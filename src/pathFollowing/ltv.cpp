@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+#include <map>
 
 LTVPathFollower::Vector2::Vector2(float x, float y) : x(x), y(y) {}
 
@@ -115,11 +116,14 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 
     if (!dynamic_path.empty()) {
         trajectory = dynamic_path;
-    } else if(l_config.path_index >= 0 && (size_t)(l_config.path_index) < precomputed_paths.size()) {
-        if (!precomputed_paths.at(l_config.path_index).empty()) {
-            trajectory = precomputed_paths.at(l_config.path_index);
+    } 
+    
+    else if (precomputed_paths.count(path_name) > 0) {
+        if (!precomputed_paths[path_name].empty()) {
+            trajectory = precomputed_paths[path_name];
         }
     }
+
     if (trajectory.empty() && !path_name.empty()) {
         trajectory = prepare_trajectory(path_name);
     }
@@ -328,10 +332,7 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
 Eigen::MatrixXf LTVPathFollower::dareSolver(const Eigen::MatrixXf &A, const Eigen::MatrixXf &B, const Eigen::MatrixXf &Q, const Eigen::MatrixXf &R) {
     int states = A.rows();
     
-    // Initial conditions for SDA
     Eigen::MatrixXf A_k = A;
-    // G_0 = B * R^-1 * B^T
-    // Using LLT decomposition since R is symmetric positive definite
     Eigen::MatrixXf G_k = B * R.llt().solve(B.transpose()); 
     Eigen::MatrixXf H_k;
     Eigen::MatrixXf H_k1 = Q;
@@ -381,10 +382,12 @@ void LTVPathFollower::precompute_paths(const std::vector<std::string>& path_name
 
 void LTVPathFollower::precompute_paths_task(void* param) {
     auto* path_names = static_cast<std::vector<std::string>*>(param);
+    
     precomputed_paths.clear();
-    precomputed_paths.reserve(path_names->size());
+    precomputed_paths.reserve(path_names->size()); 
+    
     for (const auto& name : *path_names) {
-        precomputed_paths.push_back(prepare_trajectory(name));
+        precomputed_paths[name] = prepare_trajectory(name);
         pros::delay(10); 
     }
     delete path_names;

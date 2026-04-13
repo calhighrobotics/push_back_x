@@ -9,6 +9,7 @@
 #include "distanceReset.h"
 #include "colorSort.h"
 #include "crossBarrierDetection.h"
+#include <map>
 
 /*
 
@@ -52,8 +53,25 @@ LTVPathFollower ltv(config);
 
 
 
-void precompute_auton_paths() {
-    std::vector<std::string> paths = {};
+void precompute_auton_paths(std::string path_name) {
+    std::map<std::string, std::vector<std::string>> pathMap = 
+    {
+        {"Skills", {"skills_1", "skills_2", "skills_3", "skills_4"}},
+        {"Right 7 Split", {"awp_1"}},
+        {"Right 7", {"right_7_1"}},
+        {"AWP", {"awp_2"}},
+    };
+    for (const auto& [key, value] : pathMap) {
+    {
+        if(path_name == key)
+        {
+            ltv.precompute_paths(pathMap[key]);
+            return;
+        }
+    }
+}
+
+
 }
 
 void test_auton()
@@ -198,7 +216,6 @@ void carry_auton() {
 
 void left_auton_split() {
     const float matchload_delay = 380;
-
     descore.extend();
     chassis.setPose(-51.6, 16.5, 90);
     chassis.moveToPoint(-26.5, 21.8, 2000, {.minSpeed = 30, .earlyExitRange = 5});
@@ -238,64 +255,32 @@ void left_auton_split() {
 }
 
 void elim_auton() {
-    descore.extend();
-    chassis.setPose(-44.77, -12.31,90);
-    chassis.moveToPose(-24, -24, 145, 3000, {}); //24, 21
-    chassis.waitUntil(3);
-    intake();
-    chassis.waitUntil(21);
-    matchload_state(true);
-    chassis.waitUntilDone();
-    matchload_state(false);
-    chassis.turnToPoint(-46, -47, 2000, {.forwards = false});
-    chassis.moveToPoint(-46, -47, 3500, {.forwards = false, .maxSpeed = 100});
-    chassis.waitUntil(7);
-    matchload_state(true);
-    chassis.waitUntilDone();
-    chassis.turnToPoint(-72, -46.5, 1200, {}, false);
-    distancePose pose = distanceReset(true);
-    intake();
-    chassis.moveToPoint(-59.5, -46.5, 800, {}, false);
-    chassis.tank(45, 45);
-    pros::delay(350);
-    chassis.tank(0,0);
-    chassis.turnToPoint(-22, -47.5, 2000, {.forwards = false}, false);
-    pose = distanceReset(true);
-    if(std::abs(pose.y - 47) > 2.2)
-    {
-        chassis.setPose(chassis.getPose().x, -47, chassis.getPose().theta);
-    }
-    intake_stop();
-    chassis.moveToPoint(-22 - longgoal_offset - 3.5, -47, 1600, {.forwards = false, .minSpeed = 15}, false);
-    color_sort_enable = true;
-    score_longgoal_auton(12000, allianceColor, 2700);
-    intake_stop();
-    color_sort_enable = false;
-    matchload_state(false);
-    intake_stop();
-    distanceReset(true);
-    descore.retract();
-    chassis.moveToPoint(-48, -47.5, 1500, {}, false);
-    chassis.moveToPose(-22 + longgoal_offset + 3, -47.5 + 12.3, 270, 2000, {.forwards = false , .lead = 0.4, .minSpeed = 30, .earlyExitRange = 8});
-    chassis.moveToPose(-16, -47.5 + 12, 270, 3000, {.forwards = false, .lead = 0.3});
+
 }
 
 void awp_auton() {
     jamManager.enable_anti_jam(true);
     chassis.setPose(-49.7, -14, 180);
-    ltv.followPath(awp_1, {.q_x = 135, .q_y = 450, .q_theta = 250});
-    intake();
-    ltv.waitUntil(5);
+    chassis.moveToPoint(-49.7, -45, 1500, {});
+    chassis.waitUntil(5);
     matchload_state(true);
-    ltv.waitUntilDone();
+    chassis.waitUntilDone();
+    chassis.turnToPoint(-69, -47, 1500, {}, false);
+    distanceReset(true);
+    intake();
+    chassis.moveToPoint(-56.5, -47, 1000, {.minSpeed = 50}, false);
+    chassis.waitUntilDone();
     chassis.tank(65,65);
-    pros::delay(570);
+    pros::delay(400);
     chassis.tank(0,0);
     distanceReset(true);
-    chassis.moveToPose(-27.5, -48, 270, 1500, {.forwards = false, .minSpeed = 60, .earlyExitRange = 5}, false);
-    score_longgoal_auton(600, allianceColor,1200);
+    chassis.moveToPose(-28, -48, 270, 1500, {.forwards = false, .minSpeed = 60, .earlyExitRange = 5}, false);
+    score_longgoal_auton(600, allianceColor,1000);
+    score_longgoal(600);
     matchload_state(false);
-    chassis.turnToPoint(-24, -22, 900, {}, false);
+    chassis.turnToPoint(-24, -22, 900, {.minSpeed = 127}, false);
+    intake_stop();
+
     distanceReset(false, true, false, false, true);
     ltv.followPath(awp_2, {.q_x = 6.5, .q_y = 450, .q_theta = 190, .r_ang = 0.2, .r_vel = 1.35});
     intake();
@@ -309,33 +294,22 @@ void awp_auton() {
     matchload_state(false);
     ltv.waitUntilDone();
     distanceReset(false, false, true, false, true);
-    chassis.turnToPoint(-27.5, 48, 2000, {.forwards = false, .minSpeed = 60, .earlyExitRange = 30});
+    chassis.turnToPoint(-27.5, 48, 1200, {.forwards = false, .minSpeed = 60, .earlyExitRange = 30});
     distanceReset(true, false);
     chassis.moveToPoint(-27.5, 48, 1000, {.forwards = false, .minSpeed = 60, .earlyExitRange = 7}, false);
     matchload_state(true);
     score_longgoal_auton(600, allianceColor, 1400);
     distanceReset(true, false);
-    chassis.moveToPose(-54.5, 46.7, 270, 2000, {.lead = 0.1, .minSpeed = 40});
+    chassis.moveToPose(-55.5, 46.7, 270, 2000, {.lead = 0.3, .minSpeed = 40});
     intake();
     chassis.waitUntilDone();
     chassis.tank(60, 60);
     pros::delay(650);
     chassis.tank(0,0);
     distanceReset(true, false);
-    chassis.moveToPoint(-50, 46.5, 1500, {.forwards = false, .minSpeed = 80, .earlyExitRange = 8});
-    chassis.moveToPose(-7.5, 9.5, 320, 2000, {.forwards = false, .minSpeed = 40}, false);
-    chassis.tank(-40, -40);
-    pros::delay(100);
+    chassis.moveToPoint(-52, 46.5, 1500, {.forwards = false, .minSpeed = 127, .earlyExitRange = 9});
+    chassis.moveToPose(-7.5, 9.5, 320, 1500, {.forwards = false, .minSpeed = 100}, false);
     score_midgoal_auton(600, allianceColor, 5000);
-    return;
-    chassis.moveToPoint(-35, 37, 1500, {.minSpeed = 40, .earlyExitRange = 9});
-    chassis.turnToPoint(-2.5, 36.5, 1000, {.forwards = false, .minSpeed = 45, .earlyExitRange = 35});
-    distanceReset(true, true, 4.5);
-    chassis.moveToPose(-2.5, 36.5, 270, 1500, {.forwards = false, .minSpeed = 20});
-    chassis.waitUntil(5.5);
-    descore.retract();
-    chassis.waitUntilDone();
-    chassis.tank(0,0);
 }
 
 void skills_auton() {
@@ -356,14 +330,32 @@ void skills_auton() {
     const int matchload_offset = 11.4 + 0.7;
     const int triball_delay = 500;
     const int dual_ball_delay = 500;
-
+    
     //LOWGOAL
     intake_lift.retract();
 
-    chassis.setPose(-44.6, 0, 270);
-    distanceReset(true);
+
     intake();
-    chassis.moveToPoint(-38, 0, 1000, {.forwards = false, .minSpeed = 40, .earlyExitRange = 7});
+    pros::delay(100);
+    chassis.tank(127, 127);
+    pros::delay(200);
+    chassis.tank(0,0);
+    pros::delay(900);
+    chassis.tank(127, 127);
+    pros::delay(250);
+    chassis.tank(0,0);
+    pros::delay(350);
+    chassis.tank(60, 60);
+    pros::delay(250);
+    chassis.tank(0,0);
+    pros::delay(400);
+    chassis.tank(-60, -60);
+    pros::delay(350);
+    chassis.tank(0,0);
+    chassis.setPose(-44.6, 0, 270);
+    distanceReset(true, false);
+    intake();
+    chassis.moveToPoint(-40, 0, 1000, {.forwards = false, .minSpeed = 40, .earlyExitRange = 7});
     chassis.turnToPoint(-28.5, -20, 1000, {.minSpeed = 40, .earlyExitRange = 10});
     chassis.moveToPoint(-28.5, -20, 1500, {.minSpeed = 35, .earlyExitRange = 7});
     chassis.turnToPoint(-11, -11, 1000, {.minSpeed = 35, .earlyExitRange = 20});

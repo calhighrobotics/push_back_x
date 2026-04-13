@@ -59,6 +59,7 @@ extern pros::adi::Pneumatics intake_lift;
 extern pros::adi::Pneumatics hood;
 extern pros::adi::Pneumatics matchloader;
 extern pros::adi::Pneumatics descore;
+extern pros::adi::Pneumatics mid_descore;
 
 // Optical & vision sensors
 extern pros::Optical color_sensor;
@@ -71,5 +72,6 @@ extern bool midgoal_first;
 extern int ramp_up_time;
 extern int low_ramp_down_time;
 extern bool skills;
+extern bool antiJamEnabled;
 
 extern IntakeAntiJam jamManager;
