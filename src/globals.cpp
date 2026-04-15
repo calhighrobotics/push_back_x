@@ -1,6 +1,5 @@
 
 #include "globals.h"
-#include "lemlib/logger/baseSink.hpp"
 #include "pros/distance.hpp"
 #include "lemlib/chassis/chassis.hpp"
 #include "pros/adi.hpp"
@@ -8,6 +7,7 @@
 #include "pros/vision.hpp"
 #include "colorSort.h"
 #include "IntakeAntiJam.h"
+#include "Chassis.h"
 
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
 
@@ -73,13 +73,13 @@ lemlib::ExpoDriveCurve throttle_curve(10,    // joystick deadband out of 127
 
 lemlib::ExpoDriveCurve steer_curve(10,   // joystick deadband out of 127
                                         20,   // minimum output where drivetrain will move out of 127
-                                         1.017 // expo curve gain
+                                         1 // expo curve gain
 );
 
 
 
 
-lemlib::Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
+Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);
 
 pros::Motor intakeMotor(-1, pros::v5::MotorGears::blue);
 pros::Motor storageMotor(2, pros::v5::MotorGears::blue);
@@ -105,7 +105,7 @@ bool color_sort_enable = false;
 bool midgoal_first = false;
 int ramp_up_time = 0;
 int low_ramp_down_time = 0;
-bool antiJamEnabled = true;
+bool antiJamEnabled = false;
 
 IntakeAntiJam jamManager(intakeMotor, outtakeMotor, storageMotor, 55);
 

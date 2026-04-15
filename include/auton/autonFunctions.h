@@ -9,6 +9,8 @@
 
 void antiJamTask();
 
+void detect_collision(unsigned int time);
+
 void intake(int power = 600);
 
 void outtake(int power = 600);

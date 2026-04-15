@@ -5,7 +5,6 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
-#include <map>
 
 LTVPathFollower::Vector2::Vector2(float x, float y) : x(x), y(y) {}
 
@@ -222,20 +221,9 @@ void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConf
                            -std::sin(effective_theta), std::cos(effective_theta), 0, 
                             0, 0, 1;
         Eigen::Vector3d error = rotation_matrix * global_error;
-
-
-        //float lateral_coupling = std::clamp(v_ref, -1.0f, 1.0f);
-
-       float v_ref = std::abs(target_state.linear_vel) * velocity_scale;
+        float v_ref = std::abs(target_state.linear_vel) * velocity_scale;
         float w_ref = target_state.angular_vel * velocity_scale;
-
-        // --- THE FIX ---
-        // 1. Prevent loss of controllability at low speeds. 
-        // We clamp the velocity used in the A matrix so the LQR never "forgets" how to steer.
         float a_v_ref = (v_ref < 0.15f) ? 0.15f : v_ref;
-
-        // 2. The CORRECT unicycle A matrix. You must include w_ref!
-        // Without w_ref, the controller doesn't know the error frame is rotating during curves.
         constexpr float eps = -1e-3f;
         Eigen::Matrix3f A;
         A << eps, w_ref, 0,

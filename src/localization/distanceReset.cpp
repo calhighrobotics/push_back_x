@@ -18,12 +18,6 @@ struct SensorConfig {
     double strafe_offset;
     double mounting_angle;
 };
-//Forward -35.5
-// Right 24
-
-//-43.9 (-41.2)
-//
-
 
 
 const SensorConfig front_sensor_cfg = {4.067 + 0.2, 5.756, 0};   
@@ -54,10 +48,6 @@ distancePose calculateGlobalPosition(
     lemlib::Pose current_pose = chassis.getPose();
     double est_x = current_pose.x;
     double est_y = current_pose.y;
-
-    // 1. Determine Quadrant based on current Odom
-    // If x >= 0, we are in the Right half (closer to +X wall)
-    // If y >= 0, we are in the Top half (closer to +Y wall)
     bool use_pos_x_wall = (est_x >= 0);
     bool use_pos_y_wall = (est_y >= 0);
 
@@ -71,8 +61,7 @@ distancePose calculateGlobalPosition(
         {right_sensor_cfg, right_data.dist_mm * MM_TO_IN, rightDistance.get_confidence()},
         {back_sensor_cfg,  back_data.dist_mm * MM_TO_IN, backDistance.get_confidence()}
     };
-    
-    // Helper to check validity (range and now Quadrant relevance)
+
     auto is_valid = [&](int i) {
         return (sensors[i].dist_in < MAX_SENSOR_RANGE && 
                 sensors[i].dist_in >= MIN_SENSOR_RANGE);

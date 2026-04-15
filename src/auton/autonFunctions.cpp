@@ -1,15 +1,22 @@
-#include "main.h"
+#include "autonFunctions.h"
 #include "globals.h" 
-#include "pros/misc.h"
-#include "lemlib/api.hpp"
 #include "lemlib/util.hpp"
-#include "pros/motors.h"
 #include "pros/rtos.hpp"
 #include <cmath>
 #include <sys/types.h>
 #include "colorSort.h"
 #include "IntakeAntiJam.h"
 
+
+const VelocityControllerConfig config{
+5.09498070723,
+0.23396112183,
+1.22496514644,
+0.964796393603,
+0.522291806997,
+10.933332351,
+44.6788428062,
+};
 
 void antiJamTask() {
     while (true) {
@@ -18,25 +25,26 @@ void antiJamTask() {
     }
 }
 
-void intake(int power = 600)
+
+void intake(int power)
 {
     if(hood.is_extended()) { hood.retract(); }
     jamManager.set_velocities((int)power/3, -(int)power/3, power);
 }
 
-void outtake(int power = 600)
+void outtake(int power)
 {
     if(!intake_lift.is_extended()) { intake_lift.extend(); }
     jamManager.set_velocities(-((int)power/3), ((int)power/3), -power);
 }
 
-void score_longgoal(int power = 600, Color allianceColor = Color::RED)
+void score_longgoal(int power, Color allianceColor)
 {
     if(!hood.is_extended()) { hood.extend(); }
     jamManager.set_velocities((int)power/3, -(int)power/3, power);
 }
 
-void intake_stop(bool hood_state = false)
+void intake_stop(bool hood_state)
 {
     jamManager.stop();
     if(!hood_state) hood.retract();
@@ -45,26 +53,26 @@ void intake_stop(bool hood_state = false)
     if(intake_lift.is_extended()) { intake_lift.retract(); }
 }
 
-void score_midgoal(int power = 600)
+void score_midgoal(int power)
 {
     jamManager.set_velocities((int)power/3, (int)power/3, power);
 }
 
-void score_midgoal_auton(int power = 600, Color allianceColor = Color::RED, int time = -1)
+void score_midgoal_auton(int power, Color allianceColor, int time)
 {
     u_int32_t start_time = pros::millis();
     if(time != -1) {   
         while(pros::millis() - start_time < (u_int32_t)time) {
             jamManager.set_velocities((int)power/3, (int)power/3, power);
             chassis.tank(-20, -20);
-            pros::delay(10); 
+            pros::delay(10);
         }
     }
-    chassis.tank(0,0);
+    chassis.brake();
     intake_stop();
 }
 
-void score_longgoal_auton(int power = 600, Color allianceColor = Color::RED, int time = -1)
+void score_longgoal_auton(int power, Color allianceColor, int time)
 {
     u_int32_t start_time = pros::millis();
     if(time != -1) {   
@@ -75,7 +83,7 @@ void score_longgoal_auton(int power = 600, Color allianceColor = Color::RED, int
             pros::delay(10); 
         }
     }
-    chassis.tank(0,0);
+    chassis.brake();
     intake_stop();
 }
 void intake_to_basket()
@@ -96,7 +104,7 @@ void matchload_state(bool state)
 }
 
 
-void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw = true, float earlyExit = 0)
+void relativeMotion(float expected_x, float expected_y, float expected_theta, float distance, int timeout_ms, bool forw, float earlyExit)
 {
     lemlib::Pose targetPose(
         expected_x + distance * std::sin(lemlib::degToRad(expected_theta)),

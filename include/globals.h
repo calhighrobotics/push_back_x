@@ -6,6 +6,7 @@
 #include "pros/optical.hpp"
 #include "pros/vision.hpp"
 #include "colorSort.h"
+#include "Chassis.h"
 
 struct State {
     float x, y, heading, linear_vel, angular_vel;
@@ -40,7 +41,7 @@ extern lemlib::ExpoDriveCurve throttle_curve;
 extern lemlib::ExpoDriveCurve steer_curve;
 
 // Chassis
-extern lemlib::Chassis chassis;
+extern Chassis chassis;
 
 // Individual motors
 extern pros::Motor intakeMotor;

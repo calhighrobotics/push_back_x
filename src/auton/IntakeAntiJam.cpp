@@ -2,7 +2,6 @@
 #include "pros/rtos.hpp" 
 #include "globals.h"
 
-
 IntakeAntiJam::IntakeAntiJam(pros::Motor& i_motor, pros::Motor& o_motor, pros::Motor& s_motor, int temp) 
     : intakeMotor(i_motor), outtakeMotor(o_motor), storageMotor(s_motor), maxTemp(temp) 
 {
@@ -10,7 +9,6 @@ IntakeAntiJam::IntakeAntiJam(pros::Motor& i_motor, pros::Motor& o_motor, pros::M
     cmd_outtake = 0;
     cmd_storage = 0;
     
-    velocity_threshold = 15.0; 
     jam_trigger_loops = 15; 
     reverse_duration_ms = 250; 
     
@@ -65,8 +63,20 @@ void IntakeAntiJam::update() {
     }
 
     bool is_stuck = false;
-    if (std::abs(cmd_intake) > 0 && std::abs(intakeMotor.get_actual_velocity()) < velocity_threshold) is_stuck = true;
-    if (std::abs(cmd_storage) > 0 && std::abs(storageMotor.get_actual_velocity()) < velocity_threshold) is_stuck = true;
+
+    if (std::abs(cmd_intake) > 0) {
+        std::int32_t intake_eff = intakeMotor.get_efficiency();
+        if (intake_eff >= 7 && intake_eff <= 20) {
+            is_stuck = true;
+        }
+    }
+
+    if (std::abs(cmd_storage) > 0) {
+        std::int32_t storage_eff = storageMotor.get_efficiency();
+        if (storage_eff >= 7 && storage_eff <= 20) {
+            is_stuck = true;
+        }
+    }
 
     if (is_stuck) {
         jam_counter++;

@@ -16,7 +16,6 @@ class IntakeAntiJam {
         float cmd_outtake;
         float cmd_storage;
     
-        float velocity_threshold;
         int jam_trigger_loops;
         int reverse_duration_ms;
         

@@ -1,11 +1,9 @@
 #include "MCL.h"
 #include "globals.h" // Assuming this is where your chassis and sensors are actually instantiated
-#include "lemlib/api.hpp"
 #include "pros/rtos.hpp"
 #include <algorithm>
 #include <cmath>
 #include <vector>
-#include <limits>
 #include <cstdio>
 
 namespace MCL {
