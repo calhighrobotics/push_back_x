@@ -4,6 +4,7 @@
 #include "pros/abstract_motor.hpp"
 #include "pros/motors.h"
 #include "velocityController.h" 
+#include <sys/_types.h>
 
 struct MoveToPointParams {
     bool forwards = true;
@@ -15,12 +16,12 @@ struct MoveToPointParams {
 
 struct MoveToPoseParams {
     bool forwards = true;
-    float maxSpeed = 1.4f;       
-    float maxTurnSpeed = 6.0f;   
+    float maxSpeed = 1.6f;       
+    float maxTurnSpeed = 10.0f;   
     float minSpeed = 0.0f;      
-    float lead = 0.6f;
+    float lead = 0.6;
     float settleRadius = 4.0f;   
-    float k_lat = 27.0f;  
+    float k_lat = 27.5;  
     float earlyExitRange = 0.0f; 
 };
 
@@ -47,6 +48,8 @@ public:
     void tank(float linear_velocity, float angular_velocity, const VelocityControllerConfig &config, unsigned int time);
 
     void brake(pros::MotorBrake brake_mode = pros::MotorBrake::coast);
+    
+    bool collision_montitoring(unsigned int time_msec = -1);
     
     bool detect_collision();
 };

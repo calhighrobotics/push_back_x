@@ -96,7 +96,7 @@ pros::adi::Pneumatics matchloader('C', false);
 pros::adi::Pneumatics descore('D', true);
 pros::adi::Pneumatics mid_descore('E', false);
 
-pros::Optical color_sensor(7);
+pros::Optical color_sensor(10);
 
 pros::Vision vision_sensor(18);
 
@@ -106,6 +106,7 @@ bool midgoal_first = false;
 int ramp_up_time = 0;
 int low_ramp_down_time = 0;
 bool antiJamEnabled = false;
+bool liveReplay = false;
 
 IntakeAntiJam jamManager(intakeMotor, outtakeMotor, storageMotor, 55);
 

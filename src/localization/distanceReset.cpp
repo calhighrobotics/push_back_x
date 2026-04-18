@@ -21,7 +21,7 @@ struct SensorConfig {
 
 
 const SensorConfig front_sensor_cfg = {4.067 + 0.2, 5.756, 0};   
-const SensorConfig left_sensor_cfg  = {-0.5, -6.039 + 0.7 + 0.3, 90};   
+const SensorConfig left_sensor_cfg  = {-0.5, -6.039 + 0.69, 90};   
 const SensorConfig right_sensor_cfg = {0.5, 6.039  - 1, -90};  
 const SensorConfig back_sensor_cfg  = {-2.691 + 2.7, 3.879, 180}; 
 

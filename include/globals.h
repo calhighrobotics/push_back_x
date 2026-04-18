@@ -74,5 +74,6 @@ extern int ramp_up_time;
 extern int low_ramp_down_time;
 extern bool skills;
 extern bool antiJamEnabled;
+extern bool liveReplay;
 
 extern IntakeAntiJam jamManager;

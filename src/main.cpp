@@ -8,6 +8,7 @@
 #include "warnings.h"
 #include <string>
 #include "MCL.h"
+#include "distanceReset.h"
 #include "auton/autonFunctions.h"
 #include "motorDashboard.h"
 #include "IntakeAntiJam.h"
@@ -96,10 +97,8 @@ void initialize() {
     selector.on_select(auton_check);
 
 
-    color_sensor.set_integration_time(5);
-    vertical_tracking_sensor.set_data_rate(5);
-    horizontal_tracking_sensor.set_data_rate(5);
-    imu.set_data_rate(5);
+    //vertical_tracking_sensor.set_data_rate(5);
+    //horizontal_tracking_sensor.set_data_rate(5);
 
     /*
     chassis.setPose(-48, -12, 90);
@@ -109,12 +108,11 @@ void initialize() {
     double start_theta = 90;
     chassis.setPose(start_x, start_y, start_theta); 
     */
-    chassis.setPose(-49.7, -14, 180);
+    chassis.setPose(27.5, -48, 90);
 
     //MCL::StartMCL(start_x, start_y);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
-    color_sensor.set_led_pwm(100);
     console.focus();
     pros::Task screen_task([&]() {
         while (true) {
@@ -124,8 +122,9 @@ void initialize() {
             //distancePose pose = distanceReset(false);
             console.printf("X: %.3f  Y: %.3f\n", odomPose.x, odomPose.y);
             console.printf("Theta: %.3f\n\n", odomPose.theta);
-
-            //distancePose pose = distanceReset(false);
+            //console.printf("Collided? %s\n", chassis.detect_collision() ? "YES" : "NO");
+            //console.printf("Color: %s\n", get_color() == Color::RED ? "RED" : "BLUE");
+            //distancePose pose = distanceReset(false, false);
             //console.printf("DSR X: %.3f  DSR Y: %.3f\n", pose.x, pose.y);
             //console.printf("DSR using Odom X: %s  using Odom Y: %s\n", pose.using_odom_x ? "true" : "false", pose.using_odom_y ? "true" : "false");
             
@@ -143,25 +142,31 @@ void competition_initialize() {
 }
 
 void autonomous() {
-    right_rush();
+    //awp_auton();
+    //left_auton_split();
+    skills_auton();
+    //test_auton();
 }
 
-
-float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.4) {
-    float t = throttle / 127.0f;
+//Min turn: Sensitvity at low speed
+//Max Turn: Sensitivity at high speed
+float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.4, float max_turn_scale = 1.5) {
+    float t = std::abs(throttle) / 127.0f;
     float s = steer / 127.0f;
-    float scale = min_turn_scale + (1.0f - min_turn_scale) * std::abs(t);
+    float curve = t * t; 
+    float scale = min_turn_scale + (max_turn_scale - min_turn_scale) * curve;
     float s_out = s * scale;
     return s_out * 127.0f;
 }
 
 void opcontrol() {
+    float time = 0;
     midgoal_first = false;
     bool trapDoor_commanded = false;
     bool matchload_on = true;
     float maxDeltaThrottle = 4;
     float prevThrottle = 0;
-    float starting_pitch = (std::abs(std::abs(imu.get_roll()) - std::abs(-5.7) < 1.5)) ? imu.get_roll() : -5.7;
+    float starting_pitch = imu.get_roll();
     float roll_forward_threshold = 1;
     float roll_backward_threshold = -1;
     bool slewOn = false;
@@ -291,11 +296,23 @@ void opcontrol() {
                 break;
         }
 
-        chassis.curvature(throttle,dynamic_steer_curve(throttle, steer, 0.4), false);
-        
+        chassis.curvature(throttle,dynamic_steer_curve(throttle, steer, 0.4, 1.5), false);
+        if(liveReplay)
+        {
+            float leftVel = leftMotors.get_actual_velocity() * 0.00324173f;
+            float rightVel = rightMotors.get_actual_velocity() * 0.00324173f;
+            std::cout  << time << ", " << (leftVel + rightVel) / 2 << std::endl;
+        }
         prevThrottle = throttle;   
         radio_cooldown += 10;   
         
-        pros::delay(10);
+        if(liveReplay)
+        {
+            pros::delay(20);
+            time += 0.02;
+        }
+        else {
+            pros::delay(10);
+        }
     }
 }
