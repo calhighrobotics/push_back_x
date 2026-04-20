@@ -18,4 +18,6 @@ extern const std::string skills_4;
 
 extern const std::string parkingzone_curve;
 
+extern const std::string parkingzone_curve2;
+
 extern const std::string test_u;

@@ -43,7 +43,8 @@ distancePose calculateGlobalPosition(
     const SensorReadings& left_data,
     const SensorReadings& right_data,
     const SensorReadings& back_data,
-    double heading_deg)
+    double heading_deg,
+    float heading_tolerance = 40.0)
 {
     lemlib::Pose current_pose = chassis.getPose();
     double est_x = current_pose.x;
@@ -69,7 +70,7 @@ distancePose calculateGlobalPosition(
 
     double norm_heading = std::fmod(heading_deg, 360.0);
     if (norm_heading < 0) norm_heading += 360.0;
-    const double TOLERANCE = 40.0; 
+    const double TOLERANCE = heading_tolerance; 
     
     std::vector<double> x_cands;
     std::vector<double> y_cands;
@@ -184,7 +185,7 @@ distancePose calculateGlobalPosition(
 }
 
 
-distancePose distanceReset(bool setPose = false, bool filter = true, float filter_range = 3.5) {
+distancePose distanceReset(bool setPose = false, bool filter = true, float filter_range = 3.5, float heading_tolerance = 40.0) {
     double heading_deg = chassis.getPose().theta;
 
     const SensorReadings front_data = {(double)frontDistance.get_distance(), frontDistance.get_object_size(), frontDistance.get_confidence()};
@@ -192,7 +193,7 @@ distancePose distanceReset(bool setPose = false, bool filter = true, float filte
     const SensorReadings right_data = {(double)rightDistance.get_distance(), rightDistance.get_object_size(), rightDistance.get_confidence()};
     const SensorReadings back_data  = {(double)backDistance.get_distance(),  backDistance.get_object_size(),  backDistance.get_confidence()};
 
-    distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg);
+    distancePose pose = calculateGlobalPosition(front_data, left_data, right_data, back_data, heading_deg, heading_tolerance);
     if(filter)
     {
         if(std::abs(pose.x - chassis.getPose().x) > filter_range)

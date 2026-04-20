@@ -44,11 +44,12 @@ distancePose calculateGlobalPosition(
     const SensorReadings& left_data,
     const SensorReadings& right_data,
     const SensorReadings& back_data,
-    double heading_deg
+    double heading_deg,
+    float heading_tolerance = 40.0
 );
 
 // Resets distance-based global pose using all sensors
-distancePose distanceReset(bool setPose = true, bool filter = true, float filter_range = 3.5);
+distancePose distanceReset(bool setPose = true, bool filter = true, float filter_range = 3.5, float heading_tolerance = 40.0);
 
 // Resets distance-based global pose using selected sensors
 distancePose distanceReset(bool left_use, bool right_use, bool front_use, bool back_use, bool setPose);

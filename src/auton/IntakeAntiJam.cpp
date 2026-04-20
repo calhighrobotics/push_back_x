@@ -87,9 +87,16 @@ void IntakeAntiJam::update() {
     if (jam_counter > jam_trigger_loops) {
         is_unjamming = true; 
         
-        intakeMotor.move_velocity(0);
-        outtakeMotor.move_velocity(-cmd_outtake);
-        storageMotor.move_velocity(-cmd_storage);
+        intakeMotor.move_velocity(-cmd_intake);
+        outtakeMotor.move_velocity(0);
+        if(!intake_lift.is_extended())
+        {
+            storageMotor.move_velocity(0);
+        }
+        else {
+            storageMotor.move_velocity(-cmd_storage);
+        }
+
         
         pros::delay(reverse_duration_ms); 
         

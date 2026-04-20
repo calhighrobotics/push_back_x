@@ -17,7 +17,7 @@ pros::MotorGroup leftMotors({-12, 13, -14}, pros::MotorGears::blue);
 lemlib::Drivetrain drivebase(
     &leftMotors, 
     &rightMotors, 
-    11.0, 
+    11.45, 
     3.25, 
     450, 
     8);
@@ -75,8 +75,6 @@ lemlib::ExpoDriveCurve steer_curve(10,   // joystick deadband out of 127
                                         20,   // minimum output where drivetrain will move out of 127
                                          1 // expo curve gain
 );
-
-
 
 
 Chassis chassis(drivebase, lateral_controller, angular_controller, sensors, &throttle_curve, &steer_curve);

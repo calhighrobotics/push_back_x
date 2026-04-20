@@ -8,7 +8,7 @@ Color get_color() {
     if ((hue > 10 && hue < 30)) {
         color = RED;
     }
-    else if (hue > 170 && hue < 200) {
+    else if (hue > 160 && hue < 340) {
         color = BLUE;
     }
     return color;

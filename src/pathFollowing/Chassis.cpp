@@ -5,6 +5,7 @@
 #include "globals.h"
 #include "pros/abstract_motor.hpp"
 #include "pros/motors.h"
+#include "pros/rtos.hpp"
 
 constexpr float INCH_TO_METER = 0.0254f;
 
@@ -365,7 +366,27 @@ void Chassis::tank(int left, int right)
 
 bool Chassis::collision_montitoring(unsigned int time)
 {
-    return true;
+    u_int32_t starting_time = pros::millis();
+    pros::Task collision_task([this, time, starting_time]() {
+        int stall_time = 0;
+        while(pros::millis() - starting_time < time)
+        {
+            if(this->detect_collision())
+            {
+                stall_time += 20;
+                if(stall_time >= 250)
+                this->brake();
+                    return true;
+                    break;
+            }
+            else {
+                stall_time = 0;
+            }
+            pros::delay(20);
+        }
+        return false;
+    });
+    return false;
 }
 
 
@@ -388,23 +409,11 @@ bool Chassis::detect_collision()
 
     bool right_colliding = right_commanded && right_struggling;
     bool left_colliding = left_commanded && left_struggling;
-    static uint32_t stall_start_time = 0; 
 
     if (right_colliding || left_colliding) 
     {
-        if (stall_start_time == 0) 
-        {
-            stall_start_time = pros::millis();
-        }
-        if (pros::millis() - stall_start_time > 250) 
-        {
-            return true; 
-        }
+        return true;
     } 
-    else 
-    {
-        stall_start_time = 0;
-    }
 
     return false;
 }

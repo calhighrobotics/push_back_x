@@ -6,6 +6,7 @@
 #include "robodash/views/selector.hpp"
 #include "colorSort.h"
 #include "warnings.h"
+#include <cstdint>
 #include <string>
 #include "MCL.h"
 #include "distanceReset.h"
@@ -96,9 +97,9 @@ void initialize() {
     pros::Task jamTask(antiJamTask);
     selector.on_select(auton_check);
 
-
-    //vertical_tracking_sensor.set_data_rate(5);
-    //horizontal_tracking_sensor.set_data_rate(5);
+    //Delete if things start going wrong
+    vertical_tracking_sensor.set_data_rate(5);
+    horizontal_tracking_sensor.set_data_rate(5);
 
     /*
     chassis.setPose(-48, -12, 90);
@@ -108,11 +109,12 @@ void initialize() {
     double start_theta = 90;
     chassis.setPose(start_x, start_y, start_theta); 
     */
-    chassis.setPose(27.5, -48, 90);
+    chassis.setPose(27, 48, 90);
 
     //MCL::StartMCL(start_x, start_y);
 
     //pros::Task mcl_task(MCL::MonteCarlo);
+    selector.focus();
     console.focus();
     pros::Task screen_task([&]() {
         while (true) {
@@ -136,16 +138,15 @@ void initialize() {
 }
 
 void disabled() {
+    selector.focus();
 }
 
 void competition_initialize() {
 }
 
 void autonomous() {
-    //awp_auton();
-    //left_auton_split();
-    skills_auton();
-    //test_auton();
+    image.focus();
+    selector.run_auton();
 }
 
 //Min turn: Sensitvity at low speed
@@ -160,6 +161,7 @@ float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.
 }
 
 void opcontrol() {
+    selector.focus();
     float time = 0;
     midgoal_first = false;
     bool trapDoor_commanded = false;
@@ -202,7 +204,47 @@ void opcontrol() {
                 throttle = lemlib::slew(throttle, prevThrottle, maxDeltaThrottle);
             }
         }
+        /*
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_A))
+        {
+            double factor = 0;
 
+            if(!intake_lift.is_extended()) {
+                intake_lift.extend();
+            }
+
+            unsigned int time_outtake = pros::millis();
+
+            double target_velocity = 200; // use positive magnitude
+
+            jamManager.set_velocities(-100, 0, 0);
+
+            while(pros::millis() - time_outtake < 3000)
+            {
+                double actual_velocity = std::abs(storageMotor.get_actual_velocity());
+
+                if(pros::millis() - time_outtake > 2000) {
+                    jamManager.set_velocities(-100, target_velocity, 0);
+                }
+
+                // --- Core logic ---
+                double ratio = actual_velocity / target_velocity;
+                factor = 1.0 - ratio;
+
+                // Clamp between 0 and 1
+                factor = std::clamp(factor, 0.0, 1.0);
+
+                // Apply voltage (negative direction)
+                storageMotor.move_voltage(-12000 * factor);
+
+                std::cout << "Actual: " << actual_velocity
+                        << " Ratio: " << ratio
+                        << " Factor: " << factor << std::endl;
+
+                pros::delay(10);
+            }
+        }
+        */
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
             antiJamEnabled = !antiJamEnabled;
             jamManager.enable_anti_jam(antiJamEnabled);
