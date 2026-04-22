@@ -75,9 +75,21 @@ void score_midgoal_auton(int power, Color allianceColor, int time)
 void score_longgoal_auton(int power, Color allianceColor, int time)
 {
     u_int32_t start_time = pros::millis();
+    if(!hood.is_extended()) {hood.extend();}
     if(time != -1) {   
         while(pros::millis() - start_time < (u_int32_t)time) {
-            if(!hood.is_extended()) { hood.extend(); }
+            if(allianceColor != Color::NONE)
+            {
+                Color detected = get_color();
+                if(detected != Color::NONE && detected != allianceColor && color_sort_enable)
+                {
+                    intake_stop();
+                    jamManager.set_velocities(-200, 600, -200);
+                    pros::delay(100);
+                    intake_stop();
+                    break;
+                }
+            }
             jamManager.set_velocities((int)power/3, -(int)power/3, power);
             chassis.tank(-20, -20);
             pros::delay(10); 

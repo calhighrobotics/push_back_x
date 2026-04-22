@@ -21,7 +21,6 @@ void left_auton_split();
 void right_rush();
 void left_rush();
 void right_7_wing();
-void right_7_hood();
 void left_7();
 void carry_auton();
 void awp_auton();

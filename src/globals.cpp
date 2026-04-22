@@ -67,12 +67,12 @@ lemlib::ControllerSettings angular_controller(angularKP, // proportional gain (k
 );
 
 lemlib::ExpoDriveCurve throttle_curve(10,    // joystick deadband out of 127
-                                            20,   // minimum output where drivetrain will move out of 127
+                                            15,   // minimum output where drivetrain will move out of 127
                                             1.012 // expo curve gain
 );
 
 lemlib::ExpoDriveCurve steer_curve(10,   // joystick deadband out of 127
-                                        20,   // minimum output where drivetrain will move out of 127
+                                        15,   // minimum output where drivetrain will move out of 127
                                          1 // expo curve gain
 );
 
@@ -95,8 +95,6 @@ pros::adi::Pneumatics descore('D', true);
 pros::adi::Pneumatics mid_descore('E', false);
 
 pros::Optical color_sensor(10);
-
-pros::Vision vision_sensor(18);
 
 Color allianceColor = Color::RED;
 bool color_sort_enable = false;

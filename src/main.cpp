@@ -2,6 +2,7 @@
 #include "globals.h" 
 #include "liblvgl/core/lv_obj_pos.h"
 #include "auton/autonRoutines.h"
+#include "pros/misc.hpp"
 #include "robodash/views/image.hpp"
 #include "robodash/views/selector.hpp"
 #include "colorSort.h"
@@ -65,7 +66,6 @@ void create_alliance_selector() {
 rd::Selector selector({
     {"Right 7 Split", right_auton_split},
     {"Right 7 Wing", right_7_wing},
-    {"Right 7 Hood", right_7_hood},
     {"Right Rush", right_rush},
     {"Left 7 Block", left_auton_split},
     {"Left Rush", left_rush},
@@ -83,13 +83,11 @@ void auton_check(std::optional<rd::Selector::routine_t> auton)
     {
         intake_lift.extend();
     }
-    precompute_auton_paths(selector.get_auton().value().name);
+    //precompute_auton_paths(selector.get_auton().value().name);
 }
 
 void initialize() {
     chassis.calibrate();
-    //temp_warning();
-    selector.focus();
     motor_disconnect_warning();
     distance_sensor_disconnect_warning();
     create_alliance_selector();
@@ -98,8 +96,8 @@ void initialize() {
     selector.on_select(auton_check);
 
     //Delete if things start going wrong
-    vertical_tracking_sensor.set_data_rate(5);
-    horizontal_tracking_sensor.set_data_rate(5);
+    //vertical_tracking_sensor.set_data_rate(5);
+    //horizontal_tracking_sensor.set_data_rate(5);
 
     /*
     chassis.setPose(-48, -12, 90);
@@ -115,7 +113,6 @@ void initialize() {
 
     //pros::Task mcl_task(MCL::MonteCarlo);
     selector.focus();
-    console.focus();
     pros::Task screen_task([&]() {
         while (true) {
             console.clear();
@@ -142,10 +139,10 @@ void disabled() {
 }
 
 void competition_initialize() {
+    selector.focus();
 }
 
 void autonomous() {
-    image.focus();
     selector.run_auton();
 }
 
@@ -161,7 +158,7 @@ float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.
 }
 
 void opcontrol() {
-    selector.focus();
+    image.focus();
     float time = 0;
     midgoal_first = false;
     bool trapDoor_commanded = false;
@@ -204,47 +201,7 @@ void opcontrol() {
                 throttle = lemlib::slew(throttle, prevThrottle, maxDeltaThrottle);
             }
         }
-        /*
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_A))
-        {
-            double factor = 0;
-
-            if(!intake_lift.is_extended()) {
-                intake_lift.extend();
-            }
-
-            unsigned int time_outtake = pros::millis();
-
-            double target_velocity = 200; // use positive magnitude
-
-            jamManager.set_velocities(-100, 0, 0);
-
-            while(pros::millis() - time_outtake < 3000)
-            {
-                double actual_velocity = std::abs(storageMotor.get_actual_velocity());
-
-                if(pros::millis() - time_outtake > 2000) {
-                    jamManager.set_velocities(-100, target_velocity, 0);
-                }
-
-                // --- Core logic ---
-                double ratio = actual_velocity / target_velocity;
-                factor = 1.0 - ratio;
-
-                // Clamp between 0 and 1
-                factor = std::clamp(factor, 0.0, 1.0);
-
-                // Apply voltage (negative direction)
-                storageMotor.move_voltage(-12000 * factor);
-
-                std::cout << "Actual: " << actual_velocity
-                        << " Ratio: " << ratio
-                        << " Factor: " << factor << std::endl;
-
-                pros::delay(10);
-            }
-        }
-        */
+        
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
             antiJamEnabled = !antiJamEnabled;
             jamManager.enable_anti_jam(antiJamEnabled);
