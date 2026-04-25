@@ -75,5 +75,7 @@ extern int low_ramp_down_time;
 extern bool skills;
 extern bool antiJamEnabled;
 extern bool liveReplay;
+extern bool auton_selected;
+extern std::atomic<bool> abortAuton;
 
 extern IntakeAntiJam jamManager;

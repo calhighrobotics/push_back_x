@@ -113,6 +113,11 @@ bool LTVPathFollower::isRunning() {
 void LTVPathFollower::followPathImpl(const std::string& path_name, const ltvConfig& l_config, const std::vector<State>& dynamic_path) {
     std::vector<State> trajectory;
 
+    if(abortAuton)
+    {
+        return;
+    }
+
     if (!dynamic_path.empty()) {
         trajectory = dynamic_path;
     } 

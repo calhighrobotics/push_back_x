@@ -2,6 +2,7 @@
 #include "globals.h" 
 #include "liblvgl/core/lv_obj_pos.h"
 #include "auton/autonRoutines.h"
+#include "pros/misc.h"
 #include "pros/misc.hpp"
 #include "robodash/views/image.hpp"
 #include "robodash/views/selector.hpp"
@@ -83,6 +84,7 @@ void auton_check(std::optional<rd::Selector::routine_t> auton)
     {
         intake_lift.extend();
     }
+    auton_selected = true;
     //precompute_auton_paths(selector.get_auton().value().name);
 }
 
@@ -148,16 +150,35 @@ void autonomous() {
 
 //Min turn: Sensitvity at low speed
 //Max Turn: Sensitivity at high speed
-float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.4, float max_turn_scale = 1.5) {
+/*
+float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.25, float max_turn_scale = 1.3) {
     float t = std::abs(throttle) / 127.0f;
     float s = steer / 127.0f;
     float curve = t * t; 
     float scale = min_turn_scale + (max_turn_scale - min_turn_scale) * curve;
     float s_out = s * scale;
+    if(std::abs(throttle) < 3)
+    {
+        s_out * 2;
+    }
+    return s_out * 127.0f;
+}
+    */
+
+float dynamic_steer_curve(float throttle, float steer, float min_turn_scale = 0.4) {
+    float t = throttle / 127.0f;
+    float s = steer / 127.0f;
+    float scale = min_turn_scale + (1.0f - min_turn_scale) * std::abs(t);
+    float s_out = s * scale;
+    if(throttle < 3)
+    {
+        s_out *= 2;
+    }
     return s_out * 127.0f;
 }
 
 void opcontrol() {
+    intake_lift.retract();
     image.focus();
     float time = 0;
     midgoal_first = false;
@@ -229,6 +250,12 @@ void opcontrol() {
             }
         }
 
+
+        if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A))
+        {
+            abortAuton = true;
+        }
+
         if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
             if(matchloader.is_extended()) {
                 matchloader.retract();
@@ -279,7 +306,7 @@ void opcontrol() {
                 outtake();
                 break;
             case ScoringMode::MIDGOAL:
-                score_midgoal();
+                score_midgoal(600);
                 break;
             case ScoringMode::LONGGOAL:
                 score_longgoal(600, allianceColor);
@@ -295,7 +322,7 @@ void opcontrol() {
                 break;
         }
 
-        chassis.curvature(throttle,dynamic_steer_curve(throttle, steer, 0.4, 1.5), false);
+        chassis.curvature(throttle,dynamic_steer_curve(throttle, steer, 0.4), false);
         if(liveReplay)
         {
             float leftVel = leftMotors.get_actual_velocity() * 0.00324173f;

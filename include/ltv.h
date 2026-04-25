@@ -33,7 +33,7 @@ public:
         float q_y = 270.0;
         float q_theta = 0.25f * 30;
         float r_ang = 0.25f;
-        float r_vel = 1.0f;
+        float r_vel = 1.0;
 
         float q_x_b = 5;
         float q_y_b = 270;

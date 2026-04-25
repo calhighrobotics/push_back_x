@@ -1,5 +1,6 @@
 
 #include "globals.h"
+#include "lemlib/chassis/trackingWheel.hpp"
 #include "pros/distance.hpp"
 #include "lemlib/chassis/chassis.hpp"
 #include "pros/adi.hpp"
@@ -91,7 +92,7 @@ pros::Distance backDistance(7);
 pros::adi::Pneumatics intake_lift('A', false);
 pros::adi::Pneumatics hood('B', false);
 pros::adi::Pneumatics matchloader('C', false);
-pros::adi::Pneumatics descore('D', true);
+pros::adi::Pneumatics descore('D', false);
 pros::adi::Pneumatics mid_descore('E', false);
 
 pros::Optical color_sensor(10);
@@ -103,6 +104,8 @@ int ramp_up_time = 0;
 int low_ramp_down_time = 0;
 bool antiJamEnabled = false;
 bool liveReplay = false;
+bool auton_selected = false;
+std::atomic<bool> abortAuton = false;
 
 IntakeAntiJam jamManager(intakeMotor, outtakeMotor, storageMotor, 55);
 
