@@ -1,3 +1,6 @@
+// Copyright 2026 California High Robotics, Team 1516X
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "main.h"
 #include "globals.h" 
 #include "liblvgl/core/lv_obj_pos.h"

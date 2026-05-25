@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 California High Robotics, Team 1516X
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifdef __has_include
     #if __has_include("lvgl.h")
         #ifndef LV_LVGL_H_INCLUDE_SIMPLE

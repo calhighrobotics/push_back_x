@@ -1,3 +1,6 @@
+// Copyright 2026 California High Robotics, Team 1516X
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "globals.h"
 #include "pros/rtos.hpp"
 
