@@ -21,11 +21,15 @@ We are a VEX VRC team based in the Bay Area, California.
    - Utilizes 2 odometry tracking wheels (horizontal and vertical)
    - Utilizes IMU for heading and acceleration
  - Voltage controller based on PID and feedforward loop to account for static friction, voltage slip, etc.
- - RAMSETE Control:
+ - RAMSETE Control (Deprecated, we use LTV - LQR Unicycle controller):
    - uses odometry to correct error in motion based on set of velocity instructions and corresponding positions
    - convert relative error between current and expected positions to global error
    - produce exaggerated linear and angular velocity based on correction required
    - Current velocity calculated by averaging motor encoders for more accurate tangential velocity calculations (Victim to slip and encoder noise)
+ - LTV - LQR (Linear time varying unicycle controller utilizing a linear quadratic regulator):
+  - Utilizes 2 dimensional motion profiling for desired velocities
+  - Cascaded format (LTV-LQR -> PIDf voltage controller)
+  - uses optimized sda online optimization DARE solver (2-3ms convergence time).
  - Vision-based Control:
    - Use VEX vision sensor for object detection
    - Detects blocks on the field
@@ -55,7 +59,7 @@ We are a VEX VRC team based in the Bay Area, California.
    - Uses both simple blocking function as well as "multithreading" (TASK)
  - Codebase:
    - Meticulous branching/merging system with github
-   - Object-oriented approach to codebase system representations
+   - Object oriented approach to codebase system representations
    - Modularization of subsystems/contstructs into classes
 # Other Libraries
 We use the following libraries to make our codebase possible. We are indebted to their contributions to make this codebase possible. Check out their code for types and functions that we use as well.
@@ -64,4 +68,4 @@ We use the following libraries to make our codebase possible. We are indebted to
  - [Eigen](https://libeigen.gitlab.io/)
  - [LVGL](https://lvgl.io/)
 # License
-See [LICENSE](https://github.com/calhighrobotics/push_back_x/blob/main/LICENSE.txt) for more information.
+See [LICENSE](https://github.com/calhighrobotics/push_back_x/blob/main/LICENSE.txt) 
